@@ -1,45 +1,40 @@
-"""Timbro Phase 1 MVP: corpus -> named style features -> Mahalanobis region.
+"""Timbro style layer: corpus -> named POS features -> multi-modal kNN region.
 
-One feature backbone (function-word frequencies + readability). No spaCy, no
-embeddings, no feature selection -- a ~20-feature vector doesn't overfit at n=15,
-so selection (and its own overfitting) is skipped until a second backbone lands.
-# ponytail: single backbone, stack BiberPlus/Gram2Vec only if the LOO gate fails.
+POS-unigram rates are the backbone: at n~=15 they beat function words and every
+feature combination we tried (added dims add noise faster than signal), and the
+named features double as the revision direction -- NOUN/VERB density *is*
+nominalization advice. Scoring is raw-z kNN (k=1): a multi-register voice is a
+multi-modal cloud, so a single Gaussian / whitening underperforms nearest-neighbour.
+# ponytail: POS-uni only. Dropped fw/punct/PCA/LedoitWolf -- all measured worse.
 """
 
 from __future__ import annotations
 
 import re
+from collections import Counter
 from dataclasses import dataclass, asdict
+from functools import lru_cache
 from pathlib import Path
 
 import numpy as np
-import textstat
-from sklearn.covariance import LedoitWolf
-from sklearn.decomposition import PCA
 
-# Most-frequent English function words -- the classical stylometric backbone
-# (Burrows Delta uses exactly this kind of list). Relative frequencies of these
-# are ~topic-invariant, which is the whole point of the style layer.
-FUNCTION_WORDS = (
-    "the be to of and a in that have i it for not on with he as you do at this but his "
-    "by from they we say her she or an will my one all would there their what so up out "
-    "if about who get which go me when make can like time no just him know take people "
-    "into year your good some could them see other than then now look only come its over "
-    "think also back after use two how our work first well way even new want because any "
-    "these give day most us is are was were been has had did"
-).split()
+# Universal POS tags (spaCy `pos_`). Rates over these 17 are length-normalized,
+# so the doc-length confound that plagued raw counts can't arise here.
+POS_TAGS = ("ADJ", "ADP", "ADV", "AUX", "CCONJ", "DET", "INTJ", "NOUN", "NUM",
+            "PART", "PRON", "PROPN", "PUNCT", "SCONJ", "SYM", "VERB", "X")
 
-# Optional callable(name)->bool to restrict the feature set. The confound guard
-# sets it to fw_-only to prove voice separates without length features.
-# ponytail: module global is the smallest seam; thread a param if a 2nd caller appears.
-FEATURE_FILTER = None
-
-_WORD = re.compile(r"[a-z]+(?:'[a-z]+)?")
-_SENT = re.compile(r"[.!?]+(?:\s|$)")
+_FRONTMATTER = re.compile(r"\A---\n.*?\n---\n", re.DOTALL)
 _PARA = re.compile(r"\n\s*\n")
 
 
-_FRONTMATTER = re.compile(r"\A---\n.*?\n---\n", re.DOTALL)
+@lru_cache(maxsize=1)
+def _nlp():
+    import spacy
+
+    try:
+        return spacy.load("en_core_web_sm", disable=["ner", "lemmatizer", "parser"])
+    except OSError as e:  # model isn't a pip dep; spaCy ships it via a separate download
+        raise OSError("Run: uv run python -m spacy download en_core_web_sm") from e
 
 
 def read_corpus(directory: str | Path) -> list[str]:
@@ -51,23 +46,19 @@ def read_corpus(directory: str | Path) -> list[str]:
     return [_FRONTMATTER.sub("", f.read_text(encoding="utf-8")) for f in files]
 
 
+@lru_cache(maxsize=512)
+def _pos_rates(text: str) -> tuple[float, ...]:
+    # cached: the LOO harness re-scores the same docs across folds, so each doc is
+    # tagged once. text[:100000] caps spaCy work on the longest posts.
+    pos = [t.pos_ for t in _nlp()(text[:100000]) if not t.is_space]
+    n = len(pos) or 1
+    c = Counter(pos)
+    return tuple(c.get(tag, 0) / n for tag in POS_TAGS)
+
+
 def features(text: str) -> dict[str, float]:
     """Named style features for one document. Every value traces to its name (NFR2)."""
-    words = _WORD.findall(text.lower())
-    n = len(words) or 1
-    sents = [s for s in _SENT.split(text) if s.strip()]
-    sent_lens = [len(_WORD.findall(s)) for s in sents] or [0]
-
-    feats = {f"fw_{w}": words.count(w) / n for w in FUNCTION_WORDS}
-    feats["mean_sentence_length"] = float(np.mean(sent_lens))
-    feats["std_sentence_length"] = float(np.std(sent_lens))
-    feats["mean_word_length"] = sum(len(w) for w in words) / n
-    feats["type_token_ratio"] = len(set(words)) / n
-    feats["comma_rate"] = text.count(",") / n
-    feats["flesch_reading_ease"] = textstat.flesch_reading_ease(text)
-    if FEATURE_FILTER is not None:
-        feats = {k: v for k, v in feats.items() if FEATURE_FILTER(k)}
-    return feats
+    return {f"pos_{tag}": r for tag, r in zip(POS_TAGS, _pos_rates(text))}
 
 
 def feature_matrix(texts: list[str]) -> tuple[np.ndarray, list[str]]:
@@ -79,8 +70,7 @@ def feature_matrix(texts: list[str]) -> tuple[np.ndarray, list[str]]:
 
 def _confidence(exemplar_X: np.ndarray, contrast_X: np.ndarray) -> np.ndarray:
     """Per-feature R^2: squared point-biserial correlation with the voice label.
-    1.0 = this feature perfectly separates you from contrast; ~0 = noise (rare
-    function words land here, which is the point)."""
+    1.0 = this feature perfectly separates you from contrast; ~0 = noise."""
     X = np.vstack([exemplar_X, contrast_X])
     y = np.r_[np.ones(len(exemplar_X)), np.zeros(len(contrast_X))]
     Xs = (X - X.mean(0)) / (X.std(0) + 1e-9)
@@ -102,7 +92,7 @@ class FeatureMove:
 
 @dataclass
 class ScoreResult:
-    distance: float           # Mahalanobis distance from your voice region
+    distance: float           # mean Mahalanobis-free kNN distance to your voice cloud
     direction: list[FeatureMove]
 
     def to_dict(self) -> dict:
@@ -110,49 +100,47 @@ class ScoreResult:
 
 
 class VoiceModel:
-    """Fit an acceptance region from exemplars; score a draft against it."""
+    """Fit a multi-modal acceptance region from exemplars; score a draft against it."""
 
-    def __init__(self, names, mean, std, pca, cov, confidence, top_k):
+    def __init__(self, names, mean, std, train_z, confidence, top_k, knn_k):
         self.names = names
         self.mean = mean          # feature-space mean / std for z-scoring + direction
         self.std = std
-        self.pca = pca
-        self.cov = cov            # LedoitWolf in PCA space
+        self.train_z = train_z    # standardized exemplar vectors, for kNN
         self.confidence = confidence  # per-feature R^2 vs contrast (1.0 if no contrast)
         self.top_k = top_k
+        self.knn_k = knn_k
 
     @classmethod
     def fit(cls, texts: list[str], contrast: list[str] | None = None,
-            top_k: int = 6) -> "VoiceModel":
+            top_k: int = 6, knn_k: int = 1) -> "VoiceModel":
         X, names = feature_matrix(texts)
         mean, std = X.mean(0), X.std(0)
         std[std == 0] = 1.0
-        Z = (X - mean) / std
-        # PCA caps dims at n-1; LedoitWolf shrinkage is critical at n~=15 (raw cov singular).
-        pca = PCA(n_components=min(Z.shape[0] - 1, Z.shape[1])).fit(Z)
-        cov = LedoitWolf().fit(pca.transform(Z))
+        train_z = (X - mean) / std
         conf = _confidence(X, feature_matrix(contrast)[0]) if contrast else np.ones(len(names))
-        return cls(names, mean, std, pca, cov, conf, top_k)
+        return cls(names, mean, std, train_z, conf, top_k, knn_k)
 
     @classmethod
     def from_dir(cls, exemplars: str | Path, contrast: str | Path | None = None,
-                 top_k: int = 6) -> "VoiceModel":
+                 top_k: int = 6, knn_k: int = 1) -> "VoiceModel":
         co = read_corpus(contrast) if contrast else None
-        return cls.fit(read_corpus(exemplars), co, top_k)
+        return cls.fit(read_corpus(exemplars), co, top_k, knn_k)
 
     def feature_vector(self, text: str) -> np.ndarray:
         return np.array([features(text)[k] for k in self.names])
 
     def _dist(self, vec: np.ndarray) -> float:
+        # mean distance to the k nearest exemplars in standardized space (multi-modal)
         z = (vec - self.mean) / self.std
-        return float(np.sqrt(self.cov.mahalanobis(self.pca.transform(z[None]))[0]))
+        d = np.linalg.norm(self.train_z - z, axis=1)
+        return float(np.sort(d)[: self.knn_k].mean())
 
     def score(self, text: str) -> ScoreResult:
         vec = self.feature_vector(text)
         z = (vec - self.mean) / self.std
         # Rank by confidence x distance: a feature is worth moving only if it both
-        # reliably marks your voice (R^2) and is currently off (|z|). This is what
-        # demotes the rare-function-word noise that dominated raw |z|.
+        # reliably marks your voice (R^2) and is currently off (|z|).
         importance = self.confidence * np.abs(z)
         order = np.argsort(-importance)[: self.top_k]
         moves = [

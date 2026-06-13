@@ -16,7 +16,6 @@ import sys
 
 from sklearn.metrics import roc_auc_score
 
-from timbro import core
 from timbro.core import VoiceModel, read_corpus
 
 
@@ -40,17 +39,6 @@ def auc(exemplars: list[str], contrast: list[str]) -> float:
     return roc_auc_score(labels, [-d for d in dists])
 
 
-def confound_guard(exemplars: list[str], contrast: list[str]) -> float:
-    """LOO-AUC using only function-word rates (length-normalized). If voice
-    separation only survives WITH length/readability features, the gate was won on
-    a document-length artifact, not voice -- this cratering is the falsifier."""
-    core.FEATURE_FILTER = lambda k: k.startswith("fw_")
-    try:
-        return auc(exemplars, contrast)
-    finally:
-        core.FEATURE_FILTER = None
-
-
 def permutation_baseline(exemplars, contrast, rounds=200) -> float:
     """Mean AUC under shuffled labels -- the chance level at this n."""
     import numpy as np  # local: only the baseline needs it
@@ -63,29 +51,31 @@ def permutation_baseline(exemplars, contrast, rounds=200) -> float:
 
 
 def sign_test(exemplars: list[str], contrast: list[str], top_k: int = 6):
-    """Phase 2 gate: for each contrast post, move its top-k recommended features to
-    your corpus mean and check the distance drops -- vs moving k RANDOM features.
-    The recommended direction should beat random. Returns (rec_rate, rand_rate)."""
+    """Phase 2 gate: for each contrast post, snap its top-k recommended features to
+    your corpus mean and measure the distance DROP -- vs snapping k RANDOM features.
+    With few dense features any move helps, so we compare drop *magnitude*, not just
+    sign: the recommended set should cut more distance than random. Returns the
+    fraction of posts where it does, and the mean drop ratio (rec / random)."""
     import numpy as np
 
     model = VoiceModel.fit(exemplars, contrast=contrast, top_k=top_k)
     rng = np.random.default_rng(0)  # NFR5: seeded
-    rec_wins, rand_wins = 0, 0
+    wins, ratios = 0, []
     for c in contrast:
         vec = model.feature_vector(c)
         d0 = model._dist(vec)
-        rec_idx = [model.names.index(m.feature) for m in model.score(c).direction]
-        rand_idx = rng.choice(len(model.names), size=top_k, replace=False)
-        for idx, bucket in ((rec_idx, "rec"), (rand_idx, "rand")):
+
+        def drop(idx):
             moved = vec.copy()
-            moved[list(idx)] = model.mean[list(idx)]  # snap those features to your mean
-            won = model._dist(moved) < d0
-            if bucket == "rec":
-                rec_wins += won
-            else:
-                rand_wins += won
-    n = len(contrast)
-    return rec_wins / n, rand_wins / n
+            moved[list(idx)] = model.mean[list(idx)]
+            return d0 - model._dist(moved)
+
+        rec = drop([model.names.index(m.feature) for m in model.score(c).direction])
+        rand = float(np.mean([drop(rng.choice(len(model.names), top_k, replace=False))
+                              for _ in range(20)]))  # avg over random subsets
+        wins += rec > rand
+        ratios.append(rec / rand if rand > 0 else (1.0 if rec <= 0 else 2.0))
+    return wins / len(contrast), float(np.mean(ratios))
 
 
 if __name__ == "__main__":
@@ -98,11 +88,7 @@ if __name__ == "__main__":
     print(f"LOO-AUC = {a:.3f}  (chance ~ {base:.3f})  -> {verdict}  "
           f"[{len(ex)} exemplars vs {len(co)} contrast]")
 
-    g = confound_guard(ex, co)
-    gverdict = "PASS (voice, not length)" if g > 0.80 else "CONFOUNDED (length artifact)"
-    print(f"confound guard (function-words only) = {g:.3f}  -> {gverdict}")
-
-    rec, rand = sign_test(ex, co)
-    sverdict = "PASS" if rec > rand and rec >= 0.5 else "weak"
-    print(f"sign test: recommended cuts distance {rec:.0%} of posts vs "
-          f"{rand:.0%} random  -> {sverdict}")
+    win, ratio = sign_test(ex, co)
+    sverdict = "PASS" if win > 0.5 and ratio > 1.0 else "weak"
+    print(f"sign test: recommended beats random on {win:.0%} of posts, "
+          f"cutting {ratio:.1f}x more distance  -> {sverdict}")
