@@ -29,6 +29,15 @@ import numpy as np
 POS_TAGS = ("ADJ", "ADP", "ADV", "AUX", "CCONJ", "DET", "INTJ", "NOUN", "NUM",
             "PART", "PRON", "PROPN", "PUNCT", "SCONJ", "SYM", "VERB", "X")
 
+# Plain-English labels so the direction reads as advice, not tag soup.
+POS_LABEL = {
+    "ADJ": "adjectives", "ADP": "prepositions", "ADV": "adverbs",
+    "AUX": "auxiliary verbs", "CCONJ": "conjunctions", "DET": "determiners",
+    "INTJ": "interjections", "NOUN": "nouns", "NUM": "numbers", "PART": "particles",
+    "PRON": "pronouns", "PROPN": "proper nouns", "PUNCT": "punctuation",
+    "SCONJ": "subordinating conjunctions", "SYM": "symbols", "VERB": "verbs", "X": "other tokens",
+}
+
 _FRONTMATTER = re.compile(r"\A---\n.*?\n---\n", re.DOTALL)
 _PARA = re.compile(r"\n\s*\n")
 
@@ -161,8 +170,13 @@ class VoiceModel:
     @classmethod
     def from_dir(cls, exemplars: str | Path, contrast: str | Path | None = None,
                  top_k: int = 6, knn_k: int = 1) -> "VoiceModel":
+        texts = read_corpus(exemplars)
+        if not texts:  # plugin-friendly: a clear message beats an IndexError for agents
+            raise FileNotFoundError(
+                f"No .md/.txt exemplars in {exemplars!r}. Point TIMBRO_EXEMPLARS at a "
+                f"folder of posts that define your voice.")
         co = read_corpus(contrast) if contrast else None
-        return cls.fit(read_corpus(exemplars), co, top_k, knn_k)
+        return cls.fit(texts, co, top_k, knn_k)
 
     def feature_vector(self, text: str) -> np.ndarray:
         return np.array([features(text)[k] for k in self.names])
@@ -185,7 +199,7 @@ class VoiceModel:
         order = np.argsort(-importance)[: self.top_k]
         moves = [
             FeatureMove(self.names[i], float(z[i]), float(-z[i]), float(self.confidence[i]),
-                        f"{'lower' if z[i] > 0 else 'raise'} {self.names[i]}")
+                        f"{'fewer' if z[i] > 0 else 'more'} {POS_LABEL[self.names[i][4:]]}")
             for i in order
         ]
         return ScoreResult(self._dist(text), moves)
