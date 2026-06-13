@@ -154,6 +154,20 @@ skills/timbro/       # Claude Code skill
 eval/harness.py      # LOO-AUC, permutation baseline, direction sign test
 ```
 
+## Written by an agent — and measured
+
+This README was written by Claude (Opus 4.8), not by me. So I pointed Timbro at it:
+
+| text | distance from my voice |
+|---|---|
+| my blog posts (leave-one-out avg) | **21** &nbsp;(range 9–35) |
+| **← this README** | **37** |
+| generic marketing hype | **86** |
+
+It lands just past the edge of my blog range — recognizably *not* my essay voice (it's documentation, and code-heavy markdown inflates the symbol features), but a world away from sales-speak. Timbro can tell the difference, which is the whole point.
+
+The voice it's measuring against: [Horizon AI Fragmentation](https://nicolobrandizzi.com/blog/horizon-analysis/), [Teaching Machines to Think](https://nicolobrandizzi.com/blog/rl-reasoning-llm/), [The Digital Poisoners](https://nicolobrandizzi.com/blog/pravda-grooming/), [The SOTA Trap](https://nicolobrandizzi.com/blog/sota-trap/), [AI Gigafactories](https://nicolobrandizzi.com/blog/ai-gigafactories-tool/) — more at [nicolobrandizzi.com/blog](https://nicolobrandizzi.com/blog/).
+
 ## License
 
 [MIT](./LICENSE).
