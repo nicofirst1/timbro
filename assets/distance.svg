@@ -1,0 +1,10 @@
+<!-- Timbro · how far this README diverges from my voice -->
+<svg xmlns="http://www.w3.org/2000/svg" width="780" height="120" viewBox="0 0 780 120" role="img" aria-label="A 0-to-far axis: my blog voice sits in a 9-35 band; this README lands just outside at 37; marketing hype far out at 86">
+  <line x1="70" y1="70" x2="720" y2="70" stroke="#8B93A7" stroke-width="2" opacity="0.5"/>
+  <path d="M720 70 l-9 -5 v10 z" fill="#8B93A7" opacity="0.5"/>
+  <text x="70" y="100" fill="#8B93A7" font-family="system-ui,sans-serif" font-size="12">0 · my voice</text>
+  <rect x="110" y="54" width="194" height="32" rx="8" fill="#6366F1" opacity="0.18"/>
+  <text x="217" y="44" text-anchor="middle" fill="#6366F1" font-family="system-ui,sans-serif" font-size="12.5" font-weight="600">my blog voice</text>
+  <circle cx="385" cy="70" r="9" fill="#6366F1"/><text x="385" y="44" text-anchor="middle" fill="#6366F1" font-family="system-ui,sans-serif" font-size="13.5" font-weight="700">this README</text><text x="385" y="104" text-anchor="middle" fill="#6366F1" font-family="system-ui,sans-serif" font-size="16" font-weight="700">47</text>
+  <circle cx="646" cy="70" r="7" fill="#9AA3B8"/><text x="646" y="44" text-anchor="middle" fill="#8B93A7" font-family="system-ui,sans-serif" font-size="13.5" font-weight="600">marketing hype</text><text x="646" y="104" text-anchor="middle" fill="#8B93A7" font-family="system-ui,sans-serif" font-size="16" font-weight="700">86</text>
+</svg>

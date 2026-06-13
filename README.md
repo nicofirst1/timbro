@@ -16,16 +16,14 @@
   <img src="https://img.shields.io/badge/inference-local%20·%20CPU--only-111111?style=flat-square" alt="Local CPU-only inference">
   <img src="https://img.shields.io/badge/MCP-ready-111111?style=flat-square" alt="MCP ready">
   <img src="https://img.shields.io/badge/license-MIT-111111?style=flat-square" alt="MIT license">
-  <img src="https://img.shields.io/badge/status-all%20gates%20green-111111?style=flat-square" alt="All gates green">
 </p>
 
 ---
 
 LLM prose drifts. Today's draft doesn't sound like last week's, and neither sounds like the human or the company it's published under. Timbro fixes the *consistency* problem: seed it with writing you've accepted as your voice, and it scores any draft for **how far** it sits from that voice and **which way** to revise it — in named features, without changing what it says.
 
-It's built to be called by a coding agent mid-draft: the agent asks Timbro "how off-voice is this, and which way do I move it?", edits, and re-checks until it's aligned.
+Timbro puts a measurable voice target inside your AI agent.
 
-> *timbre* — the acoustic quality that distinguishes two voices at the same pitch. Italian *timbro* — a stamp, a seal, a signature.
 
 ## Why
 
@@ -33,31 +31,36 @@ It's built to be called by a coding agent mid-draft: the agent asks Timbro "how 
 - **A company on-brand.** Marketing, docs, and posts drift across authors and tools. Seed Timbro with your on-brand corpus and every draft gets measured against it.
 - **An agent that self-corrects.** LLMs are fluent but stylistically inconsistent. Timbro gives an agent a *measurable target* and a *named direction*, so it can revise toward a voice instead of guessing.
 
-Not an LLM-as-judge — a local, mostly-statistical instrument. Every number traces to something legible: a part-of-speech habit, a paragraph-trajectory metric, a distance you watch drop as you revise.
 
-## What you get
+## Numbers
 
-```python
-from timbro import VoiceModel
-model = VoiceModel.from_dir("data/exemplars", contrast="data/contrast")
-print(model.score(draft).to_dict())
+This README was written by Claude (Opus 4.8). With Timbro you can see exactly how it scores against [my actual blog voice](https://nicolobrandizzi.com/blog/) — the same number your agent watches as it revises:
+
+<p align="center">
+  <img src="assets/distance.svg" width="780" alt="A 0-to-far axis: my blog voice sits in a 9–35 band; this README lands just outside it at 47; marketing hype is far out at 86">
+</p>
+
+It lands at 47 — outside my blog range (9–35): recognizably *not* my essay voice (it's code-heavy docs), but a world away from sales-speak at 86. And Timbro hands back the *direction* to close the gap: **more conjunctions, fewer abstract nouns, less code-block punctuation**. Scored against: [Horizon AI Fragmentation](https://nicolobrandizzi.com/blog/horizon-analysis/), [Teaching Machines to Think](https://nicolobrandizzi.com/blog/rl-reasoning-llm/), [The Digital Poisoners](https://nicolobrandizzi.com/blog/pravda-grooming/), [The SOTA Trap](https://nicolobrandizzi.com/blog/sota-trap/), [AI Gigafactories](https://nicolobrandizzi.com/blog/ai-gigafactories-tool/).
+
+## How it works
+
+Your agent runs one loop, and Timbro scores every turn of it:
+
+```
+score    → how far from your voice, and which way to move
+edit     → revise toward the named direction
+re-score → distance dropped AND meaning held?
+repeat   → until the distance stops falling
 ```
 
-```jsonc
-{
-  "distance": 65.0,                       // how far from your voice (smaller = closer)
-  "direction": [                          // signed, confidence-weighted, NAMED edits
-    { "hint": "more conjunctions", "confidence": 0.20, "current_z": -4.3 },
-    { "hint": "fewer verbs",       "confidence": 0.11, "current_z":  6.1 },
-    { "hint": "more determiners",  "confidence": 0.07, "current_z": -2.5 }
-  ],
-  "flow": { "circle_back": 0.14, "circuitousness": 28.3, "speed": 0.50 }
-}
-```
+Each score is three legible layers plus a guard:
 
-The loop, run by your agent: **score → edit toward the direction → re-score → repeat until the distance stops dropping.** A separate content guard (semantic similarity > 0.85) blocks any "rewrite" that changed the meaning — distance improvement alone never counts.
+- **Scalar — "how far"** — a pre-trained [StyleDistance](https://huggingface.co/StyleDistance/styledistance) embedding, scored by multi-modal **kNN**.
+- **Direction — "which way"** — **POS-unigram** rates, z-scored against your corpus and weighted by each feature's R². Every move is a named habit.
+- **Flow** — paragraph-embedding trajectory (speed, volume, circuitousness) + the Schimel "circle-back" (`cos(first, last)`).
+- **Content guard** — semantic cosine via a *general* model (all-MiniLM): changes *how* it reads, never *what* it says.
 
-## Use it with your agent
+## Install
 
 ### As a Claude Code plugin (one command)
 
@@ -76,7 +79,7 @@ uv run python -m spacy download en_core_web_sm      # prime the POS tagger
 # drop your posts into data/exemplars/  (others' into data/contrast/)
 ```
 
-### As a Claude Code skill (without the plugin)
+### As a skill
 
 Copy just the skill so the agent knows when and how to use Timbro:
 
@@ -84,7 +87,7 @@ Copy just the skill so the agent knows when and how to use Timbro:
 cp -r skills/timbro ~/.claude/skills/        # personal, or .claude/skills/ per-project
 ```
 
-Now ask Claude *"make this post sound like my voice"* or *"keep this on-brand with our blog"* — it runs Timbro, reads the direction, and proposes content-preserving edits.
+Now ask Claude the same way — it runs Timbro, reads the direction, and proposes content-preserving edits.
 
 ### As an MCP server (Claude Code, Cursor, Windsurf, Claude Desktop, …)
 
@@ -130,7 +133,7 @@ cat draft.md | uv run timbro score -        # stdin
 uv run timbro score draft.md --json         # raw payload
 ```
 
-## Setup
+### From source (required for the MCP and CLI options above)
 
 Requires Python ≥ 3.11 and [`uv`](https://docs.astral.sh/uv/).
 
@@ -148,17 +151,6 @@ uv run python eval/harness.py data/exemplars data/contrast   # confirm it separa
 ```
 
 The two sentence-transformer models download from Hugging Face on first use. Everything runs **local and CPU-only** at inference — no API calls.
-
-## How it works
-
-Voice splits into two layers with opposite needs, plus a guard:
-
-- **Scalar — "how far"** — a pre-trained [StyleDistance](https://huggingface.co/StyleDistance/styledistance) embedding, mean-pooled over paragraphs, scored by multi-modal **kNN**. Pre-trained style beats hand-coded features you must *fit* from ~15 docs, and kNN fits a multi-register voice a single Gaussian can't.
-- **Direction — "which way" (white-box)** — **POS-unigram** rates, z-scored against your corpus and weighted by each feature's discriminative R². Every move maps to a named habit (NOUN/VERB density = nominalization).
-- **Flow** — paragraph embeddings → novelty trajectory (speed, volume, circuitousness) + the Schimel "circle-back" (`cos(first, last)`).
-- **Content guard** — semantic cosine via a *general* model (all-MiniLM, deliberately not the style model): a rewrite changes *how* it reads, never *what* it says.
-
-
 
 ## FAQ
 
@@ -181,18 +173,3 @@ src/timbro/
 skills/timbro/       # Claude Code skill
 eval/harness.py      # LOO-AUC, permutation baseline, direction sign test
 ```
-
-## Written by an agent — and measured
-
-This README was written by Claude (Opus 4.8). So I pointed Timbro at it:
-
-| text | distance from my voice |
-|---|---|
-| my blog posts (leave-one-out avg) | **21** &nbsp;(range 9–35) |
-| **← this README** | **37** |
-| generic marketing hype | **86** |
-
-It lands just past the edge of my blog range — recognizably *not* my essay voice (it's documentation, and code-heavy markdown inflates the symbol features), but a world away from sales-speak. Timbro can tell the difference, which is the whole point.
-
-The voice it's measuring against: [Horizon AI Fragmentation](https://nicolobrandizzi.com/blog/horizon-analysis/), [Teaching Machines to Think](https://nicolobrandizzi.com/blog/rl-reasoning-llm/), [The Digital Poisoners](https://nicolobrandizzi.com/blog/pravda-grooming/), [The SOTA Trap](https://nicolobrandizzi.com/blog/sota-trap/), [AI Gigafactories](https://nicolobrandizzi.com/blog/ai-gigafactories-tool/) — more at [nicolobrandizzi.com/blog](https://nicolobrandizzi.com/blog/).
-

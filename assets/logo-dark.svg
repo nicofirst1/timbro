@@ -1,0 +1,20 @@
+<!-- Timbro logo · electric (indigo → cyan) -->
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-label="Timbro">
+  <defs>
+    <linearGradient id="g" x1="60" y1="60" x2="196" y2="196" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#6366F1"/><stop offset="1" stop-color="#22D3EE"/>
+    </linearGradient>
+  </defs>
+  <g fill="none" stroke="url(#g)" stroke-linecap="round">
+    <circle cx="128" cy="128" r="84" stroke-width="6" opacity="0.18"/>
+    <circle cx="128" cy="128" r="62" stroke-width="6" opacity="0.40"/>
+    <circle cx="128" cy="128" r="40" stroke-width="6" opacity="0.72"/>
+  </g>
+  <g stroke="#E8EEFF" stroke-width="12" stroke-linecap="round">
+  <path d="M102 128h0"/>
+  <path d="M115 108v40"/>
+  <path d="M128 96v64"/>
+  <path d="M141 106v44"/>
+  <path d="M154 122v12"/>
+  </g>
+</svg>
