@@ -1,0 +1,16 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Local corpora (private / third-party content) -- bring your own
+data/
+
+# Local agent config
+.claude/

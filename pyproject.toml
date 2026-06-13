@@ -1,0 +1,15 @@
+[project]
+name = "timbro"
+version = "0.1.0"
+description = "Measure the timbre of your writing as a metric space and get an interpretable, content-preserving direction to revise a draft toward your voice."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=2.4.6",
+    "scikit-learn>=1.9.0",
+    "textstat>=0.7.13",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
