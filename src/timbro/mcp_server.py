@@ -13,6 +13,7 @@ from mcp.server.fastmcp import FastMCP
 
 from timbro.core import VoiceModel
 from timbro.flow import flow_report, paragraphs
+from timbro.rewrite import evaluate_rewrite
 
 mcp = FastMCP("timbro")
 
@@ -37,6 +38,17 @@ def score_voice(text: str) -> dict:
     # flow needs a few paragraphs to have an arc; skip it on snippets
     result["flow"] = flow_report(text).to_dict() if len(paragraphs(text)) >= 4 else None
     return result
+
+
+@mcp.tool()
+def accept_rewrite(original: str, revised: str) -> dict:
+    """Judge a candidate rewrite. Returns whether it's accepted -- i.e. it moved
+    CLOSER to the voice (distance_after < distance_before) WITHOUT changing meaning
+    (content similarity > 0.85) -- plus the before/after distances and similarity.
+
+    Use in a loop: score_voice -> rewrite toward the direction -> accept_rewrite.
+    """
+    return evaluate_rewrite(_model(), original, revised)
 
 
 def main():
