@@ -12,7 +12,7 @@ from functools import lru_cache
 from mcp.server.fastmcp import FastMCP
 
 from timbro.core import VoiceModel
-from timbro.flow import flow_report, paragraphs
+from timbro.report import voice_report
 from timbro.rewrite import evaluate_rewrite
 
 mcp = FastMCP("timbro")
@@ -34,10 +34,7 @@ def score_voice(text: str) -> dict:
     confidence-weighted revision direction (which features to move and which way),
     and flow metrics (trajectory + circle-back). Flow is null for very short text.
     """
-    result = _model().score(text).to_dict()
-    # flow needs a few paragraphs to have an arc; skip it on snippets
-    result["flow"] = flow_report(text).to_dict() if len(paragraphs(text)) >= 4 else None
-    return result
+    return voice_report(_model(), text)
 
 
 @mcp.tool()

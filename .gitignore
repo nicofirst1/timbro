@@ -14,3 +14,6 @@ data/
 
 # Local agent config
 .claude/
+
+# Internal build spec / thinking record (kept local, not published)
+PLAN.md

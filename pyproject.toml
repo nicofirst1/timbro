@@ -13,6 +13,7 @@ dependencies = [
 ]
 
 [project.scripts]
+timbro = "timbro.cli:main"
 timbro-mcp = "timbro.mcp_server:main"
 
 [build-system]

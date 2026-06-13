@@ -3,67 +3,70 @@
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Inference](https://img.shields.io/badge/inference-local%20·%20CPU--only-orange)
-![Status](https://img.shields.io/badge/status-phase%205%20·%20all%20gates%20green-brightgreen)
+![MCP](https://img.shields.io/badge/MCP-ready-8A2BE2)
+![Status](https://img.shields.io/badge/status-all%20gates%20green-brightgreen)
 
-**Measure the *timbre* of your writing — the quality that makes a sentence recognizably yours — as a distance in a metric space, and get a named, content-preserving direction to move a draft toward your voice.**
+**Keep your writing sounding like *you* — even when an LLM is doing the writing.**
 
-Not an LLM-as-judge. A local tool that seeds a reference from a handful of posts whose *writing* you love, then scores any draft for **how far** it sits from your voice, **which way** to revise it (in named features, not opaque dimensions), and **how it flows**. Designed to be called by a CLI coding agent over MCP, mid-draft.
+LLM prose drifts. Today's draft doesn't sound like last week's, and neither sounds like the human or the company it's published under. Timbro fixes the *consistency* problem: seed it with writing you've accepted as your voice, and it scores any draft for **how far** it sits from that voice and **which way** to revise it — in named features, without changing what it says.
+
+It's built to be called by a coding agent mid-draft: the agent asks Timbro "how off-voice is this, and which way do I move it?", edits, and re-checks until it's aligned.
 
 > *timbre* — the acoustic quality that distinguishes two voices at the same pitch. Italian *timbro* — a stamp, a seal, a signature.
 
-## Quick start
+## Why
 
-```bash
-git clone git@github.com:nicofirst1/timbro.git && cd timbro
-uv sync
-uv run python -m spacy download en_core_web_sm     # POS tagger (not a pip dep)
+- **You, consistently.** A personal blog or newsletter should sound like one person across years of posts — not like whichever model wrote each one.
+- **A company on-brand.** Marketing, docs, and posts drift across authors and tools. Seed Timbro with your on-brand corpus and every draft gets measured against it.
+- **An agent that self-corrects.** LLMs are fluent but stylistically inconsistent. Timbro gives an agent a *measurable target* and a *named direction*, so it can revise toward a voice instead of guessing.
 
-# bring your own corpus (both dirs are gitignored)
-mkdir -p data/exemplars data/contrast
-#   data/exemplars/  → posts that define your voice
-#   data/contrast/   → other authors' posts (the "not-my-voice" set)
-
-uv run python eval/harness.py data/exemplars data/contrast   # check it separates your voice
-```
-
-The two sentence-transformer models download from Hugging Face on first use. Everything runs **local and CPU-only** at inference — no API calls.
+Not an LLM-as-judge — a local, mostly-statistical instrument. Every number traces to something legible: a part-of-speech habit, a paragraph-trajectory metric, a distance you watch drop as you revise.
 
 ## What you get
 
 ```python
 from timbro import VoiceModel
 model = VoiceModel.from_dir("data/exemplars", contrast="data/contrast")
-print(model.score(my_draft).to_dict())
+print(model.score(draft).to_dict())
 ```
 
 ```jsonc
 {
-  "distance": 50.6,                       // how far from your voice (smaller = closer)
-  "direction": [                          // signed, confidence-weighted, NAMED
+  "distance": 65.0,                       // how far from your voice (smaller = closer)
+  "direction": [                          // signed, confidence-weighted, NAMED edits
     { "hint": "more conjunctions", "confidence": 0.20, "current_z": -4.3 },
     { "hint": "fewer verbs",       "confidence": 0.11, "current_z":  6.1 },
-    { "hint": "more other tokens", "confidence": 0.19, "current_z": -2.5 }
+    { "hint": "more determiners",  "confidence": 0.07, "current_z": -2.5 }
   ],
-  "flow": { "circle_back": 0.14, "circuitousness": 28.3, "speed": 0.50, "...": null }
+  "flow": { "circle_back": 0.14, "circuitousness": 28.3, "speed": 0.50 }
 }
 ```
 
-Every number traces to something legible: a part-of-speech habit, a paragraph-trajectory metric, a distance you can watch drop as you revise.
+The loop, run by your agent: **score → edit toward the direction → re-score → repeat until the distance stops dropping.** A separate content guard (semantic similarity > 0.85) blocks any "rewrite" that changed the meaning — distance improvement alone never counts.
 
-## Use it as an MCP plugin (CLI agents)
+## Use it with your agent
 
-Timbro ships an MCP server (`timbro-mcp`) so an agent can score and guide rewrites without leaving your editor. `uv run --directory` makes it runnable from anywhere — no `cd`, no venv activation.
+### As a Claude Code skill
 
-**Claude Code** (or any MCP-capable CLI agent):
+The fastest path. Copy the skill so the agent knows when and how to use Timbro:
 
 ```bash
+cp -r skills/timbro ~/.claude/skills/        # personal, or .claude/skills/ per-project
+```
+
+Now ask Claude *"make this post sound like my voice"* or *"keep this on-brand with our blog"* — it runs Timbro, reads the direction, and proposes content-preserving edits.
+
+### As an MCP server (Claude Code, Cursor, Windsurf, Claude Desktop, …)
+
+```bash
+# Claude Code
 claude mcp add timbro \
   -e TIMBRO_EXEMPLARS=$PWD/data/exemplars \
   -e TIMBRO_CONTRAST=$PWD/data/contrast \
   -- uv run --directory $PWD timbro-mcp
 ```
 
-**Generic `.mcp.json`** (Cursor, Claude Desktop, Windsurf, …):
+Or drop this into any agent's `.mcp.json` / MCP settings:
 
 ```json
 {
@@ -87,7 +90,34 @@ The agent gets two tools:
 | `score_voice(text)` | `{distance, direction, flow}` |
 | `accept_rewrite(original, revised)` | `{accepted, content_ok, similarity, distance_before, distance_after, improved}` |
 
-**The loop:** `score_voice` → rewrite toward the direction → `accept_rewrite` → repeat. A rewrite is accepted only if it moved **closer to your voice** *and* **kept the meaning** (semantic cosine > 0.85) — distance improvement alone never suffices.
+### As a one-shot CLI
+
+No server, no agent — just score a file:
+
+```bash
+uv run timbro score draft.md
+cat draft.md | uv run timbro score -        # stdin
+uv run timbro score draft.md --json         # raw payload
+```
+
+## Setup
+
+Requires Python ≥ 3.11 and [`uv`](https://docs.astral.sh/uv/).
+
+```bash
+git clone git@github.com:nicofirst1/timbro.git && cd timbro
+uv sync
+uv run python -m spacy download en_core_web_sm     # POS tagger (not a pip dep)
+
+# bring your own corpus (both dirs are gitignored — your writing stays private)
+mkdir -p data/exemplars data/contrast
+#   data/exemplars/  → posts that define your (or your company's) voice — 6+ pieces
+#   data/contrast/   → other authors' posts (the "not-our-voice" set), optional but sharpens it
+
+uv run python eval/harness.py data/exemplars data/contrast   # confirm it separates your voice
+```
+
+The two sentence-transformer models download from Hugging Face on first use. Everything runs **local and CPU-only** at inference — no API calls.
 
 ## How it works
 
@@ -102,20 +132,13 @@ Voice splits into two layers with opposite needs, plus a guard:
 
 All four gates are green on a 23-exemplar / 8-contrast corpus: scalar AUC **0.86**, direction beats random on **88%** of posts, flow order is discriminative (shuffle 100%, insertion 11% vs 2% chance), content guard separates paraphrase (0.93) from unrelated (0.06).
 
-## CLI & API reference
+## FAQ
 
-```bash
-uv run python eval/harness.py data/exemplars data/contrast   # scalar AUC + direction sign test
-uv run python -m timbro.flow data/exemplars                  # flow order gates
-uv run timbro-mcp                                            # MCP server (stdio)
-```
+**Do I need the contrast set?** No, but it sharpens the direction — without it, every feature looks equally informative.
 
-```python
-from timbro import VoiceModel, flow_report
-model  = VoiceModel.from_dir("data/exemplars", contrast="data/contrast")
-result = model.score(draft)          # .distance, .direction, .to_dict()
-flow   = flow_report(draft)          # .circle_back, .circuitousness, .speed, ...
-```
+**Will it work on one author / a whole company?** Both. The "voice" is whatever you put in `data/exemplars/`. Mixed registers (blogs + papers) are fine — the scorer is multi-modal.
+
+**Does it rewrite for me?** No, and that's deliberate. Timbro *measures*; your agent rewrites and Timbro judges the result (closer to voice **and** same meaning). Keeps the scoring honest and local.
 
 ## Layout
 
@@ -124,16 +147,13 @@ src/timbro/
 ├── core.py          # corpus → POS features + StyleDistance embedding → VoiceModel
 ├── flow.py          # paragraph trajectory, circle-back, order gates
 ├── rewrite.py       # content-preservation guard + accept-rewrite loop
-└── mcp_server.py    # thin MCP wrapper: score_voice, accept_rewrite
+├── report.py        # the shared {distance, direction, flow} payload
+├── cli.py           # `timbro score`
+└── mcp_server.py    # MCP wrapper: score_voice, accept_rewrite
+skills/timbro/       # Claude Code skill
 eval/harness.py      # LOO-AUC, permutation baseline, direction sign test
 ```
 
-See [`PLAN.md`](./PLAN.md) for the full architecture, evaluation protocol, as-built decisions, and research provenance.
-
-## Contributing
-
-Issues and PRs welcome. Keep the core reuse-first and white-box where it can be; run `uv run ruff check src/ eval/` and the eval gates before opening a PR.
-
 ## License
 
-MIT.
+[MIT](./LICENSE).
