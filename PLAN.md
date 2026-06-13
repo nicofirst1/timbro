@@ -1,6 +1,9 @@
 # Timbro — Plan, Requirements & Vision
 
-> **Status:** planning (pre-Phase-0). No code yet beyond the `uv` scaffold.
+> **Status:** built through Phase 5 (all gates green). The scalar landed on a neural
+> style embedding, not the classical primary this plan opened with — see §7 for the
+> as-built outcomes and why. This file is the build spec + decision record; `README.md`
+> is the user-facing doc.
 > **Provenance:** distilled from a four-agent literature + tooling survey. Full research record and citations live in the wiki: `claude_memory/wiki/research/voice-style-metric-space.md`. This file is the build spec; the wiki is the thinking record.
 
 ---
@@ -151,6 +154,26 @@ class FeatureMove:
 ---
 
 ## 7. Phased plan (each phase has a falsifiable gate)
+
+> **As-built (2026-06-13).** All phases shipped; outcomes differed from the plan in
+> instructive ways:
+> - **Phase 1 scalar:** classical features (POS-unigrams, the best single backbone)
+>   topped out at **0.76 LOO-AUC** vs same-domain contrast and could not reach 0.80 —
+>   *every* feature combination underperformed its best single member at n≈15 (added
+>   dims add noise faster than signal). The plan's secondary track won: a pre-trained
+>   **StyleDistance embedding** (kNN) hit **0.86**, clearing the gate. Lesson: Valla's
+>   "classical wins at small n" holds for representations you *fit*; a *pre-trained*
+>   style embedding doesn't pay the n-tax.
+> - **Region model:** a single Gaussian (PCA + LedoitWolf + Mahalanobis) was *falsified*
+>   on a multi-register corpus (blogs + papers); replaced with multi-modal **kNN**.
+> - **Phase 2 direction:** kept classical/white-box (POS), confidence-weighted by R².
+>   Final architecture is **hybrid** — neural scalar, classical direction.
+> - **Phase 4 rewrite:** TinyStyler dropped (not pip-installable, domain-mismatched on
+>   long essays). Shipped the **content guard + MCP accept-rewrite loop** instead; the
+>   rewriting agent is the engine, Timbro is the judge.
+> - **Reframe:** 0.86 is the *hard* bar (you vs other expert AI/ML writers). Vs generic
+>   writers the scalar is **0.93** — the actual product use case is well-served.
+
 
 - **Phase 0 — data + harness.** Assemble exemplar set (4–6 posts proud of the *writing*) + contrast set (other AI-researcher blogs). Build the eval harness *first* so every later phase is measured.
 - **Phase 0.5 — dependency checkpoint.** Before any feature code, stand up the `core` dep group only and confirm it imports and the `uv` lock resolves. The real cost of §5 is dependency reconciliation (conflicting spaCy/numpy pins across the stylometry libs, git installs, TAACO's desktop backend), not novel code — surface that friction now, not in Phase 3.
