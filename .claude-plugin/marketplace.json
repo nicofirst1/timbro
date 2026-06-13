@@ -1,0 +1,17 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "timbro",
+  "description": "Keep your writing sounding like you — even when an LLM is writing.",
+  "owner": {
+    "name": "Nicolo' Brandizzi",
+    "url": "https://github.com/nicofirst1"
+  },
+  "plugins": [
+    {
+      "name": "timbro",
+      "description": "Score a draft against your voice and get named, content-preserving edits to align it. Bundles the skill + the score_voice / accept_rewrite MCP tools.",
+      "source": "./",
+      "category": "productivity"
+    }
+  ]
+}

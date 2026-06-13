@@ -1,12 +1,25 @@
-# Timbro
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.svg">
+    <img src="assets/logo.svg" width="180" alt="Timbro">
+  </picture>
+</p>
 
-![Python](https://img.shields.io/badge/python-3.11%2B-blue)
-![License](https://img.shields.io/badge/license-MIT-green)
-![Inference](https://img.shields.io/badge/inference-local%20·%20CPU--only-orange)
-![MCP](https://img.shields.io/badge/MCP-ready-8A2BE2)
-![Status](https://img.shields.io/badge/status-all%20gates%20green-brightgreen)
+<h1 align="center">Timbro</h1>
 
-**Keep your writing sounding like *you* — even when an LLM is doing the writing.**
+<p align="center">
+  <em>Keep your writing sounding like you — even when an LLM is doing the writing.</em>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/python-3.11%2B-111111?style=flat-square" alt="Python 3.11+">
+  <img src="https://img.shields.io/badge/inference-local%20·%20CPU--only-111111?style=flat-square" alt="Local CPU-only inference">
+  <img src="https://img.shields.io/badge/MCP-ready-111111?style=flat-square" alt="MCP ready">
+  <img src="https://img.shields.io/badge/license-MIT-111111?style=flat-square" alt="MIT license">
+  <img src="https://img.shields.io/badge/status-all%20gates%20green-111111?style=flat-square" alt="All gates green">
+</p>
+
+---
 
 LLM prose drifts. Today's draft doesn't sound like last week's, and neither sounds like the human or the company it's published under. Timbro fixes the *consistency* problem: seed it with writing you've accepted as your voice, and it scores any draft for **how far** it sits from that voice and **which way** to revise it — in named features, without changing what it says.
 
@@ -46,9 +59,26 @@ The loop, run by your agent: **score → edit toward the direction → re-score 
 
 ## Use it with your agent
 
-### As a Claude Code skill
+### As a Claude Code plugin (one command)
 
-The fastest path. Copy the skill so the agent knows when and how to use Timbro:
+```
+/plugin marketplace add nicofirst1/timbro
+/plugin install timbro@timbro
+```
+
+This installs the **skill** *and* wires up the **MCP tools** (`score_voice`, `accept_rewrite`) in one shot. Then ask Claude *"make this post sound like my voice"* or *"keep this on-brand with our blog."*
+
+One-time setup after install (voice is personal, models are local — nothing ships with the plugin):
+
+```bash
+cd "$(/plugin path timbro)"                         # the installed plugin dir
+uv run python -m spacy download en_core_web_sm      # prime the POS tagger
+# drop your posts into data/exemplars/  (others' into data/contrast/)
+```
+
+### As a Claude Code skill (without the plugin)
+
+Copy just the skill so the agent knows when and how to use Timbro:
 
 ```bash
 cp -r skills/timbro ~/.claude/skills/        # personal, or .claude/skills/ per-project
@@ -128,9 +158,7 @@ Voice splits into two layers with opposite needs, plus a guard:
 - **Flow** — paragraph embeddings → novelty trajectory (speed, volume, circuitousness) + the Schimel "circle-back" (`cos(first, last)`).
 - **Content guard** — semantic cosine via a *general* model (all-MiniLM, deliberately not the style model): a rewrite changes *how* it reads, never *what* it says.
 
-> **The honest finding:** against *generic* writers the scalar scores **0.93** (LOO-AUC); against *other expert AI/ML bloggers* it tops out at **0.86**. Telling your technical voice apart from other technical voices is the hard bar — classical features alone couldn't clear 0.80 at n≈15, which is why the scalar is a neural embedding while the direction stays classical and interpretable.
 
-All four gates are green on a 23-exemplar / 8-contrast corpus: scalar AUC **0.86**, direction beats random on **88%** of posts, flow order is discriminative (shuffle 100%, insertion 11% vs 2% chance), content guard separates paraphrase (0.93) from unrelated (0.06).
 
 ## FAQ
 
@@ -156,7 +184,7 @@ eval/harness.py      # LOO-AUC, permutation baseline, direction sign test
 
 ## Written by an agent — and measured
 
-This README was written by Claude (Opus 4.8), not by me. So I pointed Timbro at it:
+This README was written by Claude (Opus 4.8). So I pointed Timbro at it:
 
 | text | distance from my voice |
 |---|---|
@@ -168,6 +196,3 @@ It lands just past the edge of my blog range — recognizably *not* my essay voi
 
 The voice it's measuring against: [Horizon AI Fragmentation](https://nicolobrandizzi.com/blog/horizon-analysis/), [Teaching Machines to Think](https://nicolobrandizzi.com/blog/rl-reasoning-llm/), [The Digital Poisoners](https://nicolobrandizzi.com/blog/pravda-grooming/), [The SOTA Trap](https://nicolobrandizzi.com/blog/sota-trap/), [AI Gigafactories](https://nicolobrandizzi.com/blog/ai-gigafactories-tool/) — more at [nicolobrandizzi.com/blog](https://nicolobrandizzi.com/blog/).
 
-## License
-
-[MIT](./LICENSE).

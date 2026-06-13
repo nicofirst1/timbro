@@ -1,0 +1,21 @@
+{
+  "name": "timbro",
+  "version": "0.1.0",
+  "description": "Keep your writing sounding like you — even when an LLM is writing. Scores a draft's distance from your voice and returns named, content-preserving edits. Local, white-box, MCP-ready.",
+  "author": {
+    "name": "Nicolo' Brandizzi",
+    "url": "https://nicolobrandizzi.com"
+  },
+  "homepage": "https://github.com/nicofirst1/timbro",
+  "keywords": ["writing", "style", "voice", "consistency", "mcp", "ai-agents"],
+  "mcpServers": {
+    "timbro": {
+      "command": "uv",
+      "args": ["run", "--directory", "${CLAUDE_PLUGIN_ROOT}", "timbro-mcp"],
+      "env": {
+        "TIMBRO_EXEMPLARS": "${CLAUDE_PLUGIN_ROOT}/data/exemplars",
+        "TIMBRO_CONTRAST": "${CLAUDE_PLUGIN_ROOT}/data/contrast"
+      }
+    }
+  }
+}
