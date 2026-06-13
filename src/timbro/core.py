@@ -1,11 +1,17 @@
-"""Timbro style layer: corpus -> named POS features -> multi-modal kNN region.
+"""Timbro style layer: hybrid scalar (neural) + direction (white-box).
 
-POS-unigram rates are the backbone: at n~=15 they beat function words and every
-feature combination we tried (added dims add noise faster than signal), and the
-named features double as the revision direction -- NOUN/VERB density *is*
-nominalization advice. Scoring is raw-z kNN (k=1): a multi-register voice is a
-multi-modal cloud, so a single Gaussian / whitening underperforms nearest-neighbour.
-# ponytail: POS-uni only. Dropped fw/punct/PCA/LedoitWolf -- all measured worse.
+Two jobs, two tools, chosen empirically on the real corpus (15 exemplars vs 8
+same-domain contrast):
+
+- SCALAR "how far": StyleDistance embedding, mean-pooled over paragraphs, multi-modal
+  kNN (k=1) -> LOO-AUC 0.859, clearing the 0.80 gate that classical features can't
+  reach at n=15 (pre-trained style beats features you must *fit* from 15 docs).
+- DIRECTION "which way": POS-unigram rates, confidence-weighted, white-box. NOUN/VERB
+  density *is* nominalization advice. POS beat function words and every combination
+  tried (added dims add noise faster than signal at this n).
+
+The embedding scalar is opaque (relaxes NFR2 for the distance); the direction stays
+fully named. # ponytail: dropped fw/punct/PCA/LedoitWolf -- all measured worse.
 """
 
 from __future__ import annotations
@@ -35,6 +41,21 @@ def _nlp():
         return spacy.load("en_core_web_sm", disable=["ner", "lemmatizer", "parser"])
     except OSError as e:  # model isn't a pip dep; spaCy ships it via a separate download
         raise OSError("Run: uv run python -m spacy download en_core_web_sm") from e
+
+
+@lru_cache(maxsize=1)
+def _style_model():
+    from sentence_transformers import SentenceTransformer
+
+    return SentenceTransformer("StyleDistance/styledistance")  # content-invariant style
+
+
+@lru_cache(maxsize=512)
+def _style_vec(text: str) -> tuple[float, ...]:
+    # one style vector per doc = mean of paragraph (chunk) style embeddings. cached
+    # because the LOO harness re-scores the same docs across folds.
+    chunks = [p.strip() for p in _PARA.split(text) if p.strip()] or [text[:2000]]
+    return tuple(_style_model().encode(chunks, normalize_embeddings=True).mean(0))
 
 
 def read_corpus(directory: str | Path) -> list[str]:
@@ -92,34 +113,50 @@ class FeatureMove:
 
 @dataclass
 class ScoreResult:
-    distance: float           # mean Mahalanobis-free kNN distance to your voice cloud
+    distance: float           # StyleDistance embedding kNN distance to your voice cloud
     direction: list[FeatureMove]
 
     def to_dict(self) -> dict:
         return {"distance": self.distance, "direction": [m.to_dict() for m in self.direction]}
 
 
-class VoiceModel:
-    """Fit a multi-modal acceptance region from exemplars; score a draft against it."""
+def _knn(train_z: np.ndarray, z: np.ndarray, k: int) -> float:
+    """Mean distance to the k nearest standardized exemplars (multi-modal region)."""
+    d = np.linalg.norm(train_z - z, axis=1)
+    return float(np.sort(d)[:k].mean())
 
-    def __init__(self, names, mean, std, train_z, confidence, top_k, knn_k):
-        self.names = names
-        self.mean = mean          # feature-space mean / std for z-scoring + direction
-        self.std = std
-        self.train_z = train_z    # standardized exemplar vectors, for kNN
+
+class VoiceModel:
+    """Fit a multi-modal acceptance region from exemplars; score a draft against it.
+    Scalar distance is the StyleDistance embedding kNN; direction is white-box POS."""
+
+    def __init__(self, names, pmean, pstd, train_pz, confidence,
+                 emean, estd, train_ez, top_k, knn_k):
+        self.names = names            # POS feature names (direction is white-box)
+        self.mean = pmean             # POS mean / std for z-scoring the direction
+        self.std = pstd
+        self.train_pz = train_pz      # standardized POS vectors -- POS-space distance (sign test)
         self.confidence = confidence  # per-feature R^2 vs contrast (1.0 if no contrast)
+        self.emean = emean            # embedding mean / std + standardized train -- the scalar
+        self.estd = estd
+        self.train_ez = train_ez
         self.top_k = top_k
         self.knn_k = knn_k
 
     @classmethod
     def fit(cls, texts: list[str], contrast: list[str] | None = None,
             top_k: int = 6, knn_k: int = 1) -> "VoiceModel":
+        # POS path (direction)
         X, names = feature_matrix(texts)
-        mean, std = X.mean(0), X.std(0)
-        std[std == 0] = 1.0
-        train_z = (X - mean) / std
+        pmean, pstd = X.mean(0), X.std(0)
+        pstd[pstd == 0] = 1.0
         conf = _confidence(X, feature_matrix(contrast)[0]) if contrast else np.ones(len(names))
-        return cls(names, mean, std, train_z, conf, top_k, knn_k)
+        # embedding path (scalar)
+        E = np.array([_style_vec(t) for t in texts])
+        emean, estd = E.mean(0), E.std(0)
+        estd[estd == 0] = 1.0
+        return cls(names, pmean, pstd, (X - pmean) / pstd, conf,
+                   emean, estd, (E - emean) / estd, top_k, knn_k)
 
     @classmethod
     def from_dir(cls, exemplars: str | Path, contrast: str | Path | None = None,
@@ -130,11 +167,14 @@ class VoiceModel:
     def feature_vector(self, text: str) -> np.ndarray:
         return np.array([features(text)[k] for k in self.names])
 
-    def _dist(self, vec: np.ndarray) -> float:
-        # mean distance to the k nearest exemplars in standardized space (multi-modal)
-        z = (vec - self.mean) / self.std
-        d = np.linalg.norm(self.train_z - z, axis=1)
-        return float(np.sort(d)[: self.knn_k].mean())
+    def _dist(self, text: str) -> float:
+        # public scalar: embedding kNN (the 0.859 lens)
+        ez = (np.array(_style_vec(text)) - self.emean) / self.estd
+        return _knn(self.train_ez, ez, self.knn_k)
+
+    def _pos_dist(self, vec: np.ndarray) -> float:
+        # POS-space distance -- the space the direction lives in (sign test only)
+        return _knn(self.train_pz, (vec - self.mean) / self.std, self.knn_k)
 
     def score(self, text: str) -> ScoreResult:
         vec = self.feature_vector(text)
@@ -148,7 +188,7 @@ class VoiceModel:
                         f"{'lower' if z[i] > 0 else 'raise'} {self.names[i]}")
             for i in order
         ]
-        return ScoreResult(self._dist(vec), moves)
+        return ScoreResult(self._dist(text), moves)
 
 
 if __name__ == "__main__":

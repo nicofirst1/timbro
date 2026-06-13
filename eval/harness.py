@@ -63,12 +63,12 @@ def sign_test(exemplars: list[str], contrast: list[str], top_k: int = 6):
     wins, ratios = 0, []
     for c in contrast:
         vec = model.feature_vector(c)
-        d0 = model._dist(vec)
+        d0 = model._pos_dist(vec)  # direction lives in POS space; validate it there
 
         def drop(idx):
             moved = vec.copy()
             moved[list(idx)] = model.mean[list(idx)]
-            return d0 - model._dist(moved)
+            return d0 - model._pos_dist(moved)
 
         rec = drop([model.names.index(m.feature) for m in model.score(c).direction])
         rand = float(np.mean([drop(rng.choice(len(model.names), top_k, replace=False))
