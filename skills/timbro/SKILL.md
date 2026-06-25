@@ -28,13 +28,16 @@ If these aren't set, default to `data/exemplars` / `data/contrast` in the Timbro
 
    You get a `distance` (smaller = more on-voice) and a `direction` — a ranked list of named, confidence-weighted moves like `fewer verbs`, `more conjunctions`, `more nouns`. Higher `confidence` = a more reliable signal; act on those first.
 
-2. **Turn each hint into a concrete edit, preserving meaning.** The hints are part-of-speech habits — translate them:
+2. **Turn each hint into a concrete edit, preserving meaning.** Hints are POS habits or named AI-tells — translate them:
    - *fewer verbs / more nouns* → nominalize where natural ("we decided to" → "our decision to"); tighten verb-heavy sentences.
    - *more conjunctions* → join short choppy clauses into longer compound sentences.
    - *fewer adjectives / adverbs* → cut intensifiers and hedges.
    - *more / fewer pronouns* → shift between personal ("I/we") and impersonal framing.
+   - *fewer <a named tell>* (em/en dashes, "it's not X, it's Y", AI-diction like delve/tapestry, signposting, emoji, …) → just delete the marker. Tells are lexical AI-fingerprints, not style dials; removing them only helps.
 
-   Never change the claims, facts, or argument — only *how* it reads.
+   Never change the claims, facts, or argument — only *how* it reads. If the prose is
+   published under a persona with its own style rules (a "voice" skill, a brand guide),
+   apply those rules as you rewrite — Timbro gives the distance, the rulebook gives the words.
 
 3. **Re-score.** Run `timbro score` on your revision. Confirm `distance` dropped. If it rose, you over-rotated — back off the lowest-confidence edits.
 

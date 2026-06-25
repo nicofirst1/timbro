@@ -24,6 +24,8 @@ from pathlib import Path
 
 import numpy as np
 
+from timbro.tells import tell_rates, TELL_LABEL, TELL_PRIOR
+
 # Universal POS tags (spaCy `pos_`). Rates over these 17 are length-normalized,
 # so the doc-length confound that plagued raw counts can't arise here.
 POS_TAGS = ("ADJ", "ADP", "ADV", "AUX", "CCONJ", "DET", "INTJ", "NOUN", "NUM",
@@ -86,9 +88,15 @@ def _pos_rates(text: str) -> tuple[float, ...]:
     return tuple(c.get(tag, 0) / n for tag in POS_TAGS)
 
 
+def _label(name: str) -> str:
+    """POS or tell label for a feature, so the hint reads as advice not a feature id."""
+    return POS_LABEL[name[4:]] if name.startswith("pos_") else TELL_LABEL[name[5:]]
+
+
 def features(text: str) -> dict[str, float]:
     """Named style features for one document. Every value traces to its name (NFR2)."""
-    return {f"pos_{tag}": r for tag, r in zip(POS_TAGS, _pos_rates(text))}
+    pos = {f"pos_{tag}": r for tag, r in zip(POS_TAGS, _pos_rates(text))}
+    return pos | tell_rates(text)  # pos_* grammatical texture + tell_* lexical AI-markers
 
 
 def feature_matrix(texts: list[str]) -> tuple[np.ndarray, list[str]]:
@@ -160,6 +168,11 @@ class VoiceModel:
         pmean, pstd = X.mean(0), X.std(0)
         pstd[pstd == 0] = 1.0
         conf = _confidence(X, feature_matrix(contrast)[0]) if contrast else np.ones(len(names))
+        # tells get an empirical floor (Reddit frequency ranks) so they surface even
+        # when the contrast set is clean -- no separate AI-slop corpus needed.
+        for i, nm in enumerate(names):
+            if nm.startswith("tell_"):
+                conf[i] = max(conf[i], TELL_PRIOR[nm[5:]])
         # embedding path (scalar)
         E = np.array([_style_vec(t) for t in texts])
         emean, estd = E.mean(0), E.std(0)
@@ -199,7 +212,7 @@ class VoiceModel:
         order = np.argsort(-importance)[: self.top_k]
         moves = [
             FeatureMove(self.names[i], float(z[i]), float(-z[i]), float(self.confidence[i]),
-                        f"{'fewer' if z[i] > 0 else 'more'} {POS_LABEL[self.names[i][4:]]}")
+                        f"{'fewer' if z[i] > 0 else 'more'} {_label(self.names[i])}")
             for i in order
         ]
         return ScoreResult(self._dist(text), moves)
