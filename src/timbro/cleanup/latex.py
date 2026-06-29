@@ -9,6 +9,25 @@ from pathlib import Path
 
 from timbro.cleanup.papers import clean_extracted_text, cleanup_paper_markdown
 
+_DROP_ENVS = (
+    "tikzpicture",
+    "figure",
+    "figure*",
+    "table",
+    "table*",
+    "tabular",
+    "tabularx",
+    "equation",
+    "equation*",
+    "align",
+    "align*",
+    "aligned",
+    "lstlisting",
+    "minted",
+    "verbatim",
+    "thebibliography",
+)
+
 
 def _normalize_detex_output(text: str) -> str:
     text = text.replace("\r\n", "\n").replace("\r", "\n")
@@ -19,6 +38,18 @@ def _normalize_detex_output(text: str) -> str:
     text = re.sub(r"\n{3,}", "\n\n", text)
     text = re.sub(r"[ \t]+", " ", text)
     return text.strip()
+
+
+def _strip_latex_source_noise(text: str) -> str:
+    text = re.sub(r"(?m)^\s*%.*$", "", text)
+    for env in _DROP_ENVS:
+        text = re.sub(rf"\\begin\{{{re.escape(env)}\}}.*?\\end\{{{re.escape(env)}\}}", "\n", text, flags=re.S)
+    text = re.sub(r"\\(?:label|ref|eqref|autoref|cref|Cref|pageref|cite|citet|citep|citealt|citealp|footnote)\*?(?:\[[^\]]*\])?\{[^}]*\}", " ", text)
+    text = re.sub(r"\\(?:begin|end)\{(?:itemize|enumerate|description)\}", "\n", text)
+    text = re.sub(r"\\item(?:\[[^\]]*\])?", "\n- ", text)
+    text = re.sub(r"\\(?:centering|smallskip|medskip|bigskip|noindent|vspace\*?|hspace\*?)\{[^}]*\}", " ", text)
+    text = re.sub(r"\\(?:centering|smallskip|medskip|bigskip|noindent)", " ", text)
+    return text
 
 
 def has_detex() -> bool:
@@ -56,7 +87,7 @@ def detex_text(text: str, *, replace_math: bool = True) -> str:
         cmd.append("-r")
     proc = subprocess.run(
         cmd,
-        input=text,
+        input=_strip_latex_source_noise(text),
         text=True,
         capture_output=True,
         check=False,

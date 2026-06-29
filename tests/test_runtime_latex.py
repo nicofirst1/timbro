@@ -31,6 +31,23 @@ class RuntimeLatexPreprocessingTests(unittest.TestCase):
         self.assertNotIn(r"\section", out)
         self.assertNotIn("citesmith2020", out)
 
+    def test_preprocess_runtime_text_drops_tikz_and_label_noise(self):
+        text = (
+            r"\section{Framework}\label{sec:framework}" "\n"
+            r"This paragraph explains the framework." "\n"
+            r"\begin{tikzpicture}\node[draw] {fake figure};\end{tikzpicture}" "\n"
+            r"\begin{itemize}\item First real point.\item Second real point.\end{itemize}" "\n"
+            r"See Figure~\ref{fig:dimensions}."
+        )
+        out = preprocess_runtime_text(text)
+        self.assertIn("This paragraph explains the framework.", out)
+        self.assertIn("First real point.", out)
+        self.assertIn("Second real point.", out)
+        self.assertNotIn("tikzpicture", out)
+        self.assertNotIn("sec:framework", out)
+        self.assertNotIn("fig:dimensions", out)
+        self.assertNotIn("itemize", out)
+
     def test_voice_report_scores_preprocessed_text(self):
         seen = {}
 

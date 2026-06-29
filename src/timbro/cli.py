@@ -15,6 +15,8 @@ import sys
 from timbro.core import VoiceModel, default_model
 from timbro.profiles import add_file, get_profile, init_profile, list_profiles
 from timbro.report import voice_report
+from timbro.rubrics import check_text
+from timbro.rubrics.report import render_text
 
 
 def main():
@@ -25,6 +27,11 @@ def main():
     s.add_argument("--json", action="store_true", help="raw JSON payload")
     s.add_argument("--profile", help="named profile, or comma-separated profiles to compare")
     s.add_argument("--quiet", action="store_true", help="suppress explanatory prose")
+
+    c = sub.add_parser("check", help="run a deterministic writing rubric")
+    c.add_argument("file", help="path to the draft, or - for stdin")
+    c.add_argument("--rubric", default="schimel", help="rubric name")
+    c.add_argument("--json", action="store_true", help="raw JSON payload")
 
     p = sub.add_parser("profiles", help="manage named exemplar/contrast profiles")
     psub = p.add_subparsers(dest="profiles_cmd", required=True)
@@ -95,6 +102,15 @@ def main():
             print(f"TIMBRO_EXEMPLARS={payload['TIMBRO_EXEMPLARS']}")
             print(f"TIMBRO_CONTRAST={payload['TIMBRO_CONTRAST']}")
             return
+
+    if args.cmd == "check":
+        text = sys.stdin.read() if args.file == "-" else open(args.file, encoding="utf-8").read()
+        result = check_text(text, rubric=args.rubric)
+        if args.json:
+            print(json.dumps(result.to_dict(), indent=2))
+            return
+        print(render_text(result))
+        return
 
     text = sys.stdin.read() if args.file == "-" else open(args.file, encoding="utf-8").read()
 
