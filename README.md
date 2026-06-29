@@ -178,6 +178,7 @@ No code, no flags — collect good/bad examples per dimension and swap the two p
 uv run timbro profiles init science-clarity --about "Plain-language scientific explanation."
 uv run timbro profiles add-file science-clarity notes/pvalue.md --to exemplars
 uv run timbro profiles add-file science-clarity sloppy-example.md --to contrast
+uv run timbro profiles add-file science-clarity paper.tex --to exemplars
 uv run timbro profiles env science-clarity
 ```
 
@@ -188,8 +189,13 @@ from timbro.profiles import init_profile, add_file
 
 profile = init_profile("science-clarity", about="Plain-language scientific explanation.")
 add_file("science-clarity", "notes/pvalue.md", bucket="exemplars")
+add_file("science-clarity", "paper.tex", bucket="exemplars")
 print(profile.env)
 ```
+
+If `detex` is installed, `.tex` files are converted to cleaned Markdown on ingest.
+
+The same `detex`-based normalization is also applied automatically when the CLI or MCP server scores raw LaTeX source text.
 
 **Does it rewrite for me?** No, and that's deliberate. Timbro *measures*; your agent rewrites and Timbro judges the result (closer to voice **and** same meaning). Keeps the scoring honest and local.
 

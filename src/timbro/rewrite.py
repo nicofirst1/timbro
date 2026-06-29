@@ -13,12 +13,16 @@ from __future__ import annotations
 
 import numpy as np
 
+from timbro.cleanup import preprocess_runtime_text
 from timbro.flow import _model  # all-MiniLM-L6-v2: general semantic embedding
 
 
 def content_similarity(original: str, revised: str) -> float:
     """Semantic cosine in [0, 1-ish]. High = same meaning, regardless of style."""
-    e = _model().encode([original, revised], normalize_embeddings=True)
+    e = _model().encode(
+        [preprocess_runtime_text(original), preprocess_runtime_text(revised)],
+        normalize_embeddings=True,
+    )
     return float(np.dot(e[0], e[1]))
 
 
@@ -31,9 +35,11 @@ def preserves_content(original: str, revised: str, threshold: float = 0.85) -> t
 def evaluate_rewrite(model, original: str, revised: str, threshold: float = 0.85) -> dict:
     """Close the rewrite loop: a candidate is accepted only if it moved CLOSER to the
     voice AND kept the meaning. The engine lives in the calling agent; Timbro judges."""
+    prepared_original = preprocess_runtime_text(original)
+    prepared_revised = preprocess_runtime_text(revised)
     content_ok, sim = preserves_content(original, revised, threshold)
-    before = model.score(original).distance
-    after = model.score(revised).distance
+    before = model.score(prepared_original).distance
+    after = model.score(prepared_revised).distance
     improved = after < before
     return {
         "accepted": content_ok and improved,

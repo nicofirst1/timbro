@@ -18,6 +18,8 @@ import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
+from timbro.cleanup import cleanup_paper_markdown, detex_file
+
 
 _VALID_NAME = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
 
@@ -147,11 +149,15 @@ def add_file(
         raise FileNotFoundError(src)
     target_dir = profile.exemplars_dir if bucket == "exemplars" else profile.contrast_dir
     ext = src.suffix.lower() or ".md"
-    if ext not in {".md", ".txt"}:
-        raise ValueError("Only .md and .txt files can be added to a Timbro profile.")
-    name = dest_name or src.name
+    if ext not in {".md", ".txt", ".tex"}:
+        raise ValueError("Only .md, .txt, and .tex files can be added to a Timbro profile.")
+    name = dest_name or (f"{src.stem}.md" if ext == ".tex" else src.name)
     dst = target_dir / name
     if dst.exists() and not overwrite:
         raise FileExistsError(f"Destination already exists: {dst}")
-    shutil.copy2(src, dst)
+    if ext == ".tex":
+        text = detex_file(src)
+        dst.write_text(cleanup_paper_markdown(text), encoding="utf-8")
+    else:
+        shutil.copy2(src, dst)
     return dst
