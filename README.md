@@ -193,9 +193,7 @@ add_file("science-clarity", "paper.tex", bucket="exemplars")
 print(profile.env)
 ```
 
-If `detex` is installed, `.tex` files are converted to cleaned Markdown on ingest.
-
-The same `detex`-based normalization is also applied automatically when the CLI or MCP server scores raw LaTeX source text.
+If `detex` is installed, `.tex` files are converted on ingest and raw LaTeX is normalized automatically during scoring.
 
 **Does it rewrite for me?** No, and that's deliberate. Timbro *measures*; your agent rewrites and Timbro judges the result (closer to voice **and** same meaning). Keeps the scoring honest and local.
 

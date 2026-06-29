@@ -18,7 +18,7 @@ import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
-from timbro.cleanup import cleanup_paper_markdown, detex_file
+from timbro.cleanup import tex_to_markdown
 
 
 _VALID_NAME = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
@@ -156,8 +156,7 @@ def add_file(
     if dst.exists() and not overwrite:
         raise FileExistsError(f"Destination already exists: {dst}")
     if ext == ".tex":
-        text = detex_file(src)
-        dst.write_text(cleanup_paper_markdown(text), encoding="utf-8")
+        dst.write_text(tex_to_markdown(src), encoding="utf-8")
     else:
         shutil.copy2(src, dst)
     return dst

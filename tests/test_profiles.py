@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from timbro.cleanup import has_detex
+from timbro.cleanup.latex import has_detex
 from timbro.profiles import add_file, init_profile
 
 

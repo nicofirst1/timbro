@@ -7,19 +7,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from timbro.cleanup.papers import clean_extracted_text
-
-
-_SECTION_NAMES = (
-    "Introduction",
-    "Background",
-    "Related Work",
-    "Methods",
-    "Method",
-    "Results",
-    "Discussion",
-    "Conclusion",
-)
+from timbro.cleanup.papers import clean_extracted_text, cleanup_paper_markdown
 
 
 def _normalize_detex_output(text: str) -> str:
@@ -28,8 +16,6 @@ def _normalize_detex_output(text: str) -> str:
     text = re.sub(r"(?i)^abstract\s*", "Abstract\n\n", text)
     text = re.sub(r"\b(?:sub)*section([A-Z])", r"\n\n\1", text)
     text = re.sub(r"\b(?:cite|ref|label)[A-Za-z0-9:_-]*\b", " ", text)
-    for name in _SECTION_NAMES:
-        text = re.sub(rf"(?<!\w){re.escape(name)}(?!\w)", f"\n\n{name}\n\n", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
     text = re.sub(r"[ \t]+", " ", text)
     return text.strip()
@@ -83,6 +69,10 @@ def detex_text(text: str, *, replace_math: bool = True) -> str:
 def detex_file(path: str | Path, *, replace_math: bool = True) -> str:
     file_path = Path(path)
     return detex_text(file_path.read_text(encoding="utf-8", errors="ignore"), replace_math=replace_math)
+
+
+def tex_to_markdown(path: str | Path, *, replace_math: bool = True) -> str:
+    return cleanup_paper_markdown(detex_file(path, replace_math=replace_math))
 
 
 def preprocess_runtime_text(text: str) -> str:

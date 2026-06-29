@@ -4,7 +4,8 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from timbro.cleanup import has_detex, looks_like_latex, preprocess_runtime_text
+from timbro.cleanup import preprocess_runtime_text
+from timbro.cleanup.latex import has_detex, looks_like_latex
 from timbro.report import voice_report
 from timbro.rewrite import evaluate_rewrite
 
