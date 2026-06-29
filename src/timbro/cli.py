@@ -12,7 +12,7 @@ import argparse
 import json
 import sys
 
-from timbro.core import default_model
+from timbro.core import VoiceModel, default_model
 from timbro.profiles import add_file, get_profile, init_profile, list_profiles
 from timbro.report import voice_report
 
@@ -23,6 +23,8 @@ def main():
     s = sub.add_parser("score", help="distance + named revision direction for a draft")
     s.add_argument("file", help="path to the draft, or - for stdin")
     s.add_argument("--json", action="store_true", help="raw JSON payload")
+    s.add_argument("--profile", help="named profile, or comma-separated profiles to compare")
+    s.add_argument("--quiet", action="store_true", help="suppress explanatory prose")
 
     p = sub.add_parser("profiles", help="manage named exemplar/contrast profiles")
     psub = p.add_subparsers(dest="profiles_cmd", required=True)
@@ -95,15 +97,61 @@ def main():
             return
 
     text = sys.stdin.read() if args.file == "-" else open(args.file, encoding="utf-8").read()
-    payload = voice_report(default_model(), text)
+
+    if args.profile:
+        names = [name.strip() for name in args.profile.split(",") if name.strip()]
+        rows = []
+        for name in names:
+            prof = get_profile(name)
+            model = VoiceModel.from_dir(prof.exemplars_dir, contrast=prof.contrast_dir)
+            rows.append({"profile_name": name, **voice_report(model, text)})
+        if args.json:
+            print(json.dumps(rows if len(rows) > 1 else rows[0], indent=2))
+            return
+        if len(rows) > 1:
+            print("profile               distance   z      health        on_voice")
+            for row in rows:
+                dz = f"{row['distance_z']:6.2f}" if row["distance_z"] is not None else "   n/a"
+                on_voice = str(row["on_voice"]).lower() if row["on_voice"] is not None else "-"
+                print(
+                    f"{row['profile_name'][:20]:20s} {row['distance']:8.1f} {dz}  "
+                    f"{row['profile']['health'][:12]:12s} {on_voice}"
+                )
+            return
+        payload = rows[0]
+    else:
+        payload = voice_report(default_model(), text)
 
     if args.json:
         print(json.dumps(payload, indent=2))
         return
-    print(f"distance from your voice: {payload['distance']:.1f}  (smaller = closer)")
-    print("revise toward your voice:")
+    if args.quiet:
+        dz = f"{payload['distance_z']:.2f}" if payload["distance_z"] is not None else "n/a"
+        print(f"distance={payload['distance']:.1f} z={dz} health={payload['profile']['health']}")
+        return
+    else:
+        z_text = f"z {payload['distance_z']:+.2f}" if payload["distance_z"] is not None else "z n/a"
+        profile_line = (
+            f"profile: {payload['profile']['health']}  "
+            f"floor {payload['profile']['exemplar_floor']:.1f}  "
+            f"spread {payload['profile']['exemplar_spread']:.1f}"
+        )
+        if payload["profile"]["contrast_ceiling"] is not None:
+            profile_line += f"  ceiling {payload['profile']['contrast_ceiling']:.1f}"
+        print(f"distance from your voice: {payload['distance']:.1f}  ({z_text})")
+        print(profile_line)
+        if payload['profile']['warning']:
+            print(f"warning: {payload['profile']['warning']}")
+        if payload['on_voice']:
+            print("already on-voice: within the exemplar spread")
+        print("revise toward your voice:")
     for mv in payload["direction"]:
         print(f"  - {mv['hint']:24s} (confidence {mv['confidence']:.2f})")
+    if not args.quiet and payload.get("spans"):
+        print("highest-leverage paragraphs:")
+        for span in payload["spans"]:
+            dz = f"{span['distance_z']:+.2f}" if span["distance_z"] is not None else "n/a"
+            print(f"  - ¶{span['index']}: z {dz}  {span['text']}")
 
 
 if __name__ == "__main__":

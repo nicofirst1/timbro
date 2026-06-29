@@ -195,6 +195,13 @@ print(profile.env)
 
 If `detex` is installed, `.tex` files are converted on ingest and raw LaTeX is normalized automatically during scoring.
 
+For scoring, prefer profile-native selection over manual env vars:
+
+```bash
+uv run timbro score draft.md --profile science-clarity
+uv run timbro score draft.md --profile science-clarity,academic
+```
+
 **Does it rewrite for me?** No, and that's deliberate. Timbro *measures*; your agent rewrites and Timbro judges the result (closer to voice **and** same meaning). Keeps the scoring honest and local.
 
 ## Layout

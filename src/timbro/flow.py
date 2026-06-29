@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import re
 import sys
+import os
 from dataclasses import asdict, dataclass
 from functools import lru_cache
 
@@ -31,6 +32,21 @@ _PARA = re.compile(r"\n\s*\n")
 
 @lru_cache(maxsize=1)
 def _model():
+    os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
+    os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
+    try:
+        from transformers.utils import logging as tlog
+
+        tlog.set_verbosity_error()
+    except Exception:
+        pass
+    try:
+        from huggingface_hub.utils import disable_progress_bars, logging as hlog
+
+        disable_progress_bars()
+        hlog.set_verbosity_error()
+    except Exception:
+        pass
     from sentence_transformers import SentenceTransformer
 
     return SentenceTransformer("all-MiniLM-L6-v2")  # fast CPU model (NFR1)

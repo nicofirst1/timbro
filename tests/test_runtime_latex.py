@@ -39,11 +39,34 @@ class RuntimeLatexPreprocessingTests(unittest.TestCase):
                 seen["text"] = text
                 return SimpleNamespace(to_dict=lambda: {"distance": 1.0, "direction": []})
 
+            def normalized_distance(self, text: str):
+                return 0.5
+
+            def on_voice(self, text: str):
+                return True
+
+            def profile_report(self):
+                return {
+                    "health": "ok",
+                    "warning": None,
+                    "exemplars": 10,
+                    "contrast": 0,
+                    "words": 5000,
+                    "paragraphs": 20,
+                    "exemplar_floor": 1.0,
+                    "exemplar_spread": 0.5,
+                    "contrast_ceiling": None,
+                }
+
+            def _dist(self, text: str):
+                return 1.0
+
         with patch("timbro.report.paragraphs", return_value=[]):
             payload = voice_report(DummyModel(), r"\section{Introduction}\nHello \cite{x}")
 
         self.assertEqual(payload["flow"], None)
         self.assertNotIn(r"\section", seen["text"])
+        self.assertEqual(payload["distance_z"], 0.5)
 
     def test_evaluate_rewrite_scores_preprocessed_text(self):
         calls = []

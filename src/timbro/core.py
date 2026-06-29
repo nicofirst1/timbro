@@ -43,6 +43,7 @@ POS_LABEL = {
 
 _FRONTMATTER = re.compile(r"\A---\n.*?\n---\n", re.DOTALL)
 _PARA = re.compile(r"\n\s*\n")
+_WORD = re.compile(r"\b\w+\b")
 
 # Packaged sample corpus -- makes the plugin run on install (override via env for a real voice).
 _SAMPLE = Path(__file__).parent / "sample"
@@ -62,6 +63,21 @@ def _nlp():
 
 @lru_cache(maxsize=1)
 def _style_model():
+    os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
+    os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
+    try:
+        from transformers.utils import logging as tlog
+
+        tlog.set_verbosity_error()
+    except Exception:
+        pass
+    try:
+        from huggingface_hub.utils import disable_progress_bars, logging as hlog
+
+        disable_progress_bars()
+        hlog.set_verbosity_error()
+    except Exception:
+        pass
     from sentence_transformers import SentenceTransformer
 
     return SentenceTransformer("StyleDistance/styledistance")  # content-invariant style
@@ -149,12 +165,41 @@ def _knn(train_z: np.ndarray, z: np.ndarray, k: int) -> float:
     return float(np.sort(d)[:k].mean())
 
 
+def _profile_evidence(texts: list[str]) -> tuple[int, int, str, str | None]:
+    total_words = sum(len(_WORD.findall(t)) for t in texts)
+    total_paragraphs = sum(len([p for p in _PARA.split(t) if len(_WORD.findall(p)) >= 30]) for t in texts)
+    if total_words < 1200 or total_paragraphs < 8:
+        return total_words, total_paragraphs, "insufficient", (
+            f"Insufficient profile evidence: {total_words} words / {total_paragraphs} substantive paragraphs. "
+            "Distance is noisy and direction is suppressed."
+        )
+    if total_words < 2500 or total_paragraphs < 16:
+        return total_words, total_paragraphs, "weak", (
+            f"Weak profile evidence: {total_words} words / {total_paragraphs} substantive paragraphs. "
+            "Distance is usable, but direction may be unstable."
+        )
+    return total_words, total_paragraphs, "ok", None
+
+
+def _loo_exemplar_distances(train_ez: np.ndarray, knn_k: int) -> np.ndarray:
+    if len(train_ez) < 2:
+        return np.zeros(1)
+    dists = []
+    k = max(1, min(knn_k, len(train_ez) - 1))
+    for i in range(len(train_ez)):
+        rest = np.delete(train_ez, i, axis=0)
+        dists.append(_knn(rest, train_ez[i], k))
+    return np.array(dists, dtype=float)
+
+
 class VoiceModel:
     """Fit a multi-modal acceptance region from exemplars; score a draft against it.
     Scalar distance is the StyleDistance embedding kNN; direction is white-box POS."""
 
     def __init__(self, names, pmean, pstd, train_pz, confidence,
-                 emean, estd, train_ez, top_k, knn_k):
+                 emean, estd, train_ez, top_k, knn_k,
+                 exemplar_count, contrast_count, total_words, total_paragraphs,
+                 health, warning, exemplar_floor, exemplar_spread, contrast_ceiling):
         self.names = names            # POS feature names (direction is white-box)
         self.mean = pmean             # POS mean / std for z-scoring the direction
         self.std = pstd
@@ -165,10 +210,20 @@ class VoiceModel:
         self.train_ez = train_ez
         self.top_k = top_k
         self.knn_k = knn_k
+        self.exemplar_count = exemplar_count
+        self.contrast_count = contrast_count
+        self.total_words = total_words
+        self.total_paragraphs = total_paragraphs
+        self.health = health
+        self.warning = warning
+        self.exemplar_floor = exemplar_floor
+        self.exemplar_spread = exemplar_spread
+        self.contrast_ceiling = contrast_ceiling
 
     @classmethod
     def fit(cls, texts: list[str], contrast: list[str] | None = None,
             top_k: int = 6, knn_k: int = 1) -> "VoiceModel":
+        total_words, total_paragraphs, health, warning = _profile_evidence(texts)
         # POS path (direction)
         X, names = feature_matrix(texts)
         pmean, pstd = X.mean(0), X.std(0)
@@ -183,8 +238,20 @@ class VoiceModel:
         E = np.array([_style_vec(t) for t in texts])
         emean, estd = E.mean(0), E.std(0)
         estd[estd == 0] = 1.0
+        train_ez = (E - emean) / estd
+        exemplar_dists = _loo_exemplar_distances(train_ez, knn_k)
+        exemplar_floor = float(np.median(exemplar_dists))
+        exemplar_spread = float(np.std(exemplar_dists) or 1.0)
+        contrast_ceiling = None
+        if contrast:
+            C = np.array([_style_vec(t) for t in contrast])
+            if len(C):
+                contrast_ez = (C - emean) / estd
+                contrast_ceiling = float(np.mean([_knn(train_ez, z, knn_k) for z in contrast_ez]))
         return cls(names, pmean, pstd, (X - pmean) / pstd, conf,
-                   emean, estd, (E - emean) / estd, top_k, knn_k)
+                   emean, estd, train_ez, top_k, knn_k,
+                   len(texts), len(contrast or []), total_words, total_paragraphs,
+                   health, warning, exemplar_floor, exemplar_spread, contrast_ceiling)
 
     @classmethod
     def from_dir(cls, exemplars: str | Path, contrast: str | Path | None = None,
@@ -205,6 +272,34 @@ class VoiceModel:
         ez = (np.array(_style_vec(text)) - self.emean) / self.estd
         return _knn(self.train_ez, ez, self.knn_k)
 
+    def normalized_distance(self, text: str) -> float | None:
+        if self.health != "ok":
+            return None
+        return (self._dist(text) - self.exemplar_floor) / (self.exemplar_spread or 1.0)
+
+    def on_voice(self, text: str) -> bool | None:
+        if self.health != "ok":
+            return None
+        return self._dist(text) <= self.exemplar_floor + self.exemplar_spread
+
+    def profile_report(self) -> dict:
+        warning = self.warning
+        if getattr(self, "sample_fallback", False):
+            sample_warning = "Using packaged sample voice, not a user profile. Set TIMBRO_EXEMPLARS/TIMBRO_CONTRAST or use --profile."
+            warning = f"{warning} {sample_warning}".strip() if warning else sample_warning
+        return {
+            "health": self.health,
+            "warning": warning,
+            "exemplars": self.exemplar_count,
+            "contrast": self.contrast_count,
+            "words": self.total_words,
+            "paragraphs": self.total_paragraphs,
+            "exemplar_floor": self.exemplar_floor,
+            "exemplar_spread": self.exemplar_spread,
+            "contrast_ceiling": self.contrast_ceiling,
+            "sample_fallback": getattr(self, "sample_fallback", False),
+        }
+
     def _pos_dist(self, vec: np.ndarray) -> float:
         # POS-space distance -- the space the direction lives in (sign test only)
         return _knn(self.train_pz, (vec - self.mean) / self.std, self.knn_k)
@@ -215,21 +310,38 @@ class VoiceModel:
         # Rank by confidence x distance: a feature is worth moving only if it both
         # reliably marks your voice (R^2) and is currently off (|z|).
         importance = self.confidence * np.abs(z)
+        for i, nm in enumerate(self.names):
+            if nm.startswith("tell_") and z[i] <= 0:
+                importance[i] = 0.0
         order = np.argsort(-importance)[: self.top_k]
-        moves = [
-            FeatureMove(self.names[i], float(z[i]), float(-z[i]), float(self.confidence[i]),
-                        f"{'fewer' if z[i] > 0 else 'more'} {_label(self.names[i])}")
-            for i in order
-        ]
+        moves = []
+        if self.health != "insufficient":
+            for i in order:
+                if importance[i] <= 0 or self.confidence[i] < 0.20:
+                    continue
+                fewer = z[i] > 0 or self.names[i].startswith("tell_")
+                moves.append(
+                    FeatureMove(
+                        self.names[i],
+                        float(z[i]),
+                        float(-z[i]),
+                        float(self.confidence[i]),
+                        f"{'fewer' if fewer else 'more'} {_label(self.names[i])}",
+                    )
+                )
         return ScoreResult(self._dist(text), moves)
 
 
 def default_model() -> "VoiceModel":
     """Env-overridable corpus, falling back to the packaged sample. Shared by CLI + MCP."""
-    return VoiceModel.from_dir(
-        os.environ.get("TIMBRO_EXEMPLARS") or DEFAULT_EXEMPLARS,
-        contrast=os.environ.get("TIMBRO_CONTRAST") or DEFAULT_CONTRAST,
+    exemplars = os.environ.get("TIMBRO_EXEMPLARS") or DEFAULT_EXEMPLARS
+    contrast = os.environ.get("TIMBRO_CONTRAST") or DEFAULT_CONTRAST
+    model = VoiceModel.from_dir(
+        exemplars,
+        contrast=contrast,
     )
+    model.sample_fallback = not os.environ.get("TIMBRO_EXEMPLARS") and not os.environ.get("TIMBRO_CONTRAST")
+    return model
 
 
 if __name__ == "__main__":

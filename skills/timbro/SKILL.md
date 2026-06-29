@@ -27,10 +27,10 @@ Before scoring, **discover the available example/contrast pairs and let the user
 3. If nothing relevant exists, scaffold one with `uv run timbro profiles init <name> --about "..."`, then add files with `uv run timbro profiles add-file <name> <file> --to exemplars` or `--to contrast`.
 4. `.tex` files are acceptable in `add-file`: if `detex` is installed, Timbro converts them to cleaned Markdown on ingest.
 
-Then set the env vars to the chosen pair for the scoring commands below:
+Prefer profile-native scoring over manual env setup:
 
 ```bash
-eval "$(uv run timbro profiles env <name> | sed 's/^/export /')"
+uv run timbro score draft.md --profile <name>
 ```
 
 ## Workflow
@@ -38,12 +38,14 @@ eval "$(uv run timbro profiles env <name> | sed 's/^/export /')"
 1. **Score the draft.** Write the draft to a file (or pipe via stdin) and run:
 
    ```bash
-   P=data/profiles/<name>
-   TIMBRO_EXEMPLARS=$P/exemplars TIMBRO_CONTRAST=$P/contrast \
-     uv run --directory /path/to/timbro timbro score draft.md
+   uv run --directory /path/to/timbro timbro score draft.md --profile <name>
    ```
 
-   Or programmatically discover the exact paths with `uv run timbro profiles env <name> --json`.
+   To compare multiple directions in one run:
+
+   ```bash
+   uv run --directory /path/to/timbro timbro score draft.md --profile academic,clear,casual
+   ```
 
    You get a `distance` (smaller = more on-voice) and a `direction` — a ranked list of named, confidence-weighted moves like `fewer verbs`, `more conjunctions`, `more nouns`. Higher `confidence` = a more reliable signal; act on those first.
 
