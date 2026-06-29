@@ -11,20 +11,38 @@ You (the agent) are the rewriter. Timbro is the measurer. Run the loop: **score 
 
 ## Prerequisites (one-time)
 
-Timbro must be installed and pointed at a corpus:
+Timbro is pointed at a corpus via two env vars:
 
-- `TIMBRO_EXEMPLARS` → a folder of posts that *define* the voice (the person's or the company's published, on-voice writing). 6+ pieces is enough.
-- `TIMBRO_CONTRAST` → other authors' posts (the "not-our-voice" set). Optional but sharpens the direction.
+- `TIMBRO_EXEMPLARS` → a folder of posts that *define* the voice (move TOWARD). 6+ pieces is enough.
+- `TIMBRO_CONTRAST` → the "not-this-voice" set (move AWAY FROM). Optional but sharpens the direction.
 
-If these aren't set, default to `data/exemplars` / `data/contrast` in the Timbro repo. If the corpus is missing, tell the user what to put where rather than guessing a voice.
+If unset, Timbro falls back to a small packaged sample voice so it runs, but that is **not** the user's voice — never silently score a real draft against the sample.
+
+## Pick a direction first — always ask
+
+Before scoring, **discover the available example/contrast pairs and let the user choose**:
+
+1. List the profiles in the Timbro repo: `ls data/profiles/*/` (each `<name>/` holds an `exemplars/` to move toward and a `contrast/` to move away from). Also note `data/exemplars` + `data/contrast` if present.
+2. Tell the user what's available and **ask which direction to align**: which set to move *toward* (exemplars) and which to move *away from* (contrast). Do not assume — the same draft pulls differently toward "academic" vs "clear" vs "casual".
+3. If nothing relevant exists, tell the user to drop good examples in `data/profiles/<name>/exemplars/` and bad ones in `.../contrast/` — don't guess a voice.
+
+Then set the env vars to the chosen pair for the scoring commands below:
+
+```bash
+P=data/profiles/<name>
+export TIMBRO_EXEMPLARS=$P/exemplars TIMBRO_CONTRAST=$P/contrast
+```
 
 ## Workflow
 
 1. **Score the draft.** Write the draft to a file (or pipe via stdin) and run:
 
    ```bash
-   uv run --directory /path/to/timbro timbro score draft.md
+   TIMBRO_EXEMPLARS=$P/exemplars TIMBRO_CONTRAST=$P/contrast \
+     uv run --directory /path/to/timbro timbro score draft.md
    ```
+
+   (Pass the chosen pair inline — env doesn't carry across separate shell calls.)
 
    You get a `distance` (smaller = more on-voice) and a `direction` — a ranked list of named, confidence-weighted moves like `fewer verbs`, `more conjunctions`, `more nouns`. Higher `confidence` = a more reliable signal; act on those first.
 
