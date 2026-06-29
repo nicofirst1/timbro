@@ -1,6 +1,6 @@
 {
   "name": "timbro",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Keep your writing sounding like you — even when an LLM is writing. Scores a draft's distance from your voice and returns named, content-preserving edits. Local, white-box, MCP-ready.",
   "author": {
     "name": "Nicolo' Brandizzi",
