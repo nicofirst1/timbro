@@ -18,7 +18,12 @@ import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
+import numpy as np
+from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score
+
 from timbro.cleanup import tex_to_markdown
+from timbro.core import _style_vec
 
 
 _VALID_NAME = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
@@ -88,6 +93,82 @@ def list_profiles(root: str | Path | None = None) -> list[Profile]:
             continue
         out.append(Profile(child.name, base))
     return out
+
+
+def _corpus_files(directory: Path) -> list[Path]:
+    return sorted([*directory.glob("*.md"), *directory.glob("*.txt")])
+
+
+def diagnose_profile(name: str, root: str | Path | None = None) -> dict:
+    profile = get_profile(name, root)
+    files = _corpus_files(profile.exemplars_dir)
+    if not files:
+        return {
+            "name": profile.name,
+            "exemplars": 0,
+            "coherence": None,
+            "mixed_profile": False,
+            "silhouette": None,
+            "warning": "No exemplar files found.",
+            "outliers": [],
+            "files": [],
+        }
+
+    rows = []
+    vecs = []
+    for path in files:
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        words = len(re.findall(r"\b\w+\b", text))
+        paragraphs = len([p for p in re.split(r"\n\s*\n", text) if len(re.findall(r"\b\w+\b", p)) >= 30])
+        rows.append({
+            "file": path.name,
+            "words": words,
+            "paragraphs": paragraphs,
+        })
+        vecs.append(np.array(_style_vec(text), dtype=float))
+
+    V = np.vstack(vecs)
+    Vn = V / (np.linalg.norm(V, axis=1, keepdims=True) + 1e-9)
+    sims = Vn @ Vn.T
+    pairwise = sims[np.triu_indices(len(files), k=1)]
+    mean_similarity = float(pairwise.mean()) if len(pairwise) else 1.0
+
+    nn_dist = []
+    for i in range(len(files)):
+        d = np.linalg.norm(V[i] - np.delete(V, i, axis=0), axis=1) if len(files) > 1 else np.array([0.0])
+        nn_dist.append(float(d.min()))
+        rows[i]["nearest_neighbor_distance"] = nn_dist[-1]
+
+    median = float(np.median(nn_dist))
+    spread = float(np.std(nn_dist) or 1.0)
+    outliers = [row["file"] for row in rows if row["nearest_neighbor_distance"] > median + 1.5 * spread]
+
+    mixed_profile = False
+    silhouette = None
+    if len(files) >= 6:
+        labels = KMeans(n_clusters=2, n_init=10, random_state=0).fit_predict(V)
+        if len(set(labels)) == 2:
+            silhouette = float(silhouette_score(V, labels))
+            mixed_profile = silhouette > 0.25
+
+    warning = None
+    if outliers:
+        warning = f"Outlier exemplars detected: {', '.join(outliers)}"
+    elif mixed_profile:
+        warning = "Profile may mix multiple modes; consider splitting it."
+    elif mean_similarity < 0.75:
+        warning = "Profile coherence is low; exemplars may not represent one writing mode."
+
+    return {
+        "name": profile.name,
+        "exemplars": len(files),
+        "coherence": mean_similarity,
+        "mixed_profile": mixed_profile,
+        "silhouette": silhouette,
+        "warning": warning,
+        "outliers": outliers,
+        "files": rows,
+    }
 
 
 def _readme_text(name: str, about: str) -> str:

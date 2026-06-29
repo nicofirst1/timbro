@@ -23,6 +23,12 @@ _METADATA_PREFIXES = (
     "current address:",
     "keywords:",
     "contents",
+    "manuscript received",
+    "for reprints",
+    "downloaded from",
+    "reports",
+    "appendix",
+    "index",
 )
 
 
@@ -56,6 +62,12 @@ def _looks_like_metadata_line(line: str) -> bool:
     if lower.startswith(_METADATA_PREFIXES):
         return True
     if "@" in line and len(line) < 300:
+        return True
+    if "copyright" in lower or "all rights reserved" in lower:
+        return True
+    if "created from" in lower or "proquest" in lower:
+        return True
+    if "tel.:" in lower or "fax:" in lower:
         return True
     if len(line) < 120 and re.fullmatch(r"[A-Za-z0-9*†‡◁⋄ ,()\-:/&.]+", line):
         words = line.split()
@@ -104,6 +116,7 @@ def _looks_like_prose(paragraph: str) -> bool:
         "permission to make",
         "proceedings of",
         "pages ",
+        "reports ",
     )):
         return False
     letters = sum(ch.isalpha() for ch in paragraph)
@@ -121,6 +134,14 @@ def _looks_like_metadata(paragraph: str) -> bool:
     if lower.startswith(_METADATA_PREFIXES):
         return True
     if lower.startswith(("fig. ", "figure ")):
+        return True
+    if "downloaded from" in lower or "all rights reserved" in lower:
+        return True
+    if "created from" in lower or "proquest" in lower:
+        return True
+    if "manuscript received" in lower or "corresponding editor" in lower:
+        return True
+    if lower.startswith("reports "):
         return True
     if "@" in paragraph and len(paragraph) < 500:
         return True

@@ -13,7 +13,7 @@ import json
 import sys
 
 from timbro.core import VoiceModel, default_model
-from timbro.profiles import add_file, get_profile, init_profile, list_profiles
+from timbro.profiles import add_file, diagnose_profile, get_profile, init_profile, list_profiles
 from timbro.report import voice_report
 from timbro.rubrics import check_text
 from timbro.rubrics.report import render_text
@@ -53,6 +53,10 @@ def main():
     pe = psub.add_parser("env", help="print env vars for a profile")
     pe.add_argument("name")
     pe.add_argument("--json", action="store_true", help="raw JSON payload")
+
+    pd = psub.add_parser("diagnose", help="diagnose profile coherence and outliers")
+    pd.add_argument("name")
+    pd.add_argument("--json", action="store_true", help="raw JSON payload")
 
     args = ap.parse_args()
 
@@ -101,6 +105,23 @@ def main():
                 return
             print(f"TIMBRO_EXEMPLARS={payload['TIMBRO_EXEMPLARS']}")
             print(f"TIMBRO_CONTRAST={payload['TIMBRO_CONTRAST']}")
+            return
+
+        if args.profiles_cmd == "diagnose":
+            payload = diagnose_profile(args.name)
+            if args.json:
+                print(json.dumps(payload, indent=2))
+                return
+            print(f"profile: {payload['name']}")
+            print(f"exemplars: {payload['exemplars']}")
+            if payload['coherence'] is not None:
+                print(f"coherence: {payload['coherence']:.2f}")
+            if payload['silhouette'] is not None:
+                print(f"two-cluster silhouette: {payload['silhouette']:.2f}")
+            if payload['warning']:
+                print(f"warning: {payload['warning']}")
+            for row in payload['files']:
+                print(f"- {row['file']}: {row['words']} words, {row['paragraphs']} paragraphs, nn-dist {row['nearest_neighbor_distance']:.2f}")
             return
 
     if args.cmd == "check":
