@@ -6,12 +6,11 @@ first call. Point TIMBRO_EXEMPLARS / TIMBRO_CONTRAST at your own corpora.
 Run: uv run timbro-mcp   (stdio transport)
 """
 
-import os
 from functools import lru_cache
 
 from mcp.server.fastmcp import FastMCP
 
-from timbro.core import VoiceModel
+from timbro.core import VoiceModel, default_model
 from timbro.report import voice_report
 from timbro.rewrite import evaluate_rewrite
 
@@ -20,10 +19,7 @@ mcp = FastMCP("timbro")
 
 @lru_cache(maxsize=1)
 def _model() -> VoiceModel:
-    return VoiceModel.from_dir(
-        os.environ.get("TIMBRO_EXEMPLARS", "data/exemplars"),
-        contrast=os.environ.get("TIMBRO_CONTRAST", "data/contrast"),
-    )
+    return default_model()
 
 
 @mcp.tool()

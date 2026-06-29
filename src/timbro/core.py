@@ -16,6 +16,7 @@ fully named. # ponytail: dropped fw/punct/PCA/LedoitWolf -- all measured worse.
 
 from __future__ import annotations
 
+import os
 import re
 from collections import Counter
 from dataclasses import dataclass, asdict
@@ -42,6 +43,11 @@ POS_LABEL = {
 
 _FRONTMATTER = re.compile(r"\A---\n.*?\n---\n", re.DOTALL)
 _PARA = re.compile(r"\n\s*\n")
+
+# Packaged sample corpus -- makes the plugin run on install (override via env for a real voice).
+_SAMPLE = Path(__file__).parent / "sample"
+DEFAULT_EXEMPLARS = _SAMPLE / "exemplars"
+DEFAULT_CONTRAST = _SAMPLE / "contrast"
 
 
 @lru_cache(maxsize=1)
@@ -184,10 +190,10 @@ class VoiceModel:
     def from_dir(cls, exemplars: str | Path, contrast: str | Path | None = None,
                  top_k: int = 6, knn_k: int = 1) -> "VoiceModel":
         texts = read_corpus(exemplars)
-        if not texts:  # plugin-friendly: a clear message beats an IndexError for agents
+        if not texts:  # plugin-friendly: name the env var AND the absolute path actually checked
             raise FileNotFoundError(
-                f"No .md/.txt exemplars in {exemplars!r}. Point TIMBRO_EXEMPLARS at a "
-                f"folder of posts that define your voice.")
+                f"No .md/.txt exemplars found at {Path(exemplars).resolve()}. "
+                f"Set TIMBRO_EXEMPLARS to a folder of posts that define your voice.")
         co = read_corpus(contrast) if contrast else None
         return cls.fit(texts, co, top_k, knn_k)
 
@@ -216,6 +222,14 @@ class VoiceModel:
             for i in order
         ]
         return ScoreResult(self._dist(text), moves)
+
+
+def default_model() -> "VoiceModel":
+    """Env-overridable corpus, falling back to the packaged sample. Shared by CLI + MCP."""
+    return VoiceModel.from_dir(
+        os.environ.get("TIMBRO_EXEMPLARS") or DEFAULT_EXEMPLARS,
+        contrast=os.environ.get("TIMBRO_CONTRAST") or DEFAULT_CONTRAST,
+    )
 
 
 if __name__ == "__main__":

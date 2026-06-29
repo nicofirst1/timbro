@@ -4,23 +4,15 @@
     cat draft.md | uv run timbro score -        # stdin
     uv run timbro score draft.md --json         # raw payload
 
-Corpus comes from TIMBRO_EXEMPLARS / TIMBRO_CONTRAST (default data/exemplars, data/contrast).
+Corpus comes from TIMBRO_EXEMPLARS / TIMBRO_CONTRAST (falls back to the packaged sample).
 """
 
 import argparse
 import json
-import os
 import sys
 
-from timbro import VoiceModel
+from timbro.core import default_model
 from timbro.report import voice_report
-
-
-def _model() -> VoiceModel:
-    return VoiceModel.from_dir(
-        os.environ.get("TIMBRO_EXEMPLARS", "data/exemplars"),
-        contrast=os.environ.get("TIMBRO_CONTRAST", "data/contrast"),
-    )
 
 
 def main():
@@ -32,7 +24,7 @@ def main():
     args = ap.parse_args()
 
     text = sys.stdin.read() if args.file == "-" else open(args.file, encoding="utf-8").read()
-    payload = voice_report(_model(), text)
+    payload = voice_report(default_model(), text)
 
     if args.json:
         print(json.dumps(payload, indent=2))

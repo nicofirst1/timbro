@@ -12,10 +12,8 @@
     "timbro": {
       "command": "uv",
       "args": ["run", "--directory", "${CLAUDE_PLUGIN_ROOT}", "timbro-mcp"],
-      "env": {
-        "TIMBRO_EXEMPLARS": "${CLAUDE_PLUGIN_ROOT}/data/exemplars",
-        "TIMBRO_CONTRAST": "${CLAUDE_PLUGIN_ROOT}/data/contrast"
-      }
+      "comment": "Runs on the packaged sample voice out of the box. To use your real voice, add TIMBRO_EXEMPLARS / TIMBRO_CONTRAST (absolute paths to your own corpora) to the env below.",
+      "env": {}
     }
   }
 }

@@ -69,15 +69,18 @@ Each score is three legible layers plus a guard:
 /plugin install timbro@timbro
 ```
 
-This installs the **skill** *and* wires up the **MCP tools** (`score_voice`, `accept_rewrite`) in one shot. Then ask Claude *"make this post sound like my voice"* or *"keep this on-brand with our blog."*
+This installs the **skill** *and* wires up the **MCP tools** (`score_voice`, `accept_rewrite`) in one shot. It works immediately on a small **packaged sample voice** — ask Claude *"score this against the Timbro sample voice"* to see it run.
 
-One-time setup after install (voice is personal, models are local — nothing ships with the plugin):
+To use **your** voice, point the MCP server at your own corpus. Edit the `timbro` entry in your MCP config (or the plugin's `plugin.json`) to set absolute paths:
 
-```bash
-cd "$(/plugin path timbro)"                         # the installed plugin dir
-uv run python -m spacy download en_core_web_sm      # prime the POS tagger
-# drop your posts into data/exemplars/  (others' into data/contrast/)
+```json
+"env": {
+  "TIMBRO_EXEMPLARS": "/abs/path/to/your/exemplars",
+  "TIMBRO_CONTRAST":  "/abs/path/to/your/contrast"
+}
 ```
+
+The POS model and the sample corpus both ship with the plugin — no manual download step.
 
 ### As a skill
 
@@ -139,14 +142,16 @@ Requires Python ≥ 3.11 and [`uv`](https://docs.astral.sh/uv/).
 
 ```bash
 git clone git@github.com:nicofirst1/timbro.git && cd timbro
-uv sync
-uv run python -m spacy download en_core_web_sm     # POS tagger (not a pip dep)
+uv sync     # pulls deps + the en_core_web_sm POS model (no manual spacy download)
 
-# bring your own corpus (both dirs are gitignored — your writing stays private)
+uv run timbro score draft.md   # runs immediately on the packaged sample voice
+
+# to use your own voice, bring a corpus (both dirs are gitignored — your writing stays private)
 mkdir -p data/exemplars data/contrast
 #   data/exemplars/  → posts that define your (or your company's) voice — 6+ pieces
 #   data/contrast/   → other authors' posts (the "not-our-voice" set), optional but sharpens it
 
+TIMBRO_EXEMPLARS=data/exemplars TIMBRO_CONTRAST=data/contrast uv run timbro score draft.md
 uv run python eval/harness.py data/exemplars data/contrast   # confirm it separates your voice
 ```
 
@@ -157,6 +162,15 @@ The two sentence-transformer models download from Hugging Face on first use. Eve
 **Do I need the contrast set?** No, but it sharpens the direction — without it, every feature looks equally informative.
 
 **Will it work on one author / a whole company?** Both. The "voice" is whatever you put in `data/exemplars/`. Mixed registers (blogs + papers) are fine — the scorer is multi-modal.
+
+**Can I keep several directions (academic vs. slop, clear vs. jargon)?** Yes — one folder pair per dimension, selected by env var. Keep them under `data/profiles/<name>/{exemplars,contrast}/` and point the env vars at the one you want for a given task:
+
+```bash
+P=data/profiles/academic
+TIMBRO_EXEMPLARS=$P/exemplars TIMBRO_CONTRAST=$P/contrast uv run timbro score draft.md
+```
+
+No code, no flags — collect good/bad examples per dimension and swap the two paths. See `data/profiles/README.md`.
 
 **Does it rewrite for me?** No, and that's deliberate. Timbro *measures*; your agent rewrites and Timbro judges the result (closer to voice **and** same meaning). Keeps the scoring honest and local.
 
