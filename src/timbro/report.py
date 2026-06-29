@@ -1,7 +1,33 @@
 """The one payload both the CLI and the MCP server return: score + flow."""
 
+import re
+
 from timbro.cleanup import preprocess_runtime_text
 from timbro.flow import flow_report, paragraphs
+
+
+_SENTENCE = re.compile(r"(?<=[.!?])\s+")
+
+
+def _sentence_candidates(paragraph: str, min_words: int = 8) -> list[str]:
+    return [s.strip() for s in _SENTENCE.split(paragraph) if len(s.split()) >= min_words]
+
+
+def _local_direction(model, text: str, top_k: int = 2) -> list[dict]:
+    return [
+        {"hint": move.hint, "confidence": move.confidence, "feature": move.feature}
+        for move in model.score(text).direction[:top_k]
+    ]
+
+
+def _top_sentence(model, paragraph: str) -> dict | None:
+    candidates = _sentence_candidates(paragraph)
+    if not candidates:
+        return None
+    scored = [{"text": s, "distance": model._dist(s)} for s in candidates]
+    best = max(scored, key=lambda row: row["distance"])
+    best["direction"] = _local_direction(model, best["text"], top_k=2)
+    return best
 
 
 def _span_guidance(model, text: str, top_k: int = 3) -> list[dict]:
@@ -14,6 +40,8 @@ def _span_guidance(model, text: str, top_k: int = 3) -> list[dict]:
             "distance": model._dist(p),
             "distance_z": model.normalized_distance(p),
             "text": p[:280],
+            "direction": _local_direction(model, p, top_k=3),
+            "sentence": _top_sentence(model, p),
         }
         for i, p in enumerate(paras)
     ]

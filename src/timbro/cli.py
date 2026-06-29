@@ -152,6 +152,13 @@ def main():
         for span in payload["spans"]:
             dz = f"{span['distance_z']:+.2f}" if span["distance_z"] is not None else "n/a"
             print(f"  - ¶{span['index']}: z {dz}  {span['text']}")
+            for move in span.get("direction", []):
+                print(f"      · {move['hint']} ({move['confidence']:.2f})")
+            if span.get("sentence"):
+                sentence = span["sentence"]
+                print(f"      · top sentence: {sentence['text'][:180]}")
+                for move in sentence.get("direction", []):
+                    print(f"          - {move['hint']} ({move['confidence']:.2f})")
 
 
 if __name__ == "__main__":
