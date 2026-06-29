@@ -1,5 +1,5 @@
 ---
-name: timbro
+name: voice-alignment
 description: Align a draft to a target writing voice (your own, or a company persona) and keep it consistent. Use when the user asks to "make this sound like me/us", "match our blog voice", "check this is on-brand / in my voice", "keep my writing style consistent", or is drafting copy that must stay stylistically aligned with an existing body of posts. Timbro measures how far the draft sits from the voice and returns named, content-preserving edits; you do the rewriting.
 ---
 
@@ -22,15 +22,15 @@ If unset, Timbro falls back to a small packaged sample voice so it runs, but tha
 
 Before scoring, **discover the available example/contrast pairs and let the user choose**:
 
-1. List the profiles in the Timbro repo: `ls data/profiles/*/` (each `<name>/` holds an `exemplars/` to move toward and a `contrast/` to move away from). Also note `data/exemplars` + `data/contrast` if present.
+1. List the profiles with `uv run timbro profiles list`.
 2. Tell the user what's available and **ask which direction to align**: which set to move *toward* (exemplars) and which to move *away from* (contrast). Do not assume — the same draft pulls differently toward "academic" vs "clear" vs "casual".
-3. If nothing relevant exists, tell the user to drop good examples in `data/profiles/<name>/exemplars/` and bad ones in `.../contrast/` — don't guess a voice.
+3. If nothing relevant exists, scaffold one with `uv run timbro profiles init <name> --about "..."`, then add files with `uv run timbro profiles add-file <name> <file> --to exemplars` or `--to contrast`.
+4. `.tex` files are acceptable in `add-file`: if `detex` is installed, Timbro converts them to cleaned Markdown on ingest.
 
 Then set the env vars to the chosen pair for the scoring commands below:
 
 ```bash
-P=data/profiles/<name>
-export TIMBRO_EXEMPLARS=$P/exemplars TIMBRO_CONTRAST=$P/contrast
+eval "$(uv run timbro profiles env <name> | sed 's/^/export /')"
 ```
 
 ## Workflow
@@ -38,13 +38,16 @@ export TIMBRO_EXEMPLARS=$P/exemplars TIMBRO_CONTRAST=$P/contrast
 1. **Score the draft.** Write the draft to a file (or pipe via stdin) and run:
 
    ```bash
+   P=data/profiles/<name>
    TIMBRO_EXEMPLARS=$P/exemplars TIMBRO_CONTRAST=$P/contrast \
      uv run --directory /path/to/timbro timbro score draft.md
    ```
 
-   (Pass the chosen pair inline — env doesn't carry across separate shell calls.)
+   Or programmatically discover the exact paths with `uv run timbro profiles env <name> --json`.
 
    You get a `distance` (smaller = more on-voice) and a `direction` — a ranked list of named, confidence-weighted moves like `fewer verbs`, `more conjunctions`, `more nouns`. Higher `confidence` = a more reliable signal; act on those first.
+
+   If the draft itself is raw LaTeX source, Timbro will normalize it automatically before scoring when `detex` is installed.
 
 2. **Turn each hint into a concrete edit, preserving meaning.** Hints are POS habits or named AI-tells — translate them:
    - *fewer verbs / more nouns* → nominalize where natural ("we decided to" → "our decision to"); tighten verb-heavy sentences.
