@@ -170,7 +170,26 @@ P=data/profiles/academic
 TIMBRO_EXEMPLARS=$P/exemplars TIMBRO_CONTRAST=$P/contrast uv run timbro score draft.md
 ```
 
-No code, no flags — collect good/bad examples per dimension and swap the two paths. See `data/profiles/README.md`.
+No code, no flags — collect good/bad examples per dimension and swap the two paths. If you want Timbro to scaffold and manage the local profile layout for you, use the `timbro profiles ...` commands below.
+
+**Can Timbro create and manage profiles for me?** Yes. Use the built-in profile helpers to scaffold a profile, describe it, add files, and print the right env vars:
+
+```bash
+uv run timbro profiles init science-clarity --about "Plain-language scientific explanation."
+uv run timbro profiles add-file science-clarity notes/pvalue.md --to exemplars
+uv run timbro profiles add-file science-clarity sloppy-example.md --to contrast
+uv run timbro profiles env science-clarity
+```
+
+Programmatically:
+
+```python
+from timbro.profiles import init_profile, add_file
+
+profile = init_profile("science-clarity", about="Plain-language scientific explanation.")
+add_file("science-clarity", "notes/pvalue.md", bucket="exemplars")
+print(profile.env)
+```
 
 **Does it rewrite for me?** No, and that's deliberate. Timbro *measures*; your agent rewrites and Timbro judges the result (closer to voice **and** same meaning). Keeps the scoring honest and local.
 
