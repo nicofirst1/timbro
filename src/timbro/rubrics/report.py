@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from collections import defaultdict
-
 from timbro.rubrics.base import RubricFinding, RubricResult
 
 _PENALTY = {"high": 0.25, "medium": 0.10, "low": 0.05}

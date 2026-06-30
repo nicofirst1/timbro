@@ -1,14 +1,25 @@
 from __future__ import annotations
 
 import re
-from functools import cached_property
+from functools import cached_property, lru_cache
 
 import numpy as np
 
 from timbro.cleanup import preprocess_runtime_text
-from timbro.core import _nlp
 from timbro.flow import _model as _embed_model
 from timbro.rubrics.sections import detect_sections, split_paragraphs, split_sentences
+
+
+@lru_cache(maxsize=1)
+def _rubric_nlp():
+    """spaCy with the dependency parser ON (passive voice, comma splices, sentence
+    boundaries need it). Separate from core._nlp, which disables the parser for fast scoring."""
+    import spacy
+
+    try:
+        return spacy.load("en_core_web_sm", disable=["ner", "lemmatizer"])
+    except OSError as e:  # pragma: no cover
+        raise OSError("Run: uv run python -m spacy download en_core_web_sm") from e
 
 _CITATION = re.compile(r"\([A-Z][A-Za-z-]+(?: et al\.)?,? \d{4}\)|\[\d+\]")
 _FUZZY = re.compile(r"\b(?:affect|facilitate|occur|perform|conduct|implement|provide|utilize|evaluate|examine)\w*\b", re.I)
@@ -19,6 +30,74 @@ _PROBLEM = re.compile(r"\b(?:challenge|problem|question|unknown|unclear|importan
 _METHOD = re.compile(r"\b(?:method|methods|measured|measures?|dataset|datasets|algorithm|algorithms|model|models|experiment|experiments)\b", re.I)
 _WEAK_END = re.compile(r"\b(?:more research is needed|future work is needed|may provide insights|could be important)\b", re.I)
 _OBJECTIVE_ONLY = re.compile(r"\bour objective(?:s)? (?:was|were|is|are)\b", re.I)
+# A section closing on a hedge/concession instead of the result ("we cry at the end").
+_HEDGE_CLOSE = re.compile(
+    r"\b(?:however|although|though|nonetheless|nevertheless|admittedly|unfortunately|"
+    r"caveat|limitation|we do not (?:claim|argue)|we make no|we cannot|"
+    r"does not (?:claim|establish|prove)|no\b[^.]{0,30}\bsuperiority|"
+    r"rather than (?:a|an|evidence)|to be fair|falls short|is not (?:more|better|a stronger))\b",
+    re.I,
+)
+# Coy/deferral predicates that point at the claim instead of making it.
+_COY = re.compile(
+    r"\b(?:its value (?:is|lies)\b|the (?:real )?(?:key|point|answer|crux|value) (?:is|lies|here is)\b|"
+    r"what (?:really )?matters (?:is|here)\b|the answer lies\b|the trick is\b|the magic (?:is|happens)\b)",
+    re.I,
+)
+# Inline statistics (decimals / percentages) — a run of these is a number-ladder for a table.
+_STAT_NUMBER = re.compile(r"\d+\.\d+|\d+\s?%")
+# Mid-sentence appositive colon splice ("X is Y: clause" → two sentences). A following
+# lowercase word marks a clause, not a (usually capitalised or comma-listed) enumeration.
+_APPOSITIVE_COLON = re.compile(r"[a-z]{3,}: [a-z]")
+# Sentence opening on a bare demonstrative/pronoun + verb (orphan "this/it" → "this measurement").
+_ORPHAN_START = re.compile(
+    r"^(?:This|These|That|It|They)\s+"
+    r"(?:is|are|was|were|will|would|can|could|may|might|has|have|had|does|do|did|"
+    r"shows?|means?|makes?|gives?|provides?|suggests?|implies|allows?|enables?|"
+    r"leads?|results?|reflects?|captures?|measures?|remains?|becomes?)\b"
+)
+# High-signal claim-strength words to confirm against the robustness gate (polysemous
+# ones like "first"/"significant" are left to experiment-discipline, not flagged here).
+_OVERCLAIM = re.compile(
+    r"\b(?:proves?|proven|establishes?|novel|state[- ]of[- ]the[- ]art|outperforms?|"
+    r"validate[ds]?|load[- ]bearing|unprecedented|definitive)\b",
+    re.I,
+)
+# Throat-clearing and stacked hedges that carry no information.
+_DEADWOOD = re.compile(
+    r"\b(?:it is important to note that|it should be noted that|it is worth noting that|"
+    r"needless to say|as a matter of fact|for all intents and purposes|"
+    r"may possibly|might perhaps|could potentially|somewhat suggests?)\b",
+    re.I,
+)
+# Long Latinate words where a short Anglo-Saxon one works (Schimel, Writing Science ch. 9:
+# "prefer short words"). Map gives the plain alternative so the finding is actionable.
+_LATINATE_PLAIN = {
+    "utilize": "use", "utilise": "use", "facilitate": "help", "demonstrate": "show",
+    "sufficient": "enough", "additional": "more", "approximately": "about",
+    "commence": "start", "terminate": "end", "methodology": "method", "numerous": "many",
+    "obtain": "get", "initiate": "start", "endeavor": "try", "endeavour": "try",
+    "ascertain": "find out", "necessitate": "need", "subsequently": "then",
+    "predominantly": "mostly", "utilization": "use", "modification": "change",
+}
+# Detection is a rule, not the list: long words (>= 4 vowel-group syllables) are
+# overwhelmingly Latinate/Greek, which is Schimel's "prefer short words" target. We skip
+# nominalizations (-tion, -ity, ...) — the nominalization check already owns those — and
+# use the map above only to upgrade the advice to a plain-word swap when we know one.
+_SYLLABLE = re.compile(r"[aeiouy]+", re.I)
+_NOMINAL_END = re.compile(r"(?:tion|sion|ment|ity|ance|ence|ness)s?$", re.I)
+_WORD_TOKEN = re.compile(r"[A-Za-z][A-Za-z-]{4,}")
+# Words that legally introduce a clause after a comma (coordinators + subordinators +
+# relatives), so they are NOT comma splices.
+_SPLICE_SKIP = {
+    "and", "but", "or", "nor", "yet", "so", "for",
+    "which", "who", "whom", "whose", "that", "where", "when", "while", "because",
+    "although", "though", "since", "if", "as", "whereas", "unless", "until", "whether", "once",
+}
+
+
+def _syllable_estimate(word: str) -> int:
+    return len(_SYLLABLE.findall(word))
 
 
 def _cos(a: np.ndarray, b: np.ndarray) -> float:
@@ -38,6 +117,11 @@ class DocumentView:
         if not self.paragraphs:
             return np.zeros((0, 384))
         return np.asarray(_embed_model().encode(self.paragraphs, normalize_embeddings=True))
+
+    @cached_property
+    def _spacy_paragraphs(self) -> list:
+        """Parse each paragraph once; shared by the POS/dep checks (noun trains, passive, splice)."""
+        return [_rubric_nlp()(p[:100000]) for p in self.paragraphs]
 
     def paragraph_similarity(self, a: int, b: int) -> float:
         if a >= len(self.paragraphs) or b >= len(self.paragraphs):
@@ -81,9 +165,9 @@ class DocumentView:
 
     def noun_trains(self) -> int:
         train_count = 0
-        for para in self.paragraphs:
+        for doc in self._spacy_paragraphs:
             run = 0
-            for tok in _nlp()(para[:100000]):
+            for tok in doc:
                 if tok.pos_ in {"NOUN", "PROPN"}:
                     run += 1
                 else:
@@ -128,3 +212,99 @@ class DocumentView:
     def objective_only(self) -> bool:
         txt = self.challenge_text()
         return bool(_OBJECTIVE_ONLY.search(txt)) and "?" not in txt and "hypothes" not in txt.lower() and "whether" not in txt.lower()
+
+    def resolution_caveat_span(self) -> str:
+        """Last sentence of the resolution, returned only if it closes on a hedge/concession."""
+        res = self.sections.resolution_paragraphs
+        if not res:
+            return ""
+        last_i = res[-1]
+        if last_i >= len(self.sentences) or not self.sentences[last_i]:
+            return ""
+        last = self.sentences[last_i][-1]
+        return last if _HEDGE_CLOSE.search(last) else ""
+
+    def long_sentences(self, max_words: int = 45, max_commas: int = 4) -> list[tuple[int, int, int, str]]:
+        """(paragraph_idx, word_count, comma_count, sentence) for over-long sentences, worst first."""
+        out = []
+        for pi, sents in enumerate(self.sentences):
+            for s in sents:
+                n, c = len(s.split()), s.count(",")
+                if n > max_words or c >= max_commas:
+                    out.append((pi, n, c, s))
+        out.sort(key=lambda t: (t[1], t[2]), reverse=True)
+        return out
+
+    def number_dense_paragraph(self, threshold: int = 6) -> tuple[int, int] | None:
+        """(paragraph_idx, stat_count) for the paragraph with the most inline statistics, if >= threshold."""
+        worst = None
+        for pi, para in enumerate(self.paragraphs):
+            cnt = len(_STAT_NUMBER.findall(para))
+            if cnt >= threshold and (worst is None or cnt > worst[1]):
+                worst = (pi, cnt)
+        return worst
+
+    def coy_predicates(self) -> list[str]:
+        return [m.group(0) for m in _COY.finditer(self.text)]
+
+    def appositive_colon_spans(self) -> list[str]:
+        return [s for sents in self.sentences for s in sents if _APPOSITIVE_COLON.search(s)]
+
+    def orphan_pronoun_spans(self) -> list[str]:
+        return [s for sents in self.sentences for s in sents if _ORPHAN_START.match(s)]
+
+    def overclaim_words(self) -> list[str]:
+        seen: list[str] = []
+        for m in _OVERCLAIM.finditer(self.text):
+            w = m.group(0).lower()
+            if w not in seen:
+                seen.append(w)
+        return seen
+
+    def deadwood_spans(self) -> list[str]:
+        return [m.group(0) for m in _DEADWOOD.finditer(self.text)]
+
+    def latinate_words(self, min_syllables: int = 4) -> list[str]:
+        """Long Latinate words a short Anglo-Saxon one could replace (Schimel: prefer short
+        words). Detection is a syllable/morphology rule, not a fixed list; the map only adds a
+        plain-word suggestion for common offenders. Nominalizations are left to that check."""
+        seen: dict[str, str] = {}
+        for w in _WORD_TOKEN.findall(self.text):
+            lw = w.lower()
+            base = next((b for b in _LATINATE_PLAIN if lw.startswith(b)), None)
+            if base is None and (_NOMINAL_END.search(lw) or _syllable_estimate(lw) < min_syllables):
+                continue
+            seen[lw] = f"{lw} → {_LATINATE_PLAIN[base]}" if base else lw
+        return list(seen.values())
+
+    def passive_clauses(self) -> int:
+        """Count of passive-voice clauses (Schimel: active by default). spaCy dep parse."""
+        return sum(1 for doc in self._spacy_paragraphs for tok in doc if tok.dep_ == "nsubjpass")
+
+    def comma_splice_spans(self) -> list[str]:
+        """Sentences where a comma joins two independent clauses with no conjunction — the
+        'weirdly structured' run-on ('X separates Y from Z, no signal wins everywhere').
+        A real splice has a full clause (subject + its verb) in the window right AFTER the
+        comma; that bounded window rejects interrupting parentheticals and comma lists."""
+        out: list[str] = []
+        for doc in self._spacy_paragraphs:
+            for sent in doc.sents:
+                toks = list(sent)
+                for idx, tok in enumerate(toks):
+                    if tok.text != "," or idx + 1 >= len(toks):
+                        continue
+                    nxt = toks[idx + 1]
+                    if nxt.pos_ in {"CCONJ", "SCONJ"} or nxt.lower_ in _SPLICE_SKIP:
+                        continue
+                    window = []
+                    for t in toks[idx + 1:]:
+                        if t.text == ",":
+                            break
+                        window.append(t)
+                    wset = {t.i for t in window}
+                    right = any(t.dep_ in {"nsubj", "nsubjpass"} and t.head.pos_ in {"VERB", "AUX"} and t.head.i in wset for t in window)
+                    left = any(t.dep_ in {"nsubj", "nsubjpass"} and t.head.pos_ in {"VERB", "AUX"} and t.i < tok.i and t.head.i < tok.i for t in sent)
+                    if right and left:
+                        out.append(sent.text.strip())
+                        break
+        return out

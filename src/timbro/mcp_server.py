@@ -13,6 +13,7 @@ from mcp.server.fastmcp import FastMCP
 from timbro.core import VoiceModel, default_model
 from timbro.report import voice_report
 from timbro.rewrite import evaluate_rewrite
+from timbro.rubrics import check_text
 
 mcp = FastMCP("timbro")
 
@@ -42,6 +43,21 @@ def accept_rewrite(original: str, revised: str) -> dict:
     Use in a loop: score_voice -> rewrite toward the direction -> accept_rewrite.
     """
     return evaluate_rewrite(_model(), original, revised)
+
+
+@mcp.tool()
+def check_voice(text: str) -> dict:
+    """Run the deterministic Schimel writing rubric over `text` (no model, no voice corpus).
+
+    Returns a structured verdict (pass/warn/fail), per-dimension scores, and located
+    findings: weak opening, objective-only challenge, resolution that doesn't answer or
+    closes on a caveat, broken circle-back, undefined acronyms, fuzzy verbs,
+    nominalization, noun trains, overloaded sentences, stacked adjectives, inline
+    number-ladders, and coy/deferral phrasing. This is the second pair of eyes a draft's
+    author cannot reliably be: it grades structure mechanically, so use it instead of
+    self-reporting that a 'Schimel pass' was run.
+    """
+    return check_text(text).to_dict()
 
 
 def main():
