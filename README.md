@@ -60,6 +60,25 @@ Each score is three legible layers plus a guard:
 - **Flow** — paragraph-embedding trajectory (speed, volume, circuitousness) + the Schimel "circle-back" (`cos(first, last)`).
 - **Content guard** — semantic cosine via a *general* model (all-MiniLM): changes *how* it reads, never *what* it says.
 
+## The writing rubric (`check`)
+
+Voice alignment answers *"does this sound like me?"*. The rubric answers a separate
+question — *"is this good prose?"* — and needs **no voice corpus**. `timbro check`
+(and the `check_voice` MCP tool) runs ~30 deterministic checks distilled from Joshua
+Schimel's *Writing Science*, all linguistic/structural (spaCy dependency parse + POS +
+counting), **no LLM-as-judge**: buried subject–verb core, passive voice, comma splices,
+expletive openings, preposition chains, nominalizations, long Latinate words, word-echo
+repetition, inconsistent terminology, metadiscourse and citation-as-subject frames,
+caveat/defensive closings, unearned claim words, significance-without-magnitude, and
+more. It returns a per-dimension score and a ranked findings list — recall-first, so a
+model consumer filters the occasional false positive. Rubrics are pluggable via a
+registry (`--rubric <name>`); `schimel` ships today.
+
+```bash
+uv run timbro check draft.md            # human-readable
+uv run timbro check draft.md --json     # {verdict, overall, dimensions, findings}
+```
+
 ## Install
 
 ### As a Claude Code plugin (one command)
@@ -69,7 +88,7 @@ Each score is three legible layers plus a guard:
 /plugin install timbro@timbro
 ```
 
-This installs the **skill** *and* wires up the **MCP tools** (`score_voice`, `accept_rewrite`) in one shot. It works immediately on a small **packaged sample voice** — ask Claude *"score this against the Timbro sample voice"* to see it run.
+This installs the **skill** *and* wires up the **MCP tools** (`score_voice`, `accept_rewrite`, `check_voice`) in one shot. It works immediately on a small **packaged sample voice** — ask Claude *"score this against the Timbro sample voice"* to see it run.
 
 To use **your** voice, point the MCP server at your own corpus. Edit the `timbro` entry in your MCP config (or the plugin's `plugin.json`) to set absolute paths:
 
@@ -119,12 +138,13 @@ Or drop this into any agent's `.mcp.json` / MCP settings:
 }
 ```
 
-The agent gets two tools:
+The agent gets three tools:
 
 | Tool | Returns |
 |---|---|
 | `score_voice(text)` | `{distance, direction, flow}` |
 | `accept_rewrite(original, revised)` | `{accepted, content_ok, similarity, distance_before, distance_after, improved}` |
+| `check_voice(text)` | `{verdict, overall, dimensions, findings}` — the deterministic writing rubric (below) |
 
 ### As a one-shot CLI
 
@@ -134,6 +154,7 @@ No server, no agent — just score a file:
 uv run timbro score draft.md
 cat draft.md | uv run timbro score -        # stdin
 uv run timbro score draft.md --json         # raw payload
+uv run timbro check draft.md                # deterministic writing rubric (below)
 ```
 
 ### From source (required for the MCP and CLI options above)
@@ -212,8 +233,9 @@ src/timbro/
 ├── flow.py          # paragraph trajectory, circle-back, order gates
 ├── rewrite.py       # content-preservation guard + accept-rewrite loop
 ├── report.py        # the shared {distance, direction, flow} payload
-├── cli.py           # `timbro score`
-└── mcp_server.py    # MCP wrapper: score_voice, accept_rewrite
+├── rubrics/         # the `check` writing rubric: features (spaCy) + rules + registry
+├── cli.py           # `timbro score` + `timbro check`
+└── mcp_server.py    # MCP wrapper: score_voice, accept_rewrite, check_voice
 skills/timbro/       # Claude Code skill
 eval/harness.py      # LOO-AUC, permutation baseline, direction sign test
 ```

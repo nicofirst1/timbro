@@ -69,3 +69,14 @@ uv run timbro score draft.md --profile <name>
 ## When to use this vs. just rewriting
 
 Use Timbro whenever consistency with an *established* body of writing matters: a personal blog, a company's content, a newsletter persona, anything where "does this sound like us?" is a real question. For one-off prose with no reference voice, plain rewriting is fine — Timbro needs a corpus to measure against.
+
+## Related: the writing rubric (`check`)
+
+Voice alignment (above) needs a corpus and answers *"does this sound like the target?"*.
+A separate, corpus-free capability answers *"is this good prose?"* — `timbro check
+<file>` (or the `check_voice` MCP tool) runs ~30 deterministic Schimel *Writing Science*
+checks (buried subject–verb core, passive voice, comma splices, expletive openings,
+preposition chains, nominalizations, word-echo repetition, metadiscourse frames,
+caveat/defensive closings, and more), no model, no voice corpus. Reach for it when the
+user asks to "check my writing", "run a Schimel pass", or clean up prose quality rather
+than match a specific voice.
