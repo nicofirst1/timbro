@@ -184,10 +184,10 @@ The two sentence-transformer models download from Hugging Face on first use. Eve
 
 **Will it work on one author / a whole company?** Both. The "voice" is whatever you put in `data/exemplars/`. Mixed registers (blogs + papers) are fine — the scorer is multi-modal.
 
-**Can I keep several directions (academic vs. slop, clear vs. jargon)?** Yes — one folder pair per dimension, selected by env var. Keep them under `data/profiles/<name>/{exemplars,contrast}/` and point the env vars at the one you want for a given task:
+**Can I keep several directions (academic vs. slop, clear vs. jargon)?** Yes — one folder pair per dimension, selected by env var. Profiles live under `~/.timbro/profiles/<name>/{exemplars,contrast}/` by default (override with `TIMBRO_PROFILE_ROOT`). Point the env vars at the one you want for a given task:
 
 ```bash
-P=data/profiles/academic
+P=~/.timbro/profiles/academic
 TIMBRO_EXEMPLARS=$P/exemplars TIMBRO_CONTRAST=$P/contrast uv run timbro score draft.md
 ```
 

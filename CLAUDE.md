@@ -8,7 +8,7 @@ Measures a draft's distance from a target voice and returns a named revision dir
 - `uv run timbro-mcp` — MCP server (stdio)
 - `uv run python -m timbro.core` — core smoke test
 - `uv run ruff check src/` — lint
-- Corpus: `TIMBRO_EXEMPLARS` (toward) / `TIMBRO_CONTRAST` (away). Local profiles live in `data/profiles/<name>/{exemplars,contrast}/` (gitignored).
+- Corpus: `TIMBRO_EXEMPLARS` (toward) / `TIMBRO_CONTRAST` (away). Named profiles live in `~/.timbro/profiles/<name>/{exemplars,contrast}/` by default (override with `TIMBRO_PROFILE_ROOT`).
 
 ## Releasing an update (do this EVERY time the package changes)
 

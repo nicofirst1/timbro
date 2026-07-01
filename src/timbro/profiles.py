@@ -1,6 +1,7 @@
 """Manage named Timbro corpus profiles.
 
-Profiles are folder pairs under a root directory, typically `data/profiles/`:
+Profiles are folder pairs under a root directory, by default `~/.timbro/profiles/`
+(override with `TIMBRO_PROFILE_ROOT`):
 
     <root>/<name>/exemplars/
     <root>/<name>/contrast/
@@ -66,7 +67,10 @@ class Profile:
 
 
 def profile_root(root: str | Path | None = None) -> Path:
-    base = Path(root) if root is not None else Path(os.environ.get("TIMBRO_PROFILE_ROOT", "data/profiles"))
+    # ponytail: default to ~/.timbro/profiles so profiles are user-global, not CWD-relative
+    base = Path(root) if root is not None else Path(
+        os.environ.get("TIMBRO_PROFILE_ROOT", Path.home() / ".timbro" / "profiles")
+    ).expanduser()
     return base.resolve()
 
 
