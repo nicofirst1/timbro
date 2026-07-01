@@ -395,4 +395,88 @@ def schimel_findings(doc: DocumentView) -> list[RubricFinding]:
             )
         )
 
+    buried = doc.buried_verb_spans()
+    if buried:
+        findings.append(
+            RubricFinding(
+                "medium",
+                "sentences",
+                "buried_verb_core",
+                None,
+                None,
+                buried[0][:220],
+                "Subject and verb are far apart (oversized subject or an interruption); Schimel: keep the subject–verb core together, move the rest after the verb.",
+            )
+        )
+
+    citations = doc.citation_subject_spans()
+    if citations:
+        findings.append(
+            RubricFinding(
+                "low",
+                "clarity",
+                "citation_as_subject",
+                None,
+                None,
+                "; ".join(citations[:4]),
+                "Citation is the sentence subject ('Smith (2003) found…'); make the finding the subject and cite parenthetically (Schimel's funnel).",
+            )
+        )
+
+    expletives = doc.expletive_openings()
+    if expletives:
+        findings.append(
+            RubricFinding(
+                "low",
+                "sentences",
+                "expletive_opening",
+                None,
+                None,
+                expletives[0][:220],
+                "Sentence opens on an empty expletive ('There is…', 'It is…'); lead with the real subject.",
+            )
+        )
+
+    signif = doc.significance_without_magnitude()
+    if signif:
+        findings.append(
+            RubricFinding(
+                "low",
+                "clarity",
+                "significance_without_magnitude",
+                None,
+                None,
+                signif[0][:220],
+                "States significance / a p-value with no effect size; Schimel: tell the story through the data — report the magnitude, and don't equate 'not significant' with 'no effect'.",
+            )
+        )
+
+    prep_chains = doc.preposition_chains()
+    if prep_chains:
+        findings.append(
+            RubricFinding(
+                "low",
+                "sentences",
+                "preposition_chain",
+                None,
+                None,
+                prep_chains[0][:220],
+                "A stack of 'of' phrases; unstack the prepositional chain (Schimel: energy dies in long noun-of-noun-of-noun strings).",
+            )
+        )
+
+    metadiscourse = doc.metadiscourse_frames()
+    if metadiscourse:
+        findings.append(
+            RubricFinding(
+                "low",
+                "clarity",
+                "metadiscourse_frame",
+                None,
+                None,
+                "; ".join(metadiscourse[:4]),
+                "Metadiscourse frame ('we found that…'); state the finding directly and drop the frame.",
+            )
+        )
+
     return findings

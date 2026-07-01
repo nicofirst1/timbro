@@ -27,8 +27,14 @@ class AuditCheckTests(unittest.TestCase):
         self.assertGreaterEqual(longs[0][2], 4)  # >= 4 commas
 
     def test_coy_predicate_detected(self):
-        self.assertTrue(DocumentView("The key is that no reference text is required.").coy_predicates())
-        self.assertFalse(DocumentView("No reference text is required.").coy_predicates())
+        self.assertTrue(
+            DocumentView(
+                "The key is that no reference text is required."
+            ).coy_predicates()
+        )
+        self.assertFalse(
+            DocumentView("No reference text is required.").coy_predicates()
+        )
 
     def test_number_ladder_flags_a_stats_dense_paragraph(self):
         ladder = "Per band the means were 0.81, 0.74, 0.68, 0.61, 0.55, and 0.49 with a 12% spread."
@@ -37,62 +43,215 @@ class AuditCheckTests(unittest.TestCase):
         self.assertIsNone(DocumentView(prose).number_dense_paragraph())
 
     def test_appositive_colon_splice_detected(self):
-        self.assertTrue(DocumentView("The rule engine does more than grade: it also drives the generator.").appositive_colon_spans())
-        self.assertFalse(DocumentView("We test three corpora: APA, capito, and DEplain.").appositive_colon_spans())
+        self.assertTrue(
+            DocumentView(
+                "The rule engine does more than grade: it also drives the generator."
+            ).appositive_colon_spans()
+        )
+        self.assertFalse(
+            DocumentView(
+                "We test three corpora: APA, capito, and DEplain."
+            ).appositive_colon_spans()
+        )
 
     def test_orphan_pronoun_opener_detected(self):
-        self.assertTrue(DocumentView("This shows the metric works across registers.").orphan_pronoun_spans())
-        self.assertFalse(DocumentView("This measurement shows the metric works across registers.").orphan_pronoun_spans())
+        self.assertTrue(
+            DocumentView(
+                "This shows the metric works across registers."
+            ).orphan_pronoun_spans()
+        )
+        self.assertFalse(
+            DocumentView(
+                "This measurement shows the metric works across registers."
+            ).orphan_pronoun_spans()
+        )
 
     def test_overclaim_words_surfaced_but_not_polysemous_ones(self):
-        self.assertTrue(DocumentView("Our metric proves that it outperforms every baseline.").overclaim_words())
-        self.assertFalse(DocumentView("This is the first sentence and the result is significant in context.").overclaim_words())
+        self.assertTrue(
+            DocumentView(
+                "Our metric proves that it outperforms every baseline."
+            ).overclaim_words()
+        )
+        self.assertFalse(
+            DocumentView(
+                "This is the first sentence and the result is significant in context."
+            ).overclaim_words()
+        )
 
     def test_deadwood_detected(self):
-        self.assertTrue(DocumentView("It is important to note that the score may possibly help.").deadwood_spans())
+        self.assertTrue(
+            DocumentView(
+                "It is important to note that the score may possibly help."
+            ).deadwood_spans()
+        )
 
     def test_latinate_diction_suggests_plain_word(self):
-        out = DocumentView("We utilize the methodology to obtain numerous results.").latinate_words()
+        out = DocumentView(
+            "We utilize the methodology to obtain numerous results."
+        ).latinate_words()
         self.assertTrue(out)
         self.assertTrue(any("→ use" in s for s in out))
-        self.assertFalse(DocumentView("We use the method to get many results.").latinate_words())
+        self.assertFalse(
+            DocumentView("We use the method to get many results.").latinate_words()
+        )
 
     def test_passive_voice_counted(self):
-        self.assertGreater(DocumentView("The results were analyzed by the team.").passive_clauses(), 0)
-        self.assertEqual(DocumentView("The team analyzed the results.").passive_clauses(), 0)
+        self.assertGreater(
+            DocumentView("The results were analyzed by the team.").passive_clauses(), 0
+        )
+        self.assertEqual(
+            DocumentView("The team analyzed the results.").passive_clauses(), 0
+        )
 
     def test_latinate_is_a_rule_not_just_a_list(self):
         # a long Latinate word absent from the suggestion map is still caught (generative)
-        self.assertTrue(DocumentView("The phenomenon was incomprehensible.").latinate_words())
+        self.assertTrue(
+            DocumentView("The phenomenon was incomprehensible.").latinate_words()
+        )
         # nominalizations are the nominalization check's job, not double-flagged here
-        self.assertFalse(any("evaluation" in s for s in DocumentView("The evaluation succeeded.").latinate_words()))
+        self.assertFalse(
+            any(
+                "evaluation" in s
+                for s in DocumentView("The evaluation succeeded.").latinate_words()
+            )
+        )
 
     def test_comma_splice_detected(self):
-        self.assertTrue(DocumentView("The metric separates simplified text from its source, no single signal wins everywhere.").comma_splice_spans())
+        self.assertTrue(
+            DocumentView(
+                "The metric separates simplified text from its source, no single signal wins everywhere."
+            ).comma_splice_spans()
+        )
         # a subordinate clause after the comma is legal, not a splice
-        self.assertFalse(DocumentView("The metric separates the text, although no single signal wins.").comma_splice_spans())
+        self.assertFalse(
+            DocumentView(
+                "The metric separates the text, although no single signal wins."
+            ).comma_splice_spans()
+        )
         # a comma list is not a splice
-        self.assertFalse(DocumentView("We test three corpora, two registers, and one baseline.").comma_splice_spans())
+        self.assertFalse(
+            DocumentView(
+                "We test three corpora, two registers, and one baseline."
+            ).comma_splice_spans()
+        )
 
     def test_repetition_burst_detected(self):
         # "reference" echoed three times in one span -> caught; generalizes over lemmas
-        echo = DocumentView("The axes are reference-free readability, reference-based overlap, and reference-free meaning.")
+        echo = DocumentView(
+            "The axes are reference-free readability, reference-based overlap, and reference-free meaning."
+        )
         self.assertTrue(echo.repetition_bursts())
-        clean = DocumentView("The axes are readability, lexical overlap, and preserved meaning.")
+        clean = DocumentView(
+            "The axes are readability, lexical overlap, and preserved meaning."
+        )
         self.assertFalse(clean.repetition_bursts())
 
     def test_repetition_burst_is_lemma_based_not_a_word_list(self):
         # plural/singular collapse to one lemma, so the echo still trips (no hard-coded word)
-        self.assertTrue(DocumentView("Each rule scores a rule, and the rule set aggregates every rule score.").repetition_bursts())
+        self.assertTrue(
+            DocumentView(
+                "Each rule scores a rule, and the rule set aggregates every rule score."
+            ).repetition_bursts()
+        )
 
     def test_defensive_claim_detected(self):
-        self.assertTrue(DocumentView("We do not claim the rules exhaustively span simplicity.").defensive_claims())
-        self.assertTrue(DocumentView("We make no meaning-superiority claim here.").defensive_claims())
-        self.assertFalse(DocumentView("The rules recover the graded ordering and name each broken rule.").defensive_claims())
+        self.assertTrue(
+            DocumentView(
+                "We do not claim the rules exhaustively span simplicity."
+            ).defensive_claims()
+        )
+        self.assertTrue(
+            DocumentView(
+                "We make no meaning-superiority claim here."
+            ).defensive_claims()
+        )
+        self.assertFalse(
+            DocumentView(
+                "The rules recover the graded ordering and name each broken rule."
+            ).defensive_claims()
+        )
 
     def test_verbless_sentence_detected(self):
-        self.assertTrue(DocumentView("A reference-free simplicity score across more German corpora than prior work.").verbless_sentences())
-        self.assertFalse(DocumentView("The score generalises across more German corpora than prior work.").verbless_sentences())
+        self.assertTrue(
+            DocumentView(
+                "A reference-free simplicity score across more German corpora than prior work."
+            ).verbless_sentences()
+        )
+        self.assertFalse(
+            DocumentView(
+                "The score generalises across more German corpora than prior work."
+            ).verbless_sentences()
+        )
+
+    def test_buried_verb_core_detected(self):
+        buried = DocumentView(
+            "The score, which aggregates twenty calibrated rules weighted by how much of the document each rule sees, is reference-free."
+        ).buried_verb_spans()
+        self.assertTrue(buried)
+        self.assertFalse(
+            DocumentView("The score is reference-free.").buried_verb_spans()
+        )
+
+    def test_citation_as_subject_detected(self):
+        self.assertTrue(
+            DocumentView(
+                "Smith (2003) found that scores rose."
+            ).citation_subject_spans()
+        )
+        self.assertTrue(
+            DocumentView(
+                r"\citet{smith2003} showed the effect."
+            ).citation_subject_spans()
+        )
+        # parenthetical citation is fine — not a subject
+        self.assertFalse(
+            DocumentView(
+                "Scores rose after simplification (Smith 2003)."
+            ).citation_subject_spans()
+        )
+
+    def test_expletive_opening_detected(self):
+        self.assertTrue(
+            DocumentView("There is a clear effect on readability.").expletive_openings()
+        )
+        self.assertFalse(
+            DocumentView("The effect on readability is clear.").expletive_openings()
+        )
+
+    def test_significance_without_magnitude_detected(self):
+        self.assertTrue(
+            DocumentView(
+                "The rules significantly separated the registers."
+            ).significance_without_magnitude()
+        )
+        # a magnitude in view clears it
+        self.assertFalse(
+            DocumentView(
+                "The rules raised the score by 18% (significantly)."
+            ).significance_without_magnitude()
+        )
+
+    def test_preposition_chain_detected(self):
+        self.assertTrue(
+            DocumentView(
+                "It is the mean of the weights of the rules of the corpus."
+            ).preposition_chains()
+        )
+        self.assertFalse(
+            DocumentView(
+                "It is the weighted mean over the calibrated rules."
+            ).preposition_chains()
+        )
+
+    def test_metadiscourse_frame_detected(self):
+        self.assertTrue(
+            DocumentView(
+                "We found that the metric tracks difficulty."
+            ).metadiscourse_frames()
+        )
+        self.assertFalse(
+            DocumentView("The metric tracks difficulty.").metadiscourse_frames()
+        )
 
     def test_inconsistent_terminology_needs_the_model(self):
         # E is the one audit check that uses the semantic embedder; skip if it is unavailable.
@@ -115,8 +274,15 @@ class SchimelRubricTests(unittest.TestCase):
             "We measured height, mass, and leaf area over six weeks.\n\n"
             "More research is needed to understand the broader implications."
         )
-        with patch("timbro.rubrics.features.DocumentView.challenge_resolution_similarity", return_value=0.1), patch(
-            "timbro.rubrics.features.DocumentView.opening_resolution_similarity", return_value=0.1
+        with (
+            patch(
+                "timbro.rubrics.features.DocumentView.challenge_resolution_similarity",
+                return_value=0.1,
+            ),
+            patch(
+                "timbro.rubrics.features.DocumentView.opening_resolution_similarity",
+                return_value=0.1,
+            ),
         ):
             result = check_text(text)
         rules = {f.rule for f in result.findings}
@@ -131,13 +297,33 @@ class SchimelRubricTests(unittest.TestCase):
             "We measured winter fluxes across a temperature gradient and compared them with growing-season fluxes.\n\n"
             "These results show that winter respiration is substantial and must be included in annual Arctic carbon budgets."
         )
-        with patch("timbro.rubrics.features.DocumentView.challenge_resolution_similarity", return_value=0.9), patch(
-            "timbro.rubrics.features.DocumentView.opening_resolution_similarity", return_value=0.8
-        ), patch("timbro.rubrics.features.DocumentView.fuzzy_verb_density", return_value=0.0), patch(
-            "timbro.rubrics.features.DocumentView.nominalization_density", return_value=0.0
-        ), patch("timbro.rubrics.features.DocumentView.noun_trains", return_value=0), patch(
-            "timbro.rubrics.features.DocumentView.adjacent_paragraph_similarity", return_value=[0.9, 0.9, 0.9]
-        ), patch("timbro.rubrics.features.DocumentView.paragraph_internal_similarity", return_value=0.9):
+        with (
+            patch(
+                "timbro.rubrics.features.DocumentView.challenge_resolution_similarity",
+                return_value=0.9,
+            ),
+            patch(
+                "timbro.rubrics.features.DocumentView.opening_resolution_similarity",
+                return_value=0.8,
+            ),
+            patch(
+                "timbro.rubrics.features.DocumentView.fuzzy_verb_density",
+                return_value=0.0,
+            ),
+            patch(
+                "timbro.rubrics.features.DocumentView.nominalization_density",
+                return_value=0.0,
+            ),
+            patch("timbro.rubrics.features.DocumentView.noun_trains", return_value=0),
+            patch(
+                "timbro.rubrics.features.DocumentView.adjacent_paragraph_similarity",
+                return_value=[0.9, 0.9, 0.9],
+            ),
+            patch(
+                "timbro.rubrics.features.DocumentView.paragraph_internal_similarity",
+                return_value=0.9,
+            ),
+        ):
             result = check_text(text)
         highs = [f for f in result.findings if f.severity == "high"]
         self.assertFalse(highs)

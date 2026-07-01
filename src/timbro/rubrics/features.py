@@ -137,6 +137,43 @@ _NEGATION = {
 }
 # Finite-verb tags: a sentence with none of these (and no AUX) has no main verb.
 _FINITE_TAG = {"VBP", "VBZ", "VBD", "MD"}
+# Reporting/attribution verbs — a genuinely closed lexical class (there is no structural
+# signal for "this is a reporting verb"), so a small list here is strictly necessary.
+_REPORT_VERB = (
+    r"(?:found|shows?|showed|shown|reports?|reported|observes?|observed|demonstrates?|"
+    r"demonstrated|argues?|argued|notes?|noted|proposes?|proposed|suggests?|suggested|"
+    r"concludes?|concluded|claims?|claimed|establish(?:es|ed)?|reveals?|revealed|finds?)"
+)
+# Citation as the grammatical subject (\citet{...} or "Name (2003)") governing a reporting
+# verb — Schimel's funnel (ch. 6): make the finding the subject, not the researcher.
+_CITATION_SUBJECT = re.compile(
+    r"(?:\\citet\{[^}]*\}|[A-Z][A-Za-z]+(?: et al\.?| and [A-Z][A-Za-z]+)?\s*\(\d{4}\))\s+"
+    + _REPORT_VERB
+    + r"\b"
+)
+# Metadiscourse frame: first person + reporting verb + "that" ("we found that X" → state X).
+_METADISCOURSE = re.compile(
+    r"\b(?:we|this (?:study|paper|work|analysis)|our (?:results?|data|analysis|experiments?))\s+"
+    + _REPORT_VERB
+    + r"\s+that\b",
+    re.I,
+)
+# Expletive opening: "There is/are…", "It is/was…" — an empty subject Schimel says to cut.
+_EXPLETIVE_OPEN = re.compile(
+    r"^(?:There\s+(?:is|are|was|were|has|have|exists?|remains?|seems?|appears?)|"
+    r"It\s+(?:is|was|has been|seems?|appears?|turns out))\b",
+    re.I,
+)
+# "significant(ly)" or a p-value; a run of these with no co-located magnitude is Schimel's
+# "tell the story through the data, not the statistics" (ch. 8) — report the effect size.
+_SIGNIF = re.compile(r"\bsignificantly?\b|\bp\s*[<=>]\s*0?\.\d+", re.I)
+_MAGNITUDE = re.compile(
+    r"%|[×x]\b|\bfold\b|\btimes\b|\bfactor\b|\bpercent\b|\bpoints?\b|"
+    r"\d+\s*(?:mm|cm|km|kg|mg|ms|Hz|days?|years?|hours?)\b",
+    re.I,
+)
+# A "of … of … of" run: 3+ prepositional phrases stacked (Schimel ch. 15: unstack them).
+_OF_CHAIN = re.compile(r"\bof\b(?:\s+\S+){1,4}\s+\bof\b(?:\s+\S+){1,4}\s+\bof\b", re.I)
 # Words that legally introduce a clause after a comma (coordinators + subordinators +
 # relatives), so they are NOT comma splices.
 _SPLICE_SKIP = {
@@ -539,3 +576,47 @@ class DocumentView:
                 if not any(t.tag_ in _FINITE_TAG or t.pos_ == "AUX" for t in sent):
                     out.append(s)
         return out
+
+    def buried_verb_spans(self, max_gap: int = 10) -> list[str]:
+        """Subject and its verb pulled far apart by an oversized subject or an interrupting
+        clause (Schimel ch. 12: keep the subject–verb core together). Dependency distance from
+        the subject head to its verb — no word list. One per paragraph."""
+        out: list[str] = []
+        for doc in self._spacy_paragraphs:
+            for tok in doc:
+                if tok.dep_ in {"nsubj", "nsubjpass"} and tok.head.pos_ in {
+                    "VERB",
+                    "AUX",
+                }:
+                    gap = tok.head.i - tok.i
+                    if gap >= max_gap:
+                        out.append(
+                            f"(subject→verb {gap} words) {tok.sent.text.strip()[:200]}"
+                        )
+                        break
+        return out
+
+    def citation_subject_spans(self) -> list[str]:
+        """Citations used as the sentence subject ('Smith (2003) found …', '\\citet{} showed …')
+        — Schimel: put the finding in the subject, cite parenthetically."""
+        return [m.group(0)[:120] for m in _CITATION_SUBJECT.finditer(self.text)]
+
+    def expletive_openings(self) -> list[str]:
+        return [
+            s for sents in self.sentences for s in sents if _EXPLETIVE_OPEN.match(s)
+        ]
+
+    def significance_without_magnitude(self) -> list[str]:
+        """Sentences asserting significance / a p-value with no effect size in view."""
+        return [
+            s.strip()
+            for sents in self.sentences
+            for s in sents
+            if _SIGNIF.search(s) and not _MAGNITUDE.search(s)
+        ]
+
+    def preposition_chains(self) -> list[str]:
+        return [m.group(0) for m in _OF_CHAIN.finditer(self.text)]
+
+    def metadiscourse_frames(self) -> list[str]:
+        return [m.group(0) for m in _METADISCOURSE.finditer(self.text)]
