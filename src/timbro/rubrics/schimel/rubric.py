@@ -7,7 +7,7 @@ from timbro.rubrics.rules import schimel_findings
 
 class SchimelRubric:
     name = "schimel"
-    version = "v2"
+    version = "v3"
 
     def check(self, text: str):
         doc = DocumentView(text)

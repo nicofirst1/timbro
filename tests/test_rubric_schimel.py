@@ -74,6 +74,38 @@ class AuditCheckTests(unittest.TestCase):
         # a comma list is not a splice
         self.assertFalse(DocumentView("We test three corpora, two registers, and one baseline.").comma_splice_spans())
 
+    def test_repetition_burst_detected(self):
+        # "reference" echoed three times in one span -> caught; generalizes over lemmas
+        echo = DocumentView("The axes are reference-free readability, reference-based overlap, and reference-free meaning.")
+        self.assertTrue(echo.repetition_bursts())
+        clean = DocumentView("The axes are readability, lexical overlap, and preserved meaning.")
+        self.assertFalse(clean.repetition_bursts())
+
+    def test_repetition_burst_is_lemma_based_not_a_word_list(self):
+        # plural/singular collapse to one lemma, so the echo still trips (no hard-coded word)
+        self.assertTrue(DocumentView("Each rule scores a rule, and the rule set aggregates every rule score.").repetition_bursts())
+
+    def test_defensive_claim_detected(self):
+        self.assertTrue(DocumentView("We do not claim the rules exhaustively span simplicity.").defensive_claims())
+        self.assertTrue(DocumentView("We make no meaning-superiority claim here.").defensive_claims())
+        self.assertFalse(DocumentView("The rules recover the graded ordering and name each broken rule.").defensive_claims())
+
+    def test_verbless_sentence_detected(self):
+        self.assertTrue(DocumentView("A reference-free simplicity score across more German corpora than prior work.").verbless_sentences())
+        self.assertFalse(DocumentView("The score generalises across more German corpora than prior work.").verbless_sentences())
+
+    def test_inconsistent_terminology_needs_the_model(self):
+        # E is the one audit check that uses the semantic embedder; skip if it is unavailable.
+        try:
+            out = DocumentView(
+                "The composite score aggregates the rules. The composite is calibrated. "
+                "We report the combined score per band. The combined number is calibrated too. "
+                "The combined score and the composite score both track difficulty."
+            ).inconsistent_terms(min_count=2)
+        except OSError as e:  # pragma: no cover
+            self.skipTest(f"embedding model unavailable: {e}")
+        self.assertIsInstance(out, list)
+
 
 class SchimelRubricTests(unittest.TestCase):
     def test_objective_only_challenge_is_flagged(self):

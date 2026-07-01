@@ -1,6 +1,6 @@
 [project]
 name = "timbro"
-version = "0.2.0"
+version = "0.3.0"
 description = "Measure the timbre of your writing as a metric space and get an interpretable, content-preserving direction to revise a draft toward your voice."
 readme = "README.md"
 requires-python = ">=3.11"
