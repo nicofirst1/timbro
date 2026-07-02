@@ -3,6 +3,7 @@ from __future__ import annotations
 from timbro.rubrics.base import RubricFinding, RubricResult
 
 _PENALTY = {"high": 0.25, "medium": 0.10, "low": 0.05}
+_SEVERITY_RANK = {"high": 0, "medium": 1, "low": 2}
 _WEIGHTS = {
     "opening": 1.25,
     "challenge": 1.25,
@@ -27,7 +28,8 @@ def build_result(*, rubric: str, version: str, sections: dict, findings: list[Ru
     total_weight = sum(_WEIGHTS.values())
     overall = sum(dims[name] * _WEIGHTS[name] for name in dims) / total_weight
     verdict = "fail" if overall < 0.55 or any(f.severity == "high" for f in findings if f.dimension in {"challenge", "resolution", "opening"}) else "warn" if overall < 0.75 else "pass"
-    return RubricResult(rubric, version, round(overall, 3), verdict, {k: round(v, 3) for k, v in dims.items()}, sections, findings)
+    ranked_findings = sorted(findings, key=lambda f: _SEVERITY_RANK[f.severity])
+    return RubricResult(rubric, version, round(overall, 3), verdict, {k: round(v, 3) for k, v in dims.items()}, sections, ranked_findings)
 
 
 def render_text(result: RubricResult) -> str:
