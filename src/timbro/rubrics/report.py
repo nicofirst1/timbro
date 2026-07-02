@@ -16,7 +16,13 @@ _WEIGHTS = {
 
 def build_result(*, rubric: str, version: str, sections: dict, findings: list[RubricFinding]) -> RubricResult:
     dims = {name: 1.0 for name in _WEIGHTS}
+    # A rule that reports N occurrences (M1: one finding per occurrence) still costs one
+    # penalty, not N — dedup on the rule name before applying the per-severity penalty.
+    seen_rules: set[str] = set()
     for finding in findings:
+        if finding.rule in seen_rules:
+            continue
+        seen_rules.add(finding.rule)
         dims[finding.dimension] = max(0.0, dims[finding.dimension] - _PENALTY[finding.severity])
     total_weight = sum(_WEIGHTS.values())
     overall = sum(dims[name] * _WEIGHTS[name] for name in dims) / total_weight

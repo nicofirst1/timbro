@@ -4,7 +4,10 @@ import unittest
 from unittest.mock import patch
 
 from timbro.rubrics import check_text
+from timbro.rubrics.base import RubricFinding
 from timbro.rubrics.features import DocumentView
+from timbro.rubrics.report import build_result
+from timbro.rubrics.rules import MAX_FINDINGS_PER_RULE, schimel_findings
 
 
 class AuditCheckTests(unittest.TestCase):
@@ -39,8 +42,8 @@ class AuditCheckTests(unittest.TestCase):
     def test_number_ladder_flags_a_stats_dense_paragraph(self):
         ladder = "Per band the means were 0.81, 0.74, 0.68, 0.61, 0.55, and 0.49 with a 12% spread."
         prose = "The score separates simplified text from its source across every band we tested."
-        self.assertIsNotNone(DocumentView(ladder).number_dense_paragraph())
-        self.assertIsNone(DocumentView(prose).number_dense_paragraph())
+        self.assertTrue(DocumentView(ladder).number_dense_paragraph())
+        self.assertFalse(DocumentView(prose).number_dense_paragraph())
 
     def test_appositive_colon_splice_detected(self):
         self.assertTrue(
@@ -90,7 +93,7 @@ class AuditCheckTests(unittest.TestCase):
             "We utilize the methodology to obtain numerous results."
         ).latinate_words()
         self.assertTrue(out)
-        self.assertTrue(any("→ use" in s for s in out))
+        self.assertTrue(any("→ use" in span for _, _, span in out))
         self.assertFalse(
             DocumentView("We use the method to get many results.").latinate_words()
         )
@@ -111,8 +114,8 @@ class AuditCheckTests(unittest.TestCase):
         # nominalizations are the nominalization check's job, not double-flagged here
         self.assertFalse(
             any(
-                "evaluation" in s
-                for s in DocumentView("The evaluation succeeded.").latinate_words()
+                "evaluation" in span
+                for _, _, span in DocumentView("The evaluation succeeded.").latinate_words()
             )
         )
 
@@ -327,6 +330,59 @@ class SchimelRubricTests(unittest.TestCase):
             result = check_text(text)
         highs = [f for f in result.findings if f.severity == "high"]
         self.assertFalse(highs)
+
+
+class RecallFirstFindingsTests(unittest.TestCase):
+    """M1 (#1): every span-producing rule reports one finding per occurrence, capped at
+    MAX_FINDINGS_PER_RULE, each locatable; the per-rule penalty stays flat regardless of
+    occurrence count."""
+
+    SPLICE = "The metric separates simplified text from its source, no single signal wins everywhere."
+
+    def test_comma_splice_multiple_occurrences_capped_and_locatable(self):
+        text = "\n\n".join([self.SPLICE] * (MAX_FINDINGS_PER_RULE + 2))
+        findings = schimel_findings(DocumentView(text))
+        splices = [f for f in findings if f.rule == "comma_splice"]
+        self.assertEqual(len(splices), MAX_FINDINGS_PER_RULE)
+        for f in splices:
+            self.assertIsNotNone(f.paragraph)
+            self.assertIsNotNone(f.sentence)
+
+    def test_comma_splice_finding_count_matches_occurrence_count_below_cap(self):
+        n = 3
+        text = "\n\n".join([self.SPLICE] * n)
+        findings = schimel_findings(DocumentView(text))
+        splices = [f for f in findings if f.rule == "comma_splice"]
+        self.assertEqual(len(splices), n)
+
+    def test_penalty_applied_once_per_rule_not_per_occurrence(self):
+        one = [
+            RubricFinding("medium", "sentences", "comma_splice", 1, 1, "x", "msg"),
+        ]
+        many = [
+            RubricFinding("medium", "sentences", "comma_splice", i, 1, "x", "msg")
+            for i in range(1, 11)
+        ]
+        result_one = build_result(rubric="schimel", version="v3", sections={}, findings=one)
+        result_many = build_result(rubric="schimel", version="v3", sections={}, findings=many)
+        self.assertEqual(result_one.dimensions["sentences"], result_many.dimensions["sentences"])
+        self.assertEqual(result_one.overall, result_many.overall)
+
+    def test_point_nowhere_paragraph_no_break_reports_multiple(self):
+        # Three independent, weakly-connected 3+ sentence paragraphs — the pre-fix code
+        # `break`-ed after the first match; it must now report all of them.
+        para = (
+            "Solar flux varies by latitude. Coffee prices rose in March. "
+            "The bridge needs new bolts."
+        )
+        text = "\n\n".join([para] * 3)
+        with patch(
+            "timbro.rubrics.features.DocumentView.paragraph_internal_similarity",
+            return_value=0.0,
+        ):
+            findings = schimel_findings(DocumentView(text))
+        nowhere = [f for f in findings if f.rule == "point_nowhere_paragraph"]
+        self.assertEqual(len(nowhere), 3)
 
 
 if __name__ == "__main__":

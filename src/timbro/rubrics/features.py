@@ -265,20 +265,24 @@ class DocumentView:
         words = max(1, len(self.text.split()))
         return len(_NOM.findall(self.text)) * 1000 / words
 
-    def undefined_acronyms(self) -> list[str]:
+    def undefined_acronyms(self) -> list[tuple[int, int, str]]:
         # Doc-level: an acronym expanded once (parenthetically) anywhere counts as defined,
-        # so a later bare use is not re-flagged. Flag only the never-expanded ones.
-        seen: list[str] = []
+        # so a later bare use is not re-flagged. Flag only the never-expanded ones, located
+        # at their first bare occurrence.
+        seen: dict[str, tuple[int, int]] = {}
         expanded: set[str] = set()
-        for para in self.paragraphs:
+        for pi, para in enumerate(self.paragraphs):
             for ac in _ACRONYM.findall(para):
                 if ac in _ALLOW:
                     continue
                 if re.search(rf"\([^)]*\b{ac}\b[^)]*\)", para):
                     expanded.add(ac)
                 elif ac not in seen:
-                    seen.append(ac)
-        return [ac for ac in seen if ac not in expanded]
+                    si = next(
+                        (j for j, s in enumerate(self.sentences[pi]) if ac in s), 0
+                    )
+                    seen[ac] = (pi, si)
+        return [(pi, si, ac) for ac, (pi, si) in seen.items() if ac not in expanded]
 
     def noun_trains(self) -> int:
         train_count = 0
@@ -384,50 +388,77 @@ class DocumentView:
         out.sort(key=lambda t: (t[1], t[2]), reverse=True)
         return out
 
-    def number_dense_paragraph(self, threshold: int = 6) -> tuple[int, int] | None:
-        """(paragraph_idx, stat_count) for the paragraph with the most inline statistics, if >= threshold."""
-        worst = None
-        for pi, para in enumerate(self.paragraphs):
-            cnt = len(_STAT_NUMBER.findall(para))
-            if cnt >= threshold and (worst is None or cnt > worst[1]):
-                worst = (pi, cnt)
-        return worst
+    def number_dense_paragraph(self, threshold: int = 6) -> list[tuple[int, int]]:
+        """(paragraph_idx, stat_count) for every paragraph with >= threshold inline
+        statistics, worst (most stats) first."""
+        out = [
+            (pi, len(_STAT_NUMBER.findall(para)))
+            for pi, para in enumerate(self.paragraphs)
+        ]
+        out = [(pi, cnt) for pi, cnt in out if cnt >= threshold]
+        out.sort(key=lambda t: t[1], reverse=True)
+        return out
 
-    def coy_predicates(self) -> list[str]:
-        return [m.group(0) for m in _COY.finditer(self.text)]
-
-    def appositive_colon_spans(self) -> list[str]:
+    def coy_predicates(self) -> list[tuple[int, int, str]]:
         return [
-            s for sents in self.sentences for s in sents if _APPOSITIVE_COLON.search(s)
+            (pi, si, m.group(0))
+            for pi, sents in enumerate(self.sentences)
+            for si, s in enumerate(sents)
+            for m in _COY.finditer(s)
         ]
 
-    def orphan_pronoun_spans(self) -> list[str]:
-        return [s for sents in self.sentences for s in sents if _ORPHAN_START.match(s)]
+    def appositive_colon_spans(self) -> list[tuple[int, int, str]]:
+        return [
+            (pi, si, s)
+            for pi, sents in enumerate(self.sentences)
+            for si, s in enumerate(sents)
+            if _APPOSITIVE_COLON.search(s)
+        ]
 
-    def overclaim_words(self) -> list[str]:
-        seen: list[str] = []
-        for m in _OVERCLAIM.finditer(self.text):
-            w = m.group(0).lower()
-            if w not in seen:
-                seen.append(w)
-        return seen
+    def orphan_pronoun_spans(self) -> list[tuple[int, int, str]]:
+        return [
+            (pi, si, s)
+            for pi, sents in enumerate(self.sentences)
+            for si, s in enumerate(sents)
+            if _ORPHAN_START.match(s)
+        ]
 
-    def deadwood_spans(self) -> list[str]:
-        return [m.group(0) for m in _DEADWOOD.finditer(self.text)]
+    def overclaim_words(self) -> list[tuple[int, int, str]]:
+        seen: dict[str, tuple[int, int]] = {}
+        for pi, sents in enumerate(self.sentences):
+            for si, s in enumerate(sents):
+                for m in _OVERCLAIM.finditer(s):
+                    w = m.group(0).lower()
+                    if w not in seen:
+                        seen[w] = (pi, si)
+        return [(pi, si, w) for w, (pi, si) in seen.items()]
 
-    def latinate_words(self, min_syllables: int = 4) -> list[str]:
+    def deadwood_spans(self) -> list[tuple[int, int, str]]:
+        return [
+            (pi, si, m.group(0))
+            for pi, sents in enumerate(self.sentences)
+            for si, s in enumerate(sents)
+            for m in _DEADWOOD.finditer(s)
+        ]
+
+    def latinate_words(self, min_syllables: int = 4) -> list[tuple[int, int, str]]:
         """Long Latinate words a short Anglo-Saxon one could replace (Schimel: prefer short
         words). Detection is a syllable/morphology rule, not a fixed list; the map only adds a
         plain-word suggestion for common offenders. Nominalizations are left to that check."""
-        seen: dict[str, str] = {}
-        for w in _WORD_TOKEN.findall(self.text):
-            lw = w.lower()
-            base = next((b for b in _LATINATE_PLAIN if lw.startswith(b)), None)
-            if base is None and (
-                _NOMINAL_END.search(lw) or _syllable_estimate(lw) < min_syllables
-            ):
-                continue
-            seen[lw] = f"{lw} → {_LATINATE_PLAIN[base]}" if base else lw
+        seen: dict[str, tuple[int, int, str]] = {}
+        for pi, sents in enumerate(self.sentences):
+            for si, s in enumerate(sents):
+                for w in _WORD_TOKEN.findall(s):
+                    lw = w.lower()
+                    if lw in seen:
+                        continue
+                    base = next((b for b in _LATINATE_PLAIN if lw.startswith(b)), None)
+                    if base is None and (
+                        _NOMINAL_END.search(lw) or _syllable_estimate(lw) < min_syllables
+                    ):
+                        continue
+                    label = f"{lw} → {_LATINATE_PLAIN[base]}" if base else lw
+                    seen[lw] = (pi, si, label)
         return list(seen.values())
 
     def passive_clauses(self) -> int:
@@ -439,14 +470,14 @@ class DocumentView:
             if tok.dep_ == "nsubjpass"
         )
 
-    def comma_splice_spans(self) -> list[str]:
+    def comma_splice_spans(self) -> list[tuple[int, int, str]]:
         """Sentences where a comma joins two independent clauses with no conjunction — the
         'weirdly structured' run-on ('X separates Y from Z, no signal wins everywhere').
         A real splice has a full clause (subject + its verb) in the window right AFTER the
         comma; that bounded window rejects interrupting parentheticals and comma lists."""
-        out: list[str] = []
-        for doc in self._spacy_paragraphs:
-            for sent in doc.sents:
+        out: list[tuple[int, int, str]] = []
+        for pi, doc in enumerate(self._spacy_paragraphs):
+            for si, sent in enumerate(doc.sents):
                 toks = list(sent)
                 for idx, tok in enumerate(toks):
                     if tok.text != "," or idx + 1 >= len(toks):
@@ -474,16 +505,26 @@ class DocumentView:
                         for t in sent
                     )
                     if right and left:
-                        out.append(sent.text.strip())
+                        out.append((pi, si, sent.text.strip()))
                         break
         return out
 
-    def repetition_bursts(self, window: int = 20, min_repeats: int = 3) -> list[str]:
+    def repetition_bursts(
+        self, window: int = 20, min_repeats: int = 3
+    ) -> list[tuple[int, int, str]]:
         """Same word echoed in a short span ('reference-free … reference-based … reference-free',
         'rules' hammered). Generalizes over lemmas — no word list. Also flags two derivations of
         one stem sitting adjacent ('normalisation, normalises'). One burst per paragraph."""
-        out: list[str] = []
-        for doc in self._spacy_paragraphs:
+        out: list[tuple[int, int, str]] = []
+        for pi, doc in enumerate(self._spacy_paragraphs):
+            sent_list = list(doc.sents)
+
+            def _sent_idx(tok_i: int, _sent_list=sent_list) -> int:
+                return next(
+                    (j for j, sent in enumerate(_sent_list) if sent.start <= tok_i < sent.end),
+                    0,
+                )
+
             toks = [
                 t
                 for t in doc
@@ -498,12 +539,14 @@ class DocumentView:
                 hot = next((w for w, c in counts.items() if c >= min_repeats), None)
                 if hot:
                     span = doc[toks[i].i : toks[end - 1].i + 1].text.replace("\n", " ")
-                    out.append(f"{hot} ×{counts[hot]}: …{span[:160]}…")
+                    out.append(
+                        (pi, _sent_idx(toks[i].i), f"{hot} ×{counts[hot]}: …{span[:160]}…")
+                    )
                     break
             for a, b in zip(toks, toks[1:]):
                 fa, fb = a.text.lower(), b.text.lower()
                 if fa != fb and len(fa) >= 7 and fa[:7] == fb[:7]:
-                    out.append(f"{a.text} / {b.text}")
+                    out.append((pi, _sent_idx(a.i), f"{a.text} / {b.text}"))
         return out
 
     def inconsistent_terms(
@@ -545,27 +588,27 @@ class DocumentView:
         pairs.sort(reverse=True)
         return [f"{a} / {b} (≈{s:.2f})" for s, a, b in pairs[:top]]
 
-    def defensive_claims(self) -> list[str]:
+    def defensive_claims(self) -> list[tuple[int, int, str]]:
         """First-person sentences built around a negation ('we do not claim…', 'we make no
         superiority claim', 'we lack references') — Schimel: say what the work DOES, with
         confidence, instead of pre-emptively conceding. Structural (first person + negation),
         not a phrase list."""
-        out: list[str] = []
-        for doc in self._spacy_paragraphs:
-            for sent in doc.sents:
+        out: list[tuple[int, int, str]] = []
+        for pi, doc in enumerate(self._spacy_paragraphs):
+            for si, sent in enumerate(doc.sents):
                 lowers = {t.text.lower() for t in sent} | {
                     t.lemma_.lower() for t in sent
                 }
                 if lowers & _FIRST_PERSON and lowers & _NEGATION:
-                    out.append(sent.text.strip())
+                    out.append((pi, si, sent.text.strip()))
         return out
 
-    def verbless_sentences(self, min_words: int = 5) -> list[str]:
+    def verbless_sentences(self, min_words: int = 5) -> list[tuple[int, int, str]]:
         """Sentences with no finite main verb — a fragment, or a phrase left 'detached from its
         main verb'. Short/heading-like lines are skipped."""
-        out: list[str] = []
-        for doc in self._spacy_paragraphs:
-            for sent in doc.sents:
+        out: list[tuple[int, int, str]] = []
+        for pi, doc in enumerate(self._spacy_paragraphs):
+            for si, sent in enumerate(doc.sents):
                 s = sent.text.strip()
                 if s[:1] in {"-", "*", "•"} or (
                     s[:1].isdigit() and s[1:2] in {".", ")"}
@@ -574,15 +617,16 @@ class DocumentView:
                 if sum(1 for t in sent if t.is_alpha) < min_words:
                     continue
                 if not any(t.tag_ in _FINITE_TAG or t.pos_ == "AUX" for t in sent):
-                    out.append(s)
+                    out.append((pi, si, s))
         return out
 
-    def buried_verb_spans(self, max_gap: int = 10) -> list[str]:
+    def buried_verb_spans(self, max_gap: int = 10) -> list[tuple[int, int, str]]:
         """Subject and its verb pulled far apart by an oversized subject or an interrupting
         clause (Schimel ch. 12: keep the subject–verb core together). Dependency distance from
         the subject head to its verb — no word list. One per paragraph."""
-        out: list[str] = []
-        for doc in self._spacy_paragraphs:
+        out: list[tuple[int, int, str]] = []
+        for pi, doc in enumerate(self._spacy_paragraphs):
+            sent_list = list(doc.sents)
             for tok in doc:
                 if tok.dep_ in {"nsubj", "nsubjpass"} and tok.head.pos_ in {
                     "VERB",
@@ -590,33 +634,63 @@ class DocumentView:
                 }:
                     gap = tok.head.i - tok.i
                     if gap >= max_gap:
+                        si = next(
+                            (
+                                j
+                                for j, sent in enumerate(sent_list)
+                                if sent.start <= tok.i < sent.end
+                            ),
+                            0,
+                        )
                         out.append(
-                            f"(subject→verb {gap} words) {tok.sent.text.strip()[:200]}"
+                            (
+                                pi,
+                                si,
+                                f"(subject→verb {gap} words) {tok.sent.text.strip()[:200]}",
+                            )
                         )
                         break
         return out
 
-    def citation_subject_spans(self) -> list[str]:
+    def citation_subject_spans(self) -> list[tuple[int, int, str]]:
         """Citations used as the sentence subject ('Smith (2003) found …', '\\citet{} showed …')
         — Schimel: put the finding in the subject, cite parenthetically."""
-        return [m.group(0)[:120] for m in _CITATION_SUBJECT.finditer(self.text)]
-
-    def expletive_openings(self) -> list[str]:
         return [
-            s for sents in self.sentences for s in sents if _EXPLETIVE_OPEN.match(s)
+            (pi, si, m.group(0)[:120])
+            for pi, sents in enumerate(self.sentences)
+            for si, s in enumerate(sents)
+            for m in _CITATION_SUBJECT.finditer(s)
         ]
 
-    def significance_without_magnitude(self) -> list[str]:
+    def expletive_openings(self) -> list[tuple[int, int, str]]:
+        return [
+            (pi, si, s)
+            for pi, sents in enumerate(self.sentences)
+            for si, s in enumerate(sents)
+            if _EXPLETIVE_OPEN.match(s)
+        ]
+
+    def significance_without_magnitude(self) -> list[tuple[int, int, str]]:
         """Sentences asserting significance / a p-value with no effect size in view."""
         return [
-            s.strip()
-            for sents in self.sentences
-            for s in sents
+            (pi, si, s.strip())
+            for pi, sents in enumerate(self.sentences)
+            for si, s in enumerate(sents)
             if _SIGNIF.search(s) and not _MAGNITUDE.search(s)
         ]
 
-    def preposition_chains(self) -> list[str]:
-        return [m.group(0) for m in _OF_CHAIN.finditer(self.text)]
+    def preposition_chains(self) -> list[tuple[int, int, str]]:
+        return [
+            (pi, si, m.group(0))
+            for pi, sents in enumerate(self.sentences)
+            for si, s in enumerate(sents)
+            for m in _OF_CHAIN.finditer(s)
+        ]
 
-    def metadiscourse_frames(self) -> list[str]:
-        return [m.group(0) for m in _METADISCOURSE.finditer(self.text)]
+    def metadiscourse_frames(self) -> list[tuple[int, int, str]]:
+        return [
+            (pi, si, m.group(0))
+            for pi, sents in enumerate(self.sentences)
+            for si, s in enumerate(sents)
+            for m in _METADISCOURSE.finditer(s)
+        ]
