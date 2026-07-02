@@ -12,6 +12,9 @@ dependencies = [
     "spacy>=3.8.14",
     # spaCy ships POS models out-of-band; pin the wheel so `uv sync` installs it (no manual download).
     "en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl",
+    # Word-frequency lookup for the density rubric's jargon_cluster check (#5); ships its
+    # own bundled frequency data, no network at check time.
+    "wordfreq>=3.1.1",
 ]
 
 [project.scripts]
