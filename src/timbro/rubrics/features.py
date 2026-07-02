@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from functools import cached_property, lru_cache
+from statistics import pstdev
 
 import numpy as np
 
@@ -118,6 +119,14 @@ _NOMINAL_END = re.compile(r"(?:tion|sion|ment|ity|ance|ence|ness)s?$", re.I)
 _WORD_TOKEN = re.compile(r"[A-Za-z][A-Za-z-]{4,}")
 # Content parts of speech for the repetition/terminology checks (skip function words).
 _CONTENT_POS = {"NOUN", "PROPN", "VERB", "ADJ", "ADV"}
+# Leitwort (leading-word) detector thresholds (#4): corpus-free positional-clustering
+# entropy via gap-burstiness (coefficient of variation of inter-occurrence gaps). Under
+# roughly uniform placement CV ≈ 1; clustered words score higher.
+_LEITWORT_MIN_DOC_TOKENS = 300  # alphabetic tokens; shorter docs return []
+_LEITWORT_MIN_OCCURRENCES = 4
+_LEITWORT_MIN_GAPS = 3
+_LEITWORT_SCORE_THRESHOLD = 1.3
+_LEITWORT_MAX_RESULTS = 10
 # First-person markers and negations for the defensive-claim check (structural, not a
 # phrase list — "we + negation" catches "we do not claim", "we make no…", "we lack…").
 # "i" is left out on purpose: academic prose uses "we", and "(i)/(ii)" enumeration markers
@@ -234,6 +243,57 @@ class DocumentView:
     def _spacy_paragraphs(self) -> list:
         """Parse each paragraph once; shared by the POS/dep checks (noun trains, passive, splice)."""
         return [_rubric_nlp()(p[:100000]) for p in self.paragraphs]
+
+    @cached_property
+    def leading_words(self) -> list[dict]:
+        """Leitwort detector (#4): content lemmas whose occurrences cluster positionally in
+        this document instead of spreading evenly, via gap-burstiness (coefficient of
+        variation of inter-occurrence gaps over the whole-document token stream). Corpus-free
+        and single-document-relative — no reference corpus, no LLM, no randomness. Public
+        surface consumed by #5 (density-rubric payload) and #6 (repetition annotation); keep
+        the return shape ({lemma, count, score, paragraphs}) stable."""
+        total_alpha_tokens = sum(
+            1 for doc in self._spacy_paragraphs for tok in doc if tok.is_alpha
+        )
+        if total_alpha_tokens < _LEITWORT_MIN_DOC_TOKENS:
+            return []
+
+        positions: dict[str, list[int]] = {}
+        paragraphs_seen: dict[str, list[int]] = {}
+        pos = 0
+        for pi, doc in enumerate(self._spacy_paragraphs):
+            for tok in doc:
+                if tok.pos_ in _CONTENT_POS and tok.is_alpha:
+                    lemma = tok.lemma_.lower()
+                    positions.setdefault(lemma, []).append(pos)
+                    paras = paragraphs_seen.setdefault(lemma, [])
+                    if not paras or paras[-1] != pi:
+                        paras.append(pi)
+                pos += 1
+
+        results = []
+        for lemma, occ in positions.items():
+            if len(occ) < _LEITWORT_MIN_OCCURRENCES:
+                continue
+            gaps = [b - a for a, b in zip(occ, occ[1:])]
+            if len(gaps) < _LEITWORT_MIN_GAPS:
+                continue
+            mean_gap = sum(gaps) / len(gaps)
+            if mean_gap <= 0:
+                continue
+            score = pstdev(gaps) / mean_gap
+            if score >= _LEITWORT_SCORE_THRESHOLD:
+                results.append(
+                    {
+                        "lemma": lemma,
+                        "count": len(occ),
+                        "score": score,
+                        "paragraphs": paragraphs_seen[lemma],
+                    }
+                )
+
+        results.sort(key=lambda r: r["score"], reverse=True)
+        return results[:_LEITWORT_MAX_RESULTS]
 
     def paragraph_similarity(self, a: int, b: int) -> float:
         if a >= len(self.paragraphs) or b >= len(self.paragraphs):
