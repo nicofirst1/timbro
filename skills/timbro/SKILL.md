@@ -80,3 +80,9 @@ preposition chains, nominalizations, word-echo repetition, metadiscourse frames,
 caveat/defensive closings, and more), no model, no voice corpus. Reach for it when the
 user asks to "check my writing", "run a Schimel pass", or clean up prose quality rather
 than match a specific voice.
+
+The rubric is deliberately **recall-first**: it over-flags rather than stay silent, and
+you (the agent) are the precision filter. Treat every finding as "worth a look", not
+"definitely wrong" — judge each against the text, fix the real ones, and silently drop
+the false positives instead of contorting good prose to satisfy a flag. Severity is the
+confidence signal: act on `high` findings first; `low` findings are hints.
