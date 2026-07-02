@@ -485,5 +485,101 @@ class LoosenedThresholdBandTests(unittest.TestCase):
         self.assertEqual(severities, [])
 
 
+class LeadingWordAnnotationTests(unittest.TestCase):
+    """#6: word_repetition / inconsistent_terminology findings get an extra note when the
+    flagged word is also a detected leading word (#4). The flag still fires either way —
+    annotate, never suppress."""
+
+    _LEITWORT_NOTE = "possibly a deliberate leading word"
+
+    REPETITION_TEXT = (
+        "The axes are reference-free readability, reference-based overlap, "
+        "and reference-free meaning."
+    )
+    TERMINOLOGY_TEXT = (
+        "The composite score aggregates the rules. The composite is calibrated. "
+        "We report the combined score per band. The combined number is calibrated too. "
+        "The combined score and the composite score both track difficulty."
+    )
+
+    def test_word_repetition_annotated_when_flagged_word_is_a_leading_word(self):
+        doc = DocumentView(self.REPETITION_TEXT)
+        occurrences = doc.repetition_bursts()
+        self.assertTrue(occurrences)
+        flagged_lemma = occurrences[0][3]
+        with patch.object(
+            DocumentView,
+            "leading_words",
+            [{"lemma": flagged_lemma, "count": 8, "score": 2.0, "paragraphs": [0]}],
+        ):
+            findings = [
+                f for f in schimel_findings(doc) if f.rule == "word_repetition"
+            ]
+        self.assertTrue(findings)
+        self.assertIn(self._LEITWORT_NOTE, findings[0].message)
+
+    def test_word_repetition_plain_message_when_not_a_leading_word(self):
+        # Short document — leading_words() naturally returns [] (under the 300-token
+        # floor), so the flagged word is never a leading word here.
+        doc = DocumentView(self.REPETITION_TEXT)
+        self.assertEqual(doc.leading_words, [])
+        findings = [f for f in schimel_findings(doc) if f.rule == "word_repetition"]
+        self.assertTrue(findings)
+        for f in findings:
+            self.assertNotIn(self._LEITWORT_NOTE, f.message)
+            self.assertTrue(
+                f.message.endswith(
+                    "(Schimel: repetition should be deliberate, not accidental)."
+                )
+            )
+
+    def test_inconsistent_terminology_annotated_when_a_term_is_a_leading_word(self):
+        try:
+            doc = DocumentView(self.TERMINOLOGY_TEXT)
+            pairs = doc.inconsistent_terms(min_count=2)
+        except OSError as e:  # pragma: no cover
+            self.skipTest(f"embedding model unavailable: {e}")
+        if not pairs:
+            self.skipTest("no near-synonym pair found for this fixture")
+        flagged_lemma = pairs[0][0]
+        with patch.object(
+            DocumentView,
+            "leading_words",
+            [{"lemma": flagged_lemma, "count": 8, "score": 2.0, "paragraphs": [0]}],
+        ), patch.object(DocumentView, "inconsistent_terms", return_value=pairs):
+            findings = [
+                f
+                for f in schimel_findings(doc)
+                if f.rule == "inconsistent_terminology"
+            ]
+        self.assertTrue(findings)
+        self.assertIn(self._LEITWORT_NOTE, findings[0].message)
+
+    def test_inconsistent_terminology_plain_message_when_not_a_leading_word(self):
+        try:
+            doc = DocumentView(self.TERMINOLOGY_TEXT)
+            self.assertEqual(doc.leading_words, [])
+            findings = [
+                f
+                for f in schimel_findings(doc)
+                if f.rule == "inconsistent_terminology"
+            ]
+        except OSError as e:  # pragma: no cover
+            self.skipTest(f"embedding model unavailable: {e}")
+        for f in findings:
+            self.assertNotIn(self._LEITWORT_NOTE, f.message)
+            self.assertTrue(
+                f.message.endswith("propagate it through the whole manuscript.")
+            )
+
+    def test_no_finding_is_dropped_by_annotation(self):
+        # Same occurrence counts as doc.repetition_bursts()/inconsistent_terms() report,
+        # with or without a leading-word match — annotation only enriches the message.
+        doc = DocumentView(self.REPETITION_TEXT)
+        occurrences = doc.repetition_bursts()
+        findings = [f for f in schimel_findings(doc) if f.rule == "word_repetition"]
+        self.assertEqual(len(findings), len(occurrences[:MAX_FINDINGS_PER_RULE]))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -325,10 +325,11 @@ class DocumentView:
         words = max(1, len(self.text.split()))
         return len(_NOM.findall(self.text)) * 1000 / words
 
-    def undefined_acronyms(self) -> list[tuple[int, int, str]]:
+    @cached_property
+    def _acronym_scan(self) -> tuple[dict[str, tuple[int, int]], set[str]]:
         # Doc-level: an acronym expanded once (parenthetically) anywhere counts as defined,
-        # so a later bare use is not re-flagged. Flag only the never-expanded ones, located
-        # at their first bare occurrence.
+        # so a later bare use is not re-flagged. Shared by undefined_acronyms() and
+        # defined_acronyms() (#5's jargon_cluster exemption) so the scan runs once.
         seen: dict[str, tuple[int, int]] = {}
         expanded: set[str] = set()
         for pi, para in enumerate(self.paragraphs):
@@ -342,7 +343,43 @@ class DocumentView:
                         (j for j, s in enumerate(self.sentences[pi]) if ac in s), 0
                     )
                     seen[ac] = (pi, si)
+        return seen, expanded
+
+    def undefined_acronyms(self) -> list[tuple[int, int, str]]:
+        # Flag only the never-expanded ones, located at their first bare occurrence.
+        seen, expanded = self._acronym_scan
         return [(pi, si, ac) for ac, (pi, si) in seen.items() if ac not in expanded]
+
+    @cached_property
+    def defined_acronyms(self) -> set[str]:
+        """Acronyms expanded parenthetically somewhere in the doc (e.g. 'Natural Language
+        Processing (NLP)'). Consumed by #5's jargon_cluster check to exempt already-defined
+        acronyms from the rare-word count."""
+        _, expanded = self._acronym_scan
+        return expanded
+
+    def paragraph_content_ratios(self, min_tokens: int = 30) -> list[tuple[int, float]]:
+        """(paragraph_idx, content_ratio) for paragraphs with >= min_tokens alphabetic
+        tokens. content_ratio = tokens tagged NOUN/PROPN/VERB/ADJ/ADV (_CONTENT_POS) over
+        alphabetic tokens — #5's lexical-density signal for the padding_paragraph check."""
+        out = []
+        for pi, doc in enumerate(self._spacy_paragraphs):
+            alpha = [tok for tok in doc if tok.is_alpha]
+            if len(alpha) < min_tokens:
+                continue
+            content = sum(1 for tok in alpha if tok.pos_ in _CONTENT_POS)
+            out.append((pi, content / len(alpha)))
+        return out
+
+    def sentence_tokens(self) -> list[tuple[int, int, list]]:
+        """(paragraph_idx, sentence_idx, alphabetic spaCy tokens) for every sentence, from
+        the shared per-paragraph parse. Generic token/POS view for checks that need more
+        than the plain-text sentence string (e.g. #5's jargon_cluster)."""
+        out = []
+        for pi, doc in enumerate(self._spacy_paragraphs):
+            for si, sent in enumerate(doc.sents):
+                out.append((pi, si, [tok for tok in sent if tok.is_alpha]))
+        return out
 
     def noun_trains(self) -> int:
         train_count = 0
@@ -571,11 +608,13 @@ class DocumentView:
 
     def repetition_bursts(
         self, window: int = 20, min_repeats: int = 3
-    ) -> list[tuple[int, int, str]]:
+    ) -> list[tuple[int, int, str, str]]:
         """Same word echoed in a short span ('reference-free … reference-based … reference-free',
         'rules' hammered). Generalizes over lemmas — no word list. Also flags two derivations of
-        one stem sitting adjacent ('normalisation, normalises'). One burst per paragraph."""
-        out: list[tuple[int, int, str]] = []
+        one stem sitting adjacent ('normalisation, normalises'). One burst per paragraph. Each
+        tuple carries (paragraph_idx, sentence_idx, span, lemma) — the trailing lemma is the
+        flagged word, used by #6 to cross-check against leading_words."""
+        out: list[tuple[int, int, str, str]] = []
         for pi, doc in enumerate(self._spacy_paragraphs):
             sent_list = list(doc.sents)
 
@@ -600,22 +639,31 @@ class DocumentView:
                 if hot:
                     span = doc[toks[i].i : toks[end - 1].i + 1].text.replace("\n", " ")
                     out.append(
-                        (pi, _sent_idx(toks[i].i), f"{hot} ×{counts[hot]}: …{span[:160]}…")
+                        (
+                            pi,
+                            _sent_idx(toks[i].i),
+                            f"{hot} ×{counts[hot]}: …{span[:160]}…",
+                            hot,
+                        )
                     )
                     break
             for a, b in zip(toks, toks[1:]):
                 fa, fb = a.text.lower(), b.text.lower()
                 if fa != fb and len(fa) >= 7 and fa[:7] == fb[:7]:
-                    out.append((pi, _sent_idx(a.i), f"{a.text} / {b.text}"))
+                    out.append(
+                        (pi, _sent_idx(a.i), f"{a.text} / {b.text}", a.lemma_.lower())
+                    )
         return out
 
     def inconsistent_terms(
         self, min_count: int = 3, threshold: float = 0.55, top: int = 5
-    ) -> list[str]:
+    ) -> list[tuple[str, str, str]]:
         """Near-synonym technical terms both used for what looks like one concept
         (composite/combined, scaled/normalised/calibrated). Generalizes via semantic-embedding
         cosine — no synonym list. Recall-first; the model consumer discards genuinely distinct
-        pairs. Morphological/substring dupes are left to repetition_bursts."""
+        pairs. Morphological/substring dupes are left to repetition_bursts. Each tuple is
+        (lemma_a, lemma_b, formatted_pair) — the lemmas let #6 cross-check against
+        leading_words."""
         counts: dict[str, int] = {}
         surface: dict[str, str] = {}
         for doc in self._spacy_paragraphs:
@@ -636,7 +684,7 @@ class DocumentView:
                 [surface[w] for w in terms], normalize_embeddings=True
             )
         )
-        pairs: list[tuple[float, str, str]] = []
+        pairs: list[tuple[float, str, str, str, str]] = []
         for i in range(len(terms)):
             for j in range(i + 1, len(terms)):
                 a, b = terms[i], terms[j]
@@ -644,9 +692,12 @@ class DocumentView:
                     continue
                 sim = _cos(emb[i], emb[j])
                 if sim >= threshold:
-                    pairs.append((sim, surface[a], surface[b]))
+                    pairs.append((sim, surface[a], surface[b], a, b))
         pairs.sort(reverse=True)
-        return [f"{a} / {b} (≈{s:.2f})" for s, a, b in pairs[:top]]
+        return [
+            (lemma_a, lemma_b, f"{a} / {b} (≈{s:.2f})")
+            for s, a, b, lemma_a, lemma_b in pairs[:top]
+        ]
 
     def defensive_claims(self) -> list[tuple[int, int, str]]:
         """First-person sentences built around a negation ('we do not claim…', 'we make no

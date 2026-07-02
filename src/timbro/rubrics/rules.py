@@ -376,24 +376,50 @@ def schimel_findings(doc: DocumentView) -> list[RubricFinding]:
         message="A comma joins two independent clauses (run-on); use a period, a semicolon, or a conjunction.",
     )
 
-    _emit(
-        findings,
-        severity="medium",
-        dimension="clarity",
-        rule="word_repetition",
-        occurrences=doc.repetition_bursts(),
-        message="A word is echoed several times in a short span; vary it or cut the echo (Schimel: repetition should be deliberate, not accidental).",
-    )
+    leading_lemmas = {r["lemma"] for r in doc.leading_words}
+    for pi, si, span, lemma in doc.repetition_bursts()[:MAX_FINDINGS_PER_RULE]:
+        message = (
+            "A word is echoed several times in a short span; vary it or cut the echo "
+            "(Schimel: repetition should be deliberate, not accidental)."
+        )
+        if lemma in leading_lemmas:
+            message += (
+                " recurs document-wide — possibly a deliberate leading word; keep it "
+                "if the repetition is structural."
+            )
+        findings.append(
+            RubricFinding(
+                "medium",
+                "clarity",
+                "word_repetition",
+                pi + 1 if pi is not None else None,
+                si + 1 if si is not None else None,
+                span[:220],
+                message,
+            )
+        )
 
-    inconsistent = doc.inconsistent_terms()
-    _emit(
-        findings,
-        severity="medium",
-        dimension="clarity",
-        rule="inconsistent_terminology",
-        occurrences=[(None, None, pair) for pair in inconsistent],
-        message="Near-synonym terms may name one concept; pick a single term and propagate it through the whole manuscript.",
-    )
+    for lemma_a, lemma_b, pair in doc.inconsistent_terms()[:MAX_FINDINGS_PER_RULE]:
+        message = (
+            "Near-synonym terms may name one concept; pick a single term and "
+            "propagate it through the whole manuscript."
+        )
+        if lemma_a in leading_lemmas or lemma_b in leading_lemmas:
+            message += (
+                " recurs document-wide — possibly a deliberate leading word; keep it "
+                "if the repetition is structural."
+            )
+        findings.append(
+            RubricFinding(
+                "medium",
+                "clarity",
+                "inconsistent_terminology",
+                None,
+                None,
+                pair[:220],
+                message,
+            )
+        )
 
     _emit(
         findings,
