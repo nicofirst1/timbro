@@ -1,3 +1,10 @@
+"""Rule definitions for the schimel rubric.
+
+Recall-first: prefer false positives; the LLM consumer judges each finding itself. A
+rule is demoted (never deleted) only when the M3 dashboard (#8) shows it's noisy on
+known-good prose.
+"""
+
 from __future__ import annotations
 
 from timbro.rubrics.base import RubricFinding
@@ -138,7 +145,8 @@ def schimel_findings(doc: DocumentView) -> list[RubricFinding]:
         occurrences=doc.undefined_acronyms(),
         message="Uses an acronym without defining it for readers.",
     )
-    if doc.fuzzy_verb_density() > 6:
+    fuzzy_density = doc.fuzzy_verb_density()
+    if fuzzy_density > 6:
         findings.append(
             RubricFinding(
                 "medium",
@@ -150,7 +158,20 @@ def schimel_findings(doc: DocumentView) -> list[RubricFinding]:
                 "Uses many weak process verbs instead of stronger action verbs.",
             )
         )
-    if doc.nominalization_density() > 35:
+    elif fuzzy_density > 4:
+        findings.append(
+            RubricFinding(
+                "low",
+                "sentences",
+                "fuzzy_verb_density",
+                None,
+                None,
+                "",
+                "Uses several weak process verbs instead of stronger action verbs.",
+            )
+        )
+    nominalization = doc.nominalization_density()
+    if nominalization > 35:
         findings.append(
             RubricFinding(
                 "medium",
@@ -160,6 +181,18 @@ def schimel_findings(doc: DocumentView) -> list[RubricFinding]:
                 None,
                 "",
                 "Uses heavy nominalization density that can flatten action.",
+            )
+        )
+    elif nominalization > 25:
+        findings.append(
+            RubricFinding(
+                "low",
+                "sentences",
+                "nominalization_density",
+                None,
+                None,
+                "",
+                "Uses a moderate nominalization density that can flatten action.",
             )
         )
     if doc.noun_trains() > 2:
@@ -176,18 +209,34 @@ def schimel_findings(doc: DocumentView) -> list[RubricFinding]:
         )
 
     sims = doc.adjacent_paragraph_similarity()
-    dips = sorted(
+    drift_medium = sorted(
         (idx for idx, s in enumerate(sims) if s < 0.25), key=lambda idx: sims[idx]
     )
+    drift_low = sorted(
+        (idx for idx, s in enumerate(sims) if 0.25 <= s < 0.35),
+        key=lambda idx: sims[idx],
+    )
+    # Emit the medium band first so report.py's per-rule dedup (first occurrence wins)
+    # attributes the stronger penalty when a document has both bands present.
     _emit(
         findings,
         severity="medium",
         dimension="flow",
         rule="paragraph_drift",
         occurrences=[
-            (idx + 1, None, doc.paragraphs[idx + 1][:220]) for idx in dips
+            (idx + 1, None, doc.paragraphs[idx + 1][:220]) for idx in drift_medium
         ],
         message="A paragraph shift appears abrupt or weakly connected.",
+    )
+    _emit(
+        findings,
+        severity="low",
+        dimension="flow",
+        rule="paragraph_drift",
+        occurrences=[
+            (idx + 1, None, doc.paragraphs[idx + 1][:220]) for idx in drift_low
+        ],
+        message="A paragraph shift appears somewhat abrupt or weakly connected.",
     )
 
     nowhere = [
@@ -305,7 +354,7 @@ def schimel_findings(doc: DocumentView) -> list[RubricFinding]:
 
     passives = doc.passive_clauses()
     total_sentences = sum(len(s) for s in doc.sentences)
-    if total_sentences and passives > max(2, 0.33 * total_sentences):
+    if total_sentences and passives > max(2, 0.20 * total_sentences):
         findings.append(
             RubricFinding(
                 "low",

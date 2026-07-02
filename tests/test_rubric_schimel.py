@@ -385,5 +385,105 @@ class RecallFirstFindingsTests(unittest.TestCase):
         self.assertEqual(len(nowhere), 3)
 
 
+class LoosenedThresholdBandTests(unittest.TestCase):
+    """M1 (#2): two-band thresholds — the newly opened band fires at low, the old band
+    keeps its previous severity. Severity is the confidence signal, not the gate."""
+
+    TEXT = "We frame the problem here.\n\nWe answer the question here."
+
+    def _severities(self, text: str, rule: str) -> list[str]:
+        return [f.severity for f in schimel_findings(DocumentView(text)) if f.rule == rule]
+
+    def test_fuzzy_verb_density_low_band_above_4(self):
+        with patch(
+            "timbro.rubrics.features.DocumentView.fuzzy_verb_density", return_value=5.0
+        ):
+            self.assertEqual(self._severities(self.TEXT, "fuzzy_verb_density"), ["low"])
+
+    def test_fuzzy_verb_density_medium_band_above_6(self):
+        with patch(
+            "timbro.rubrics.features.DocumentView.fuzzy_verb_density", return_value=7.0
+        ):
+            self.assertEqual(self._severities(self.TEXT, "fuzzy_verb_density"), ["medium"])
+
+    def test_fuzzy_verb_density_silent_at_or_below_4(self):
+        with patch(
+            "timbro.rubrics.features.DocumentView.fuzzy_verb_density", return_value=4.0
+        ):
+            self.assertEqual(self._severities(self.TEXT, "fuzzy_verb_density"), [])
+
+    def test_nominalization_density_low_band_above_25(self):
+        with patch(
+            "timbro.rubrics.features.DocumentView.nominalization_density",
+            return_value=30.0,
+        ):
+            self.assertEqual(self._severities(self.TEXT, "nominalization_density"), ["low"])
+
+    def test_nominalization_density_medium_band_above_35(self):
+        with patch(
+            "timbro.rubrics.features.DocumentView.nominalization_density",
+            return_value=40.0,
+        ):
+            self.assertEqual(
+                self._severities(self.TEXT, "nominalization_density"), ["medium"]
+            )
+
+    def test_nominalization_density_silent_at_or_below_25(self):
+        with patch(
+            "timbro.rubrics.features.DocumentView.nominalization_density",
+            return_value=25.0,
+        ):
+            self.assertEqual(self._severities(self.TEXT, "nominalization_density"), [])
+
+    def test_paragraph_drift_low_band_between_025_and_035(self):
+        with patch(
+            "timbro.rubrics.features.DocumentView.adjacent_paragraph_similarity",
+            return_value=[0.30],
+        ):
+            self.assertEqual(self._severities(self.TEXT, "paragraph_drift"), ["low"])
+
+    def test_paragraph_drift_medium_band_below_025(self):
+        with patch(
+            "timbro.rubrics.features.DocumentView.adjacent_paragraph_similarity",
+            return_value=[0.20],
+        ):
+            self.assertEqual(self._severities(self.TEXT, "paragraph_drift"), ["medium"])
+
+    def test_paragraph_drift_silent_at_or_above_035(self):
+        with patch(
+            "timbro.rubrics.features.DocumentView.adjacent_paragraph_similarity",
+            return_value=[0.35],
+        ):
+            self.assertEqual(self._severities(self.TEXT, "paragraph_drift"), [])
+
+    def test_passive_voice_fires_above_20_percent(self):
+        # 10 sentences, 3 passives: 3 > max(2, 0.20 * 10) fires under the new band,
+        # but 3 > max(2, 0.33 * 10) would not have fired under the old 33% gate.
+        text = " ".join(["The team analyzed the results."] * 10)
+        doc = DocumentView(text)
+        self.assertEqual(sum(len(s) for s in doc.sentences), 10)
+        with patch(
+            "timbro.rubrics.features.DocumentView.passive_clauses", return_value=3
+        ):
+            severities = [
+                f.severity
+                for f in schimel_findings(DocumentView(text))
+                if f.rule == "passive_voice"
+            ]
+        self.assertEqual(severities, ["low"])
+
+    def test_passive_voice_silent_at_or_below_20_percent(self):
+        text = " ".join(["The team analyzed the results."] * 10)
+        with patch(
+            "timbro.rubrics.features.DocumentView.passive_clauses", return_value=2
+        ):
+            severities = [
+                f.severity
+                for f in schimel_findings(DocumentView(text))
+                if f.rule == "passive_voice"
+            ]
+        self.assertEqual(severities, [])
+
+
 if __name__ == "__main__":
     unittest.main()
