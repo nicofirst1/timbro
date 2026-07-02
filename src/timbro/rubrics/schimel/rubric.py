@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from timbro.rubrics.features import DocumentView
+from timbro.rubrics.preprocess import strip_markup
 from timbro.rubrics.report import build_result
 from timbro.rubrics.rules import schimel_findings
 
@@ -10,7 +11,7 @@ class SchimelRubric:
     version = "v3"
 
     def check(self, text: str):
-        doc = DocumentView(text)
+        doc = DocumentView(strip_markup(text))
         findings = schimel_findings(doc)
         return build_result(
             rubric=self.name,
