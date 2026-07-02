@@ -72,7 +72,9 @@ repetition, inconsistent terminology, metadiscourse and citation-as-subject fram
 caveat/defensive closings, unearned claim words, significance-without-magnitude, and
 more. It returns a per-dimension score and a ranked findings list — recall-first, so a
 model consumer filters the occasional false positive. Rubrics are pluggable via a
-registry (`--rubric <name>`); `schimel` ships today.
+registry (`--rubric <name>`); `schimel` ships today. `uv run python
+eval/rubric_dashboard.py` prints each rule's findings-per-1000-words on known-good
+prose, so noisy rules can be spotted and demoted rather than deleted.
 
 ```bash
 uv run timbro check draft.md            # human-readable
