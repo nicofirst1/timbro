@@ -243,3 +243,83 @@ statement per §3.
   underlying facts were empirically checked, not assumed.
 - Next actions: (1) probe skills.sh (WS1 open sub-task); (2) file WS2 Issue A on GitHub;
   (3) watch NeurIPS workshop list Jul 11.
+
+## 8. WS3 pre-registered analysis rules (BINDING — decided while capable-model access existed)
+
+Every reported number follows the **`experiment-discipline` skill**: produced by a committed
+script with a logged run manifest (git commit, data hash, seed). Seeds are always 42.
+
+**Confirmatory feature family (5 + covariate):** `dict_imperative_ratio`, `dict_hedge_per_1k`,
+`read_flesch_kincaid_grade`, `syn_mean_tree_depth`, `coh_lemma_overlap_adj`; `log(desc_tokens)`
+is always a covariate, never a hypothesis. Everything else is exploratory and must be labeled
+exploratory in the paper.
+**Confirmatory outcomes:** ClawHub `downloads`; skills.sh installs (if the probe succeeds);
+GitHub stars **only** on single-skill repos.
+
+Decision rules — follow literally, log any trigger in `paper/analysis/DEVIATIONS.md`:
+- **D1 dedup:** if near-dup removal cuts skill-diffs by >60% (fork explosion), the unit of
+  analysis becomes the near-dup cluster: one canonical doc + `cluster_size` as covariate.
+  Never treat near-duplicates as independent observations.
+- **D2 scale:** descriptives on the full canonical corpus; regressions/clustering on a
+  platform-stratified 50K sample if the corpus exceeds 100K docs.
+- **D3 clustering:** HDBSCAN (`min_cluster_size=200`) on PCA components covering 90% variance.
+  If noise >50% or <3 clusters → k-means, k ∈ {4..12} by silhouette. If best silhouette <0.10 →
+  declare "no discrete dialects" and report the top-5 PCA axes as continuous dimensions instead.
+  That outcome is a finding, not a failure — do not keep re-clustering until something appears.
+- **D4 platform confound:** if cluster↔platform Cramér's V >0.6, re-cluster within each
+  platform and report both views.
+- **D5 slop check:** organic-vs-stub logistic AUC. If AUC >0.99, run drop-one-feature ablation
+  and report the ablated AUC alongside (template-leakage guard).
+- **D6 adoption:** Benjamini–Hochberg at q=0.10 over the 5 confirmatory features only. If
+  nothing survives → report the null with minimum detectable effect. No promoting exploratory
+  hits to headline claims.
+- **D7 spec/reality conflict** (schema changed, counts wildly off, endpoint gone): stop, log
+  the discrepancy, ask the user. Do not silently substitute.
+
+## 9. WS4 pilot — full spec (mechanical once WS3 clusters exist)
+
+**Compute:** open-weights coder model served with vLLM on the Fraunhofer **NM-BAIOS k8s
+cluster** (use the `nm-baios-gpu` skill; Job template on wiki page
+[[nm-baios-gpu-batch-jobs]]). The eval harness runs on the local machine (on VPN) against the
+served endpoint — GPU time, not API dollars. User approves the GPU-time plan before any runs.
+
+**Design (frozen before first run):**
+- **Tasks:** 24 from the ClawGym eval bench (stratified by gating type) if the OpenClaw harness
+  is workable; fallback: Terminal-Bench 2.0 via Harbor, skill matched to task by keyword. Task
+  list committed to `paper/pilot/tasks.json` before any execution.
+- **Conditions:** 4 per task — the original skill + 3 restylings targeting the 3 largest WS3
+  clusters (generate all 3 even if the original already sits in one; that measures restyle noise).
+- **Restyling protocol:** fixed per-cluster prompt templates in `paper/pilot/prompts/`; any
+  strong LLM may generate. Acceptance gates, all mandatory, max 3 attempts then drop the task
+  and log it: (a) code blocks, commands, file paths, and frontmatter **byte-identical** to the
+  original; (b) `timbro analyze` places the variant within 1.0 z of the target-cluster centroid
+  on the 5 confirmatory features; (c) human audit of a 20% random sample of accepted variants.
+- **Runs:** 4 conditions × 24 tasks × 3 seeds = 288, temperature 0.2. Per-run manifest: skill
+  hash, prompt hash, model+quantization, seed, harness commit (experiment-discipline).
+- **Stats:** mixed-effects logistic `success ~ condition + (1|task)`; pairwise McNemar
+  original-vs-each-variant; always report the MDE for this n. A null is publishable — report it
+  straight.
+- **Abort criteria:** restyle acceptance fails on >30% of tasks → stop and redesign the
+  protocol; the verifier disagrees with itself on identical (condition, seed) reruns → fix the
+  harness before generating any results.
+
+### 9.1 NM-BAIOS constraints (from wiki, 2026-07-04)
+
+- k8s 1.32 (not Slurm), namespace `nicolo`, context `nicolo@kubernetes`, **VPN required** (API
+  is a private VIP). Plain batch `Job`, `restartPolicy: Never`, `backoffLimit: 0`.
+- GPUs: full **H100 ~94GB** (`nvidia.com/gpu`) — contended, expect queueing; ~12× **A100 MIG
+  2g.10gb slices** — usually free. A 32B model needs the H100; MIG slices fit only ≤7B at
+  4-bit. Primary: 32B on H100. Fallback if H100 queue blocks: 14B-class AWQ on H100 off-hours,
+  or a ~7B 4-bit on MIG (note the model change in the paper).
+- **Hard cap `activeDeadlineSeconds: 21600` (6h) on every Job** — the vLLM server cannot run
+  persistently. Chunk the 288 runs into ≤6h batches; put `HF_HOME` on the home PVC
+  (`home-nicolo`, RWX NFS) so each relaunch skips the model download (documented
+  "whole evening lost" gotcha otherwise).
+- **Endpoint exposure is undocumented ground**: no Service/Ingress pattern in the wiki. Try
+  `kubectl port-forward` from the laptop first; if RBAC forbids it, run the harness driver
+  inside the cluster (job-local batch shape) and pull results back with `kubectl cp`/stager-pod
+  pattern. Resolve this BEFORE freezing the pilot design; it may force batch-shaped evaluation.
+- Prebuilt pinned image in the GitLab registry (needs standing `read_registry` deploy token) —
+  no `pip install` at container start. `PYTHONUNBUFFERED=1`. Pre-warm HF cache with one
+  downloader before fan-out. Etiquette: leave "free − 1" MIG slices for others. Force-delete
+  stuck pods (they hold the GPU). Jobs are immutable — delete-then-reapply.
