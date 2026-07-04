@@ -74,7 +74,7 @@ does not exist; it was hallucinated in the original deep-research report.
 | HF `davidliuk/graph-of-skills-data` | Paper-curated benchmark libraries (`skills_2000.tar.gz` is the superset) | 2,000 (substantive, ~6KB avg) | none | MIT |
 | ClawHub live registry | Sanctioned API: `GET https://clawhub.ai/v1/feeds/skills` (all 549, one request, robots.txt-allowed) + per skill `GET /api/v1/skills/{slug}/file?path=SKILL.md`; rate limit 3000 reads/min; authenticated `/api/v1/skills/export` ZIP exists | **549** (small!) | catalog sortable by `downloads` — skill-level adoption signal | must cache, honor 429, link back to canonical pages |
 | HF `amoghacloud/clawskills-intelligence-corpus` | 5,147 near-identical templated stubs ("SISR" boilerplate, ~400B each) | ~5.1K **low-quality stubs** | none | MIT |
-| skills.sh marketplace (unprobed) | Ling et al.'s source: 40,285 listings with per-platform install counts | unknown — needs probe | **skill-level installs** | unknown — needs probe |
+| skills.sh marketplace (probed 2026-07-04) | Ling et al.'s source. Public sitemaps enumerate **~20,000** skill URLs (`owner/repo/skill`). Detail pages (robots-allowed) embed JSON-LD with **total installs**, stars, first-seen date, security-audit verdicts + only a 466-char SKILL.md preview. Full text NOT available (API is Vercel-OIDC-gated and robots-disallowed — do not use it) | 0 full texts directly — **join installs onto skill-diffs texts via the owner/repo/skill path** | **skill-level total installs** (not per-platform; per-platform counts exist nowhere) | robots.txt allows pages/sitemaps; `/terms` unread — read it before the crawl |
 
 Corpus conclusions baked into the plan:
 - **skill-diffs anchors the corpus** (2–3 orders of magnitude larger than everything else).
@@ -117,9 +117,14 @@ Code in `paper/corpus/`, data in `paper/data/` (**gitignored** — add `paper/da
 **Acceptance:** a `paper/corpus/REPORT.md` with per-source counts, dedup stats
 (exact + near-dup removal rates), platform breakdown, license breakdown. No data files in git.
 
-**Open sub-task (needs one probe agent):** skills.sh — can full SKILL.md text + install counts
-be harvested, and under what terms? If yes, add `build_skillssh.py`; this is the best
-adoption-outcome source for RQ2. If terms are unclear, ask the user before scraping.
+7. `build_skillssh.py` (probe done 2026-07-04 — recipe fixed): read `/terms` FIRST and stop if
+   it forbids crawling. Then fetch `/sitemap.xml` → the two `sitemap-skills-*.xml` shards
+   (~20,000 URLs), crawl each detail page at ≤2 req/s with an identifying User-Agent + contact
+   email (~3h), parse the JSON-LD block (`userInteractionCount` = installs) + stars +
+   first-seen + audit verdicts. **Never call `skills.sh/api/*`** (OIDC-gated and
+   robots-disallowed). Output `paper/data/skillssh_meta.parquet` keyed on `owner/repo/skill`;
+   join installs onto skill-diffs full texts by that key (normalize case; report join rate).
+   This join is the primary RQ2 outcome. Cache raw HTML locally so the crawl never reruns.
 
 ### WS2 — Timbro vertical slices (July–Aug) — file as GitHub issues on `main`, one per branch/PR
 
