@@ -1,0 +1,22 @@
+# Fixed verbatim list (Implementer spec, issue #18). Matched case-insensitively on lemma;
+# multiword entries as token sequences.
+no
+not
+never
+none
+nothing
+nobody
+nowhere
+neither
+nor
+cannot
+can't
+won't
+don't
+doesn't
+didn't
+isn't
+aren't
+wasn't
+weren't
+without

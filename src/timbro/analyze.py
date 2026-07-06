@@ -32,7 +32,27 @@ _BULLET_LIST = re.compile(r"^[ \t]*[-*+][ \t]+")
 _ORDERED_LIST = re.compile(r"^[ \t]*\d+\.[ \t]+")
 
 _CONTENT_POS = {"NOUN", "PROPN", "VERB", "ADJ", "ADV"}
+_COH_CONTENT_POS = {"NOUN", "PROPN", "VERB", "ADJ"}
 _CLAUSAL_DEPS = {"ccomp", "xcomp", "advcl", "acl", "relcl"}
+_CONDITIONAL_MARKS = {"if", "unless", "when"}
+_LEXICON_DIR = Path(__file__).parent / "lexicons"
+
+
+@lru_cache(maxsize=None)
+def _lexicon(name: str) -> tuple[tuple[str, ...], ...]:
+    lines = (_LEXICON_DIR / name).read_text(encoding="utf-8").splitlines()
+    entries = (ln.strip() for ln in lines if ln.strip() and not ln.startswith("#"))
+    return tuple(tuple(entry.lower().split()) for entry in entries)
+
+
+def _lexicon_matches(lemmas: list[str], entries: tuple[tuple[str, ...], ...]) -> int:
+    count = 0
+    for entry in entries:
+        width = len(entry)
+        for i in range(len(lemmas) - width + 1):
+            if tuple(lemmas[i : i + width]) == entry:
+                count += 1
+    return count
 
 # textdescriptives' extract_df column -> our snake_case name (exact renames are decisions
 # from the #17 spec: syn_mean_dependency_distance, not syn_dependency_distance_mean).
@@ -103,6 +123,34 @@ def _token_depth(tok) -> int:
     return depth
 
 
+def _imperative_ratio(sentences) -> float | None:
+    if not sentences:
+        return None
+    imperative = 0
+    for sent in sentences:
+        root = sent.root
+        if root.tag_ != "VB":
+            continue
+        if any(c.dep_ in {"nsubj", "nsubjpass"} for c in root.children):
+            continue
+        if sent.text.rstrip().endswith("?"):
+            continue
+        imperative += 1
+    return imperative / len(sentences)
+
+
+def _conditional_clauses_per_sentence(doc, n_sentences: int) -> float | None:
+    if not n_sentences:
+        return None
+    count = sum(
+        1
+        for tok in doc
+        if tok.dep_ == "advcl"
+        and any(c.dep_ == "mark" and c.lemma_.lower() in _CONDITIONAL_MARKS for c in tok.children)
+    )
+    return count / n_sentences
+
+
 def _struct_features(raw: str) -> tuple[dict, str]:
     n = len(raw)
     headings = list(_HEADING.finditer(raw))
@@ -153,6 +201,8 @@ def _nlp_features(prose: str) -> dict:
         out["syn_mean_tree_depth"] = None
         out["syn_clausal_per_sentence"] = None
 
+    out["dict_imperative_ratio"] = _imperative_ratio(sentences)
+
     all_tokens = [t for t in doc if not t.is_space]
     n_all = len(all_tokens)
     pos_counts = Counter(t.pos_ for t in all_tokens)
@@ -167,6 +217,37 @@ def _nlp_features(prose: str) -> dict:
     out["lex_hdd"] = lex_div.hdd(content_lemmas)
     zipfs = [zipf_frequency(w, "en") for w in content_lemmas]
     out["lex_zipf_mean"] = sum(zipfs) / len(zipfs) if zipfs else None
+
+    all_lemmas = [t.lemma_.lower() for t in all_tokens]
+    out["dict_hedge_per_1k"] = (
+        _lexicon_matches(all_lemmas, _lexicon("hedges.txt")) / n_all * 1000 if n_all else 0.0
+    )
+    out["dict_booster_per_1k"] = (
+        _lexicon_matches(all_lemmas, _lexicon("boosters.txt")) / n_all * 1000 if n_all else 0.0
+    )
+    out["dict_negation_per_1k"] = (
+        _lexicon_matches(all_lemmas, _lexicon("negations.txt")) / n_all * 1000 if n_all else 0.0
+    )
+    out["dict_conditional_per_1k"] = (
+        _lexicon_matches(all_lemmas, _lexicon("connectives_conditional.txt")) / n_all * 1000
+        if n_all
+        else 0.0
+    )
+    out["dict_conditional_clauses_per_sentence"] = _conditional_clauses_per_sentence(
+        doc, len(sentences)
+    )
+
+    if len(sentences) < 2:
+        out["coh_lemma_overlap_adj"] = None
+    else:
+        sent_lemma_sets = [
+            {t.lemma_.lower() for t in sent if t.pos_ in _COH_CONTENT_POS} for sent in sentences
+        ]
+        overlaps = []
+        for a, b in zip(sent_lemma_sets, sent_lemma_sets[1:]):
+            union = a | b
+            overlaps.append(len(a & b) / len(union) if union else 0.0)
+        out["coh_lemma_overlap_adj"] = sum(overlaps) / len(overlaps)
 
     return out
 
