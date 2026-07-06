@@ -15,6 +15,8 @@ dependencies = [
     # Word-frequency lookup for the density rubric's jargon_cluster check (#5); ships its
     # own bundled frequency data, no network at check time.
     "wordfreq>=3.1.1",
+    "textdescriptives>=2.8.2",
+    "lexical-diversity>=0.1.1",
 ]
 
 [dependency-groups]
