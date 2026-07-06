@@ -1,0 +1,66 @@
+# Hyland (2005) boosters list, Metadiscourse: Exploring Interaction in Writing (Continuum).
+# Reproduced verbatim from Appendix A ("List of Hedges and Boosters"), p.106, in:
+# Incharoensak, C. (2018). Hedges and Boosters in US College Application Essays: A
+# Corpus-Based Comparative Study Between US Middle and US Top College Application Essays
+# (Master's thesis, Thammasat University).
+# http://ethesisarchive.library.tu.ac.th/thesis/2018/TU_2018_5921042080_8590_9697.pdf
+# One entry per line; matched case-insensitively on lemma; multiword entries as token sequences.
+actually
+always
+believe
+believed
+believes
+certain
+certainly
+clear
+clearly
+conclusively
+decidedly
+definite
+definitely
+demonstrate
+demonstrated
+demonstrates
+doubtless
+establish
+established
+evident
+evidently
+find
+finds
+found
+incontestable
+incontestably
+incontrovertible
+incontrovertibly
+indeed
+indisputable
+indisputably
+know
+known
+must
+never
+obvious
+obviously
+prove
+proved
+proves
+realize
+realized
+realizes
+really
+show
+showed
+shown
+shows
+sure
+surely
+think
+thinks
+thought
+truly
+true
+undeniable
+undeniably
+undisputedly
+undoubtedly

@@ -1,0 +1,90 @@
+# Hyland (2005) hedges list, Metadiscourse: Exploring Interaction in Writing (Continuum).
+# Reproduced verbatim from Appendix A ("List of Hedges and Boosters"), p.106, in:
+# Incharoensak, C. (2018). Hedges and Boosters in US College Application Essays: A
+# Corpus-Based Comparative Study Between US Middle and US Top College Application Essays
+# (Master's thesis, Thammasat University).
+# http://ethesisarchive.library.tu.ac.th/thesis/2018/TU_2018_5921042080_8590_9697.pdf
+# One entry per line; matched case-insensitively on lemma; multiword entries as token sequences.
+about
+almost
+apparent
+apparently
+appear
+appeared
+appears
+approximately
+argue
+argued
+argues
+around
+assume
+broadly
+claim
+claimed
+claims
+could
+couldn't
+doubt
+doubtful
+essentially
+estimate
+estimated
+fairly
+feel
+feels
+felt
+generally
+guess
+indicate
+indicated
+indicates
+largely
+likely
+mainly
+may
+maybe
+might
+mostly
+often
+ought
+perhaps
+plausible
+plausibly
+possible
+possibly
+postulate
+postulated
+postulates
+presumable
+presumably
+probable
+probably
+quite
+rather
+relatively
+roughly
+seems
+should
+sometimes
+somewhat
+suggest
+suggested
+suggests
+suppose
+supposed
+supposes
+suspect
+suspects
+tend to
+tended to
+tends to
+typical
+typically
+uncertain
+uncertainly
+unclear
+unclearly
+unlikely
+usually
+would
+wouldn't

@@ -101,6 +101,58 @@ class AnalyzeEdgeCaseTests(unittest.TestCase):
         pos_sum = sum(v for k, v in features.items() if k.startswith("posdep_pos_"))
         self.assertEqual(pos_sum, 0.0)
 
+    def test_empty_file_dict_and_coh_features_never_crash(self):
+        features = analyze_text("")
+        self.assertIsNone(features["dict_imperative_ratio"])
+        self.assertIsNone(features["dict_conditional_clauses_per_sentence"])
+        self.assertIsNone(features["coh_lemma_overlap_adj"])
+        self.assertEqual(features["dict_hedge_per_1k"], 0.0)
+        self.assertEqual(features["dict_booster_per_1k"], 0.0)
+        self.assertEqual(features["dict_negation_per_1k"], 0.0)
+        self.assertEqual(features["dict_conditional_per_1k"], 0.0)
+
+
+class DictFeatureTests(unittest.TestCase):
+    """Hand-checked fixtures from issue #18's implementer spec."""
+
+    def test_imperative_sentences_ratio_one(self):
+        features = analyze_text("Run the tests. Then commit.")
+        self.assertEqual(features["dict_imperative_ratio"], 1.0)
+
+    def test_non_imperative_sentence_ratio_zero(self):
+        features = analyze_text("You should perhaps run them.")
+        self.assertEqual(features["dict_imperative_ratio"], 0.0)
+
+    def test_hedge_detected(self):
+        # Issue #18's worked example says "1 hedge" for this sentence, but Hyland's (2005)
+        # verbatim hedge list (see lexicons/hedges.txt header) also lists "should" as a
+        # modal hedge alongside "perhaps" -- 2 matches once the sourced list is applied literally.
+        features = analyze_text("You should perhaps run them.")
+        self.assertEqual(features["dict_hedge_per_1k"], 1000 / 3)
+
+    def test_negation_and_conditional_clause_detected(self):
+        features = analyze_text("If it fails, do not retry.")
+        self.assertEqual(features["dict_negation_per_1k"], 1000 / 8)
+        self.assertEqual(features["dict_conditional_clauses_per_sentence"], 1.0)
+
+    def test_lemma_overlap_adjacent_sentences(self):
+        features = analyze_text("The cat chased the mouse. The cat bit the mouse.")
+        self.assertAlmostEqual(features["coh_lemma_overlap_adj"], 0.5)
+
+    def test_lemma_overlap_null_below_two_sentences(self):
+        features = analyze_text("Only one sentence here.")
+        self.assertIsNone(features["coh_lemma_overlap_adj"])
+
+    def test_booster_detected(self):
+        # "certainly" and "true" are both Hyland boosters -- 2 matches / 5 tokens.
+        features = analyze_text("This is certainly true.")
+        self.assertEqual(features["dict_booster_per_1k"], 1000 * 2 / 5)
+
+    def test_conditional_connective_detected(self):
+        # "because" is the one connective match / 8 tokens.
+        features = analyze_text("We left early because it was raining.")
+        self.assertEqual(features["dict_conditional_per_1k"], 1000 / 8)
+
 
 class RunAnalyzeTests(unittest.TestCase):
     def test_missing_file_skipped_not_crashed(self):
