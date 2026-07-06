@@ -201,6 +201,9 @@ def run_analyze(paths: list[str], fmt: str = "jsonl", out_path: str | None = Non
         if path.suffix not in {".md", ".txt"}:
             print(f"skipping {p}: not a .md/.txt file", file=sys.stderr)
             continue
+        if not path.is_file():
+            print(f"skipping {p}: no such file", file=sys.stderr)
+            continue
         files.append(path)
 
     if not files:

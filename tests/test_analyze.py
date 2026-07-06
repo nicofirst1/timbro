@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import contextlib
+import io
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
-from timbro.analyze import analyze_text
+from timbro.analyze import analyze_text, run_analyze
 
 FIXTURE = (
     "---\n"
@@ -96,6 +100,31 @@ class AnalyzeEdgeCaseTests(unittest.TestCase):
         self.assertEqual(features["struct_prose_ratio"], 0.0)
         pos_sum = sum(v for k, v in features.items() if k.startswith("posdep_pos_"))
         self.assertEqual(pos_sum, 0.0)
+
+
+class RunAnalyzeTests(unittest.TestCase):
+    def test_missing_file_skipped_not_crashed(self):
+        with TemporaryDirectory() as tmp:
+            real = Path(tmp) / "real.md"
+            real.write_text("Hello world. This is prose.")
+            out = Path(tmp) / "out.jsonl"
+            stderr = io.StringIO()
+            with contextlib.redirect_stderr(stderr):
+                exit_code = run_analyze(
+                    [str(real), str(Path(tmp) / "missing.md")], out_path=str(out)
+                )
+            self.assertEqual(exit_code, 0)
+            self.assertIn("missing.md", stderr.getvalue())
+            self.assertIn("no such file", stderr.getvalue())
+            lines = out.read_text().strip().splitlines()
+            self.assertEqual(len(lines), 1)
+
+    def test_all_paths_missing_exits_nonzero(self):
+        with TemporaryDirectory() as tmp:
+            stderr = io.StringIO()
+            with contextlib.redirect_stderr(stderr):
+                exit_code = run_analyze([str(Path(tmp) / "missing.md")])
+            self.assertEqual(exit_code, 1)
 
 
 if __name__ == "__main__":
