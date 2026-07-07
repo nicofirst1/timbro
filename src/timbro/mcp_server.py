@@ -10,7 +10,7 @@ from functools import lru_cache
 
 from mcp.server.fastmcp import FastMCP
 
-from timbro.core import VoiceModel, default_model
+from timbro.model import VoiceModel, default_model
 from timbro.report import voice_report
 from timbro.rewrite import evaluate_rewrite
 from timbro.rubrics import check_text

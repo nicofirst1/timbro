@@ -4,7 +4,7 @@ import unittest
 
 import numpy as np
 
-from timbro.core import VoiceModel
+from timbro.model import VoiceModel
 
 
 class ScoringPolicyTests(unittest.TestCase):

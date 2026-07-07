@@ -1,16 +1,8 @@
 """The one payload both the CLI and the MCP server return: score + flow."""
 
-import re
-
 from timbro.cleanup import preprocess_runtime_text
 from timbro.flow import flow_report, paragraphs
-
-
-_SENTENCE = re.compile(r"(?<=[.!?])\s+")
-
-
-def _sentence_candidates(paragraph: str, min_words: int = 8) -> list[str]:
-    return [s.strip() for s in _SENTENCE.split(paragraph) if len(s.split()) >= min_words]
+from timbro.text import split_sentences
 
 
 def _local_direction(model, text: str, top_k: int = 2) -> list[dict]:
@@ -21,7 +13,7 @@ def _local_direction(model, text: str, top_k: int = 2) -> list[dict]:
 
 
 def _top_sentence(model, paragraph: str) -> dict | None:
-    candidates = _sentence_candidates(paragraph)
+    candidates = split_sentences(paragraph, min_words=8)
     if not candidates:
         return None
     scored = [{"text": s, "distance": model._dist(s)} for s in candidates]

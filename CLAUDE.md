@@ -21,7 +21,7 @@ Issues are labeled by required capability: `agent:mechanical` = fully specified,
 
 - `uv run timbro score draft.md` — score a file (runs on the packaged sample voice if no corpus env vars set)
 - `uv run timbro-mcp` — MCP server (stdio)
-- `uv run python -m timbro.core` — core smoke test
+- `uv run python -m timbro.model` — core smoke test
 - `uv run ruff check src/` — lint
 - Corpus: `TIMBRO_EXEMPLARS` (toward) / `TIMBRO_CONTRAST` (away). Named profiles live in `~/.timbro/profiles/<name>/{exemplars,contrast}/` by default (override with `TIMBRO_PROFILE_ROOT`).
 
