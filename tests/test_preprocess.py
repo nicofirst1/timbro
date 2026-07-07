@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from timbro.rubrics.preprocess import strip_markup
+from timbro.text import strip_markup
 
 
 class StripMarkupTests(unittest.TestCase):

@@ -7,7 +7,7 @@ from statistics import pstdev
 import numpy as np
 
 from timbro.cleanup import preprocess_runtime_text
-from timbro.flow import _model as _embed_model
+from timbro.text import _model as _embed_model
 from timbro.rubrics.sections import detect_sections, split_paragraphs, split_sentences
 
 

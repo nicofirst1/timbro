@@ -24,7 +24,7 @@ from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
 
 from timbro.cleanup import tex_to_markdown
-from timbro.core import _style_vec
+from timbro.model import _style_vec
 
 
 _VALID_NAME = re.compile(r"^[a-z0-9][a-z0-9_-]*$")

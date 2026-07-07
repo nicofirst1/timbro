@@ -14,7 +14,7 @@ from __future__ import annotations
 import numpy as np
 
 from timbro.cleanup import preprocess_runtime_text
-from timbro.flow import _model  # all-MiniLM-L6-v2: general semantic embedding
+from timbro.text import _model  # all-MiniLM-L6-v2: general semantic embedding
 
 
 def content_similarity(original: str, revised: str) -> float:

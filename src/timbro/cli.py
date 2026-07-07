@@ -12,7 +12,7 @@ import argparse
 import json
 import sys
 
-from timbro.core import VoiceModel, default_model
+from timbro.model import VoiceModel, default_model
 from timbro.profiles import add_file, diagnose_profile, get_profile, init_profile, list_profiles
 from timbro.report import voice_report
 from timbro.rubrics import check_text

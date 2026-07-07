@@ -3,7 +3,7 @@
 No LLM, no network at analyze time. Profiles/rubrics/scoring/verdicts are untouched --
 this is a standalone slice for the SKILL.md linguistic-topology paper (paper/README.md
 WS2 Issue A). `struct_*` runs on the raw markdown; everything else runs on prose
-isolated via the #16 markup stripper (`timbro.rubrics.preprocess.strip_markup`).
+isolated via the #16 markup stripper (`timbro.text.strip_markup`).
 """
 
 from __future__ import annotations
@@ -21,8 +21,8 @@ import yaml
 from lexical_diversity import lex_div
 from wordfreq import zipf_frequency
 
-from timbro.core import POS_TAGS
-from timbro.rubrics.preprocess import strip_markup
+from timbro.model import POS_TAGS
+from timbro.text import strip_markup
 
 _FRONTMATTER = re.compile(r"\A---[ \t]*\n(.*?)\n---[ \t]*\n?", re.S)
 _FENCE = re.compile(r"(```|~~~).*?\1", re.S)
