@@ -31,6 +31,23 @@ _TABLE_SEPARATOR = re.compile(r"(?m)^[ \t]*:?-{2,}:?(?:[ \t]*\|[ \t]*:?-{2,}:?)+
 _BULLET_LIST = re.compile(r"^[ \t]*[-*+][ \t]+")
 _ORDERED_LIST = re.compile(r"^[ \t]*\d+\.[ \t]+")
 
+# Folk-advice exploratory features (#21).
+_INLINE_CODE_SPAN = re.compile(r"`([^`\n]+)`")
+_MD_LINK = re.compile(r"\[(.*?)\]\((.*?)\)")
+_EXTERNAL_REF = re.compile(r"(scripts/|references/|assets/)[^\s)\]]*")
+_NAMED_SECTIONS = (
+    "examples", "guidelines", "when to use", "procedure", "pitfalls", "usage", "instructions",
+)
+_NAME_FORMAT = re.compile(r"[a-z0-9-]{1,64}")
+_HEADING_MARK = re.compile(r"^[ \t]*#{1,6}[ \t]+")
+_FM_WHEN_CLAUSE = re.compile(r"\b(when|use (this|it) (when|for|to)|whenever|if you)\b", re.I)
+_FM_OR_WORD = re.compile(r"\bor\b", re.I)
+_FM_WILDCARD = re.compile(r"\b(any|all|every|always|whenever|anything|everything)\b", re.I)
+_ALLCAPS = re.compile(r"\b[A-Z][A-Z']+\b")
+_ALLCAPS_DIRECTIVES = {"ALWAYS", "NEVER", "MUST", "NOT", "DON'T", "DO"}
+_CONTRASTIVE = re.compile(r"^(do|don'?t|correct|incorrect|good|bad)\s*:", re.I)
+_CONTRASTIVE_SYMBOLS = ("✅", "❌", "✓", "✗")
+
 _CONTENT_POS = {"NOUN", "PROPN", "VERB", "ADJ", "ADV"}
 _COH_CONTENT_POS = {"NOUN", "PROPN", "VERB", "ADJ"}
 _CLAUSAL_DEPS = {"ccomp", "xcomp", "advcl", "acl", "relcl"}
@@ -139,6 +156,17 @@ def _imperative_ratio(sentences) -> float | None:
     return imperative / len(sentences)
 
 
+def _first_person_ratio(sentences) -> float | None:
+    if not sentences:
+        return None
+    count = sum(
+        1
+        for sent in sentences
+        if any(c.dep_ == "nsubj" and c.lemma_.lower() in {"i", "we"} for c in sent.root.children)
+    )
+    return count / len(sentences)
+
+
 def _conditional_clauses_per_sentence(doc, n_sentences: int) -> float | None:
     if not n_sentences:
         return None
@@ -157,8 +185,24 @@ def _struct_features(raw: str) -> tuple[dict, str]:
     code_chars = sum(len(m.group(0)) for m in _FENCE.finditer(raw))
     lines = raw.split("\n")
     non_blank = [ln for ln in lines if ln.strip()]
-    list_lines = sum(1 for ln in lines if _BULLET_LIST.match(ln) or _ORDERED_LIST.match(ln))
+    ordered_lines = sum(1 for ln in lines if _ORDERED_LIST.match(ln))
+    bullet_lines = sum(1 for ln in lines if _BULLET_LIST.match(ln))
+    list_lines = ordered_lines + bullet_lines
     prose = strip_markup(raw)
+
+    inline_chars = sum(len(s) for s in _INLINE_CODE_SPAN.findall(_FENCE.sub("", raw)))
+
+    # External refs: bare scripts//references//assets/ tokens (with markdown links
+    # collapsed to their text) plus the same pattern inside every link target.
+    bare_refs = len(_EXTERNAL_REF.findall(_MD_LINK.sub(lambda m: m.group(1), raw)))
+    target_refs = sum(len(_EXTERNAL_REF.findall(m.group(2))) for m in _MD_LINK.finditer(raw))
+
+    named_section = 0
+    for m in headings:
+        htext = _HEADING_MARK.sub("", m.group(0)).strip().lower()
+        if any(s in htext for s in _NAMED_SECTIONS):
+            named_section = 1
+            break
 
     frontmatter = {}
     fm_match = _FRONTMATTER.match(raw)
@@ -170,6 +214,27 @@ def _struct_features(raw: str) -> tuple[dict, str]:
         if isinstance(loaded, dict):
             frontmatter = loaded
 
+    name = frontmatter.get("name")
+    description = frontmatter.get("description")
+    if isinstance(description, str) and description:
+        fm_tokens = len(_analyze_nlp()(description))
+        wildcards = len(_FM_WILDCARD.findall(description))
+        fm_desc = {
+            "fm_desc_present": 1,
+            "fm_desc_tokens": fm_tokens,
+            "fm_desc_when_clause": 1 if _FM_WHEN_CLAUSE.search(description) else 0,
+            "fm_desc_or_count": len(_FM_OR_WORD.findall(description)),
+            "fm_desc_wildcard_per_token": wildcards / fm_tokens if fm_tokens else 0,
+        }
+    else:
+        fm_desc = {
+            "fm_desc_present": 0,
+            "fm_desc_tokens": 0,
+            "fm_desc_when_clause": 0,
+            "fm_desc_or_count": 0,
+            "fm_desc_wildcard_per_token": 0,
+        }
+
     struct = {
         "struct_heading_count": len(headings),
         "struct_max_heading_depth": max((len(m.group(1)) for m in headings), default=0),
@@ -178,6 +243,14 @@ def _struct_features(raw: str) -> tuple[dict, str]:
         "struct_table_count": len(_TABLE_SEPARATOR.findall(raw)),
         "struct_prose_ratio": len(prose) / n if n else None,
         "struct_frontmatter_field_count": len(frontmatter),
+        "struct_line_count": len(lines) if raw else 0,
+        "struct_inline_code_char_ratio": inline_chars / n if n else 0.0,
+        "struct_ordered_list_ratio": ordered_lines / len(non_blank) if non_blank else 0.0,
+        "struct_bullet_list_ratio": bullet_lines / len(non_blank) if non_blank else 0.0,
+        "struct_external_ref_count": bare_refs + target_refs,
+        "struct_named_section_present": named_section,
+        "struct_name_format_valid": 1 if isinstance(name, str) and _NAME_FORMAT.fullmatch(name) else 0,
+        **fm_desc,
         "frontmatter_json": json.dumps(frontmatter),
     }
     return struct, prose
@@ -202,9 +275,17 @@ def _nlp_features(prose: str) -> dict:
         out["syn_clausal_per_sentence"] = None
 
     out["dict_imperative_ratio"] = _imperative_ratio(sentences)
+    out["dict_first_person_subject_ratio"] = _first_person_ratio(sentences)
+    out["dict_contrastive_example_count"] = sum(
+        1
+        for ln in prose.split("\n")
+        if (s := ln.lstrip()) and (_CONTRASTIVE.match(s) or s[0] in _CONTRASTIVE_SYMBOLS)
+    )
 
     all_tokens = [t for t in doc if not t.is_space]
     n_all = len(all_tokens)
+    allcaps_hits = sum(1 for w in _ALLCAPS.findall(prose) if w in _ALLCAPS_DIRECTIVES)
+    out["dict_allcaps_directive_per_1k"] = allcaps_hits / n_all * 1000 if n_all else 0.0
     pos_counts = Counter(t.pos_ for t in all_tokens)
     for tag in POS_TAGS:
         out[f"posdep_pos_{tag}"] = pos_counts.get(tag, 0) / n_all if n_all else 0.0
