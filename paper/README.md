@@ -33,7 +33,7 @@ functionality (WS2) merges to `main`, via normal issue/PR flow.
   profile — content held constant — change agent task-success rate?
 
 **Explicitly avoided (saturated):** predicting static generation quality or domain
-classification from these features (PromptPrism; arXiv:2510.09316).
+classification from these features (prompt-datasets study; arXiv:2510.09316).
 
 ## 2. Novelty position (verified 2026-07-04)
 
@@ -56,12 +56,38 @@ Coverage matrix vs. closest prior art:
 
 ### Citation whitelist (verified real — use only these until extended)
 
+**Amendment 2026-07-07:** `paper/literature.md` is now the authoritative verified-source
+registry (~76+ papers, each independently verified before status "fully read"); the whitelist
+below remains the core positioning set.
+
 PromptPrism (arXiv:2505.12592, Findings of EACL 2026) · prompt-datasets study
 (arXiv:2510.09316) · Ling et al. (arXiv:2602.08004) · Cho et al. (arXiv:2601.10809) ·
 ClawGym (arXiv:2604.26904; note: 13.5K tasks are *training* data, eval bench = 200 instances) ·
 SWE-World (arXiv:2602.03419) · Harbor (github.com/laude-institute/harbor, Terminal-Bench team) ·
 olmo-eval (Ai2, June 2026) · Graph of Skills (arXiv:2604.05333) ·
 "Prompting in the Wild" (arXiv:2412.17298, MSR 2025) · PromptSet.
+
+**Promoted to whitelist 2026-07-07** (from `literature.md`, fully read/verified):
+- SkillForge (`liu2026-skillforge`, arXiv:2604.08618) — closest methodological neighbor found:
+  measures a named "Style" axis of skill text with a task-outcome link, but it is an LLM-judged
+  single tone axis in customer support ≠ our measured deterministic feature vector ×
+  adoption/execution. Needs a direct differentiation note in related work.
+- ClawHub study (`hu2026-clawhub`, arXiv:2604.13064) — closest RQ1 analog: cross-lingual
+  functional clustering of 26.5K skills, but topic-level (bag-of-words) only, not linguistic.
+- SoK: Agentic Skills (`jiang2026-sokskills`, arXiv:2602.20867) — representation × scope
+  taxonomy naming natural-language-only skill prose as a first-class category; RQ1 positioning.
+- SkillsBench (`li2026-skillsbench`, arXiv:2602.12670) — 87-task execution benchmark; "compact
+  documentation (+19.0/+21.5pp) outperformed exhaustive prose (+0.7pp)"; RQ3 precedent and
+  candidate WS4 harness.
+- Biber 1988 (*Variation across Speech and Writing*) + Biber & Egbert 2018 (*Register Variation
+  Online*) — Multidimensional Analysis, the methodological precedent for the RQ1 clustering
+  pipeline (see §8 amendment).
+
+**⚠ BLOCKING action item (2026-07-07):** `skillstructure2026` (arXiv:2604.24026, "From Skill
+Text to Skill Structure: The Scheduling-Structural-Logical Representation for Agent Skills") is
+the largest unresolved novelty risk — status `to read`, known only from a search snippet. MUST
+be fetched and read before related-work positioning is locked. If it does measured linguistic
+features of skill text, RQ1 framing needs revision.
 
 **Known-fabricated (never cite):** "Prompts in the Wild" (ACL, 57.5K-prompt ontology study) —
 does not exist; it was hallucinated in the original deep-research report.
@@ -71,7 +97,7 @@ does not exist; it was hallucinated in the original deep-research report.
 | Source | What it is | Unique full-text skills | Outcome proxies | License |
 |---|---|---|---|---|
 | HF `shl0ms/skill-diffs` | Full SKILL.md snapshots per commit, 5,891 GitHub repos, 4 platforms | **~630K–665K** (use `bundled` config or latest `after_content` per `skill_id`) | repo `stars`, dates, `intent_class`, `quality_score`; **no installs** | per-record `license_spdx` — filter per row |
-| HF `davidliuk/graph-of-skills-data` | Paper-curated benchmark libraries (`skills_2000.tar.gz` is the superset) | 2,000 (substantive, ~6KB avg) | none | MIT |
+| HF `davidliuk/graph-of-skills-data` | Paper-curated benchmark libraries (`skills_2000.tar.gz` is the superset). **Caveat 2026-07-07:** the paper↔dataset provenance link (Graph of Skills, arXiv:2604.05333) is plausible (author handle + skill count match) but not confirmed from the paper text — confirm (paper's GitHub repo or HF dataset card) before citing the dataset as the paper's artifact | 2,000 (substantive, ~6KB avg) | none | MIT |
 | ClawHub live registry | Sanctioned API: `GET https://clawhub.ai/v1/feeds/skills` (all 549, one request, robots.txt-allowed) + per skill `GET /api/v1/skills/{slug}/file?path=SKILL.md`; rate limit 3000 reads/min; authenticated `/api/v1/skills/export` ZIP exists | **549** (small!) | catalog sortable by `downloads` — skill-level adoption signal | must cache, honor 429, link back to canonical pages |
 | HF `amoghacloud/clawskills-intelligence-corpus` | 5,147 near-identical templated stubs ("SISR" boilerplate, ~400B each) | ~5.1K **low-quality stubs** | none | MIT |
 | skills.sh marketplace (probed 2026-07-04) | Ling et al.'s source. Public sitemaps enumerate **~20,000** skill URLs (`owner/repo/skill`). Detail pages (robots-allowed) embed JSON-LD with **total installs**, stars, first-seen date, security-audit verdicts + only a 466-char SKILL.md preview. Full text NOT available (API is Vercel-OIDC-gated and robots-disallowed — do not use it) | 0 full texts directly — **join installs onto skill-diffs texts via the owner/repo/skill path** | **skill-level total installs** (not per-platform; per-platform counts exist nowhere) | robots.txt allows pages/sitemaps; `/terms` unread — read it before the crawl |
@@ -281,6 +307,24 @@ Decision rules — follow literally, log any trigger in `paper/analysis/DEVIATIO
 - **D7 spec/reality conflict** (schema changed, counts wildly off, endpoint gone): stop, log
   the discrepancy, ask the user. Do not silently substitute.
 
+### §8 amendment (2026-07-07 — pre-registration amendment; analysis has not run. D1–D7 and the confirmatory family above are unchanged)
+
+- **Construct-validity citations per confirmatory feature** (from
+  `paper/lit_review_psycholinguistics.md`): `dict_imperative_ratio` ← Vander Linden &
+  Di Eugenio 1996 (COLING-96, imperatives in instructional text); `dict_hedge_per_1k` ←
+  Hyland 1998/2005; `read_flesch_kincaid_grade` ← Kincaid et al. 1975 (Bailin & Grafstein 2001
+  critique motivates pairing with `syn_*`/`coh_*`); `syn_mean_tree_depth` ← Gibson 1998
+  (Dependency Locality Theory) + Lu 2010; `coh_lemma_overlap_adj` ← Grosz/Joshi/Weinstein 1995
+  (Centering) + Barzilay & Lapata 2008 (entity grid).
+- **New exploratory covariate (explicitly NOT confirmatory):** description-field
+  completeness/quality — the practitioner review (`paper/lit_review_practitioner.md` §6) argues
+  the `description` frontmatter field is its own activation mechanic, distinct from body-prose
+  linguistic features. Exploratory only; labeled exploratory in the paper.
+- **WS3 method framing:** Biber's Multidimensional Analysis (Biber 1988; Biber & Egbert 2018 at
+  web scale, with how-to/instructional pages as a register category) is the direct
+  methodological precedent for the standardize→PCA→cluster→name-by-deviant-features pipeline —
+  "established method, new corpus."
+
 ## 9. WS4 pilot — full spec (mechanical once WS3 clusters exist)
 
 **Compute:** open-weights coder model served with vLLM on the Fraunhofer **NM-BAIOS k8s
@@ -288,25 +332,44 @@ cluster** (use the `nm-baios-gpu` skill; Job template on wiki page
 [[nm-baios-gpu-batch-jobs]]). The eval harness runs on the local machine (on VPN) against the
 served endpoint — GPU time, not API dollars. User approves the GPU-time plan before any runs.
 
-**Design (frozen before first run):**
+**Design (frozen before first run; amended 2026-07-07 — the spec was not yet frozen, so these
+are legitimate pre-registration amendments, motivated by the lit-review synthesis in
+`paper/literature.md` / `paper/lit_review_practitioner.md`):**
 - **Tasks:** 24 from the ClawGym eval bench (stratified by gating type) if the OpenClaw harness
   is workable; fallback: Terminal-Bench 2.0 via Harbor, skill matched to task by keyword. Task
   list committed to `paper/pilot/tasks.json` before any execution.
-- **Conditions:** 4 per task — the original skill + 3 restylings targeting the 3 largest WS3
-  clusters (generate all 3 even if the original already sits in one; that measures restyle noise).
+- **Conditions (amended 2026-07-07):** 5 per task — **condition 0: no-skill control** (task run
+  with no skill loaded; motivation: liu2026-skillsvote shows low-quality/irrelevant skill
+  exposure can *actively hurt* task success, so original-vs-restyled alone can't anchor the
+  effect), the original skill, + 3 restylings targeting the 3 largest WS3 clusters (generate
+  all 3 even if the original already sits in one; that measures restyle noise).
 - **Restyling protocol:** fixed per-cluster prompt templates in `paper/pilot/prompts/`; any
   strong LLM may generate. Acceptance gates, all mandatory, max 3 attempts then drop the task
   and log it: (a) code blocks, commands, file paths, and frontmatter **byte-identical** to the
   original; (b) `timbro analyze` places the variant within 1.0 z of the target-cluster centroid
-  on the 5 confirmatory features; (c) human audit of a 20% random sample of accepted variants.
-- **Runs:** 4 conditions × 24 tasks × 3 seeds = 288, temperature 0.2. Per-run manifest: skill
-  hash, prompt hash, model+quantization, seed, harness commit (experiment-discipline).
+  on the 5 confirmatory features; (c) human audit of a 20% random sample of accepted variants;
+  (d) *(added 2026-07-07)* the restyle acceptance report includes the **token-length delta of
+  each variant vs. the original**, carried as a covariate in the analysis (motivation:
+  li2026-skillsbench — compact documentation +19.0/+21.5pp vs. exhaustive prose +0.7pp; length
+  alone is known to swing execution outcomes).
+- **Runs (amended 2026-07-07):** 5 conditions × 24 tasks × 3 seeds = **360**, temperature 0.2.
+  Per-run manifest: skill hash, prompt hash, model+quantization, seed, harness commit
+  (experiment-discipline). *(Added 2026-07-07)* every run also logs **whether the skill was
+  actually invoked/triggered**; success-conditional-on-invocation is a secondary outcome
+  (motivation: contested ~56% non-invocation anecdote in the practitioner review — a restyled
+  skill that never fires can't show a style effect).
 - **Stats:** mixed-effects logistic `success ~ condition + (1|task)`; pairwise McNemar
   original-vs-each-variant; always report the MDE for this n. A null is publishable — report it
   straight.
 - **Abort criteria:** restyle acceptance fails on >30% of tasks → stop and redesign the
   protocol; the verifier disagrees with itself on identical (condition, seed) reruns → fix the
   harness before generating any results.
+- **RQ3 motivation (added 2026-07-07):** convergent, independently-mined evidence that
+  more/redundant instruction context can hurt, not help, execution — Lost in the Middle
+  (arXiv:2307.03172, TACL 2023, mid-context degradation), WebArena (removing the "Unachievable"
+  hint *improved* GPT-4 success +2.71pp), SWE-bench (performance drops as context length grows),
+  Agent Workflow Memory (NL+HTML combined *degrades* vs. NL alone), and SWE-agent
+  (jimenez2024-sweagent: 2× success from interface/instruction wording alone, no model change).
 
 ### 9.1 NM-BAIOS constraints (from wiki, 2026-07-04)
 
@@ -317,7 +380,8 @@ served endpoint — GPU time, not API dollars. User approves the GPU-time plan b
   4-bit. Primary: 32B on H100. Fallback if H100 queue blocks: 14B-class AWQ on H100 off-hours,
   or a ~7B 4-bit on MIG (note the model change in the paper).
 - **Hard cap `activeDeadlineSeconds: 21600` (6h) on every Job** — the vLLM server cannot run
-  persistently. Chunk the 288 runs into ≤6h batches; put `HF_HOME` on the home PVC
+  persistently. Chunk the 360 runs (288 pre-amendment; see §9 amendment 2026-07-07) into ≤6h
+  batches; put `HF_HOME` on the home PVC
   (`home-nicolo`, RWX NFS) so each relaunch skips the model download (documented
   "whole evening lost" gotcha otherwise).
 - **Endpoint exposure is undocumented ground**: no Service/Ingress pattern in the wiki. Try
