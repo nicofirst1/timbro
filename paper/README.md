@@ -31,6 +31,18 @@ functionality (WS2) merges to `main`, via normal issue/PR flow.
   update survival), controlling for length, topic, and ecosystem?
 - **RQ3 (execution, pilot):** Does restyling a skill's prose into a different linguistic
   profile — content held constant — change agent task-success rate?
+- **RQ4 (temporal evolution — added 2026-07-07, pre-registered in §8b):** How do individual
+  SKILL.md files evolve linguistically across revisions, and does linguistic evolution relate
+  to adoption? Positioning: the self-evolving-skills literature (SkillForge, SkillClaw, SAGE,
+  etc.) improves skills by outcome but never characterizes WHAT changes in the text; we measure
+  exactly that.
+
+*(Added 2026-07-07 — domain heterogeneity, RQ1 framing)*: register variation may be
+domain-driven (skills differ by domain — healthcare vs. software dev etc.; hu2026-clawhub
+already shows topic-level clusters). Our claim is *linguistic* dialects, so we must show they
+are not merely topic clusters — and if they ARE domain-aligned, that is itself a register
+finding (Biber: registers are situationally defined), to be reported as such, not hidden.
+See rule D8 in §8.
 
 **Explicitly avoided (saturated):** predicting static generation quality or domain
 classification from these features (prompt-datasets study; arXiv:2510.09316).
@@ -142,6 +154,10 @@ Code in `paper/corpus/`, data in `paper/data/` (**gitignored** — add `paper/da
 1. `build_skill_diffs.py`: stream `shl0ms/skill-diffs` with `datasets` (streaming mode, do not
    load 8GB in RAM). Emit one row per unique `skill_id`: latest SKILL.md text, `repo`,
    `platform`, `stars`, `license_spdx`, first/last commit dates, `n_revisions`.
+   *(Amended 2026-07-07 for RQ4, see §8b)*: emit **BOTH** tables — (a) the deduped
+   latest-snapshot table above (RQ1–RQ3 cross-sectional corpus), and (b) a **version-chain
+   table** (all per-commit snapshots keyed within a single repo, pre-dedup) for RQ4. Chain
+   grouping/ordering mechanics are frozen only after the schema probe (§8b caveat).
 2. `build_gos.py`: download `skills_2000.tar.gz` only (29MB), extract SKILL.md files.
 3. `build_clawhub.py`: fetch feed (1 request), then per-skill file fetches for all 549 with the
    documented recipe; sleep to stay far under 3000/min; record `downloads` metadata. The
@@ -298,6 +314,12 @@ library-backed feature vectors) and #18 (custom extractors: imperatives, cohesio
 negations) exist (merge b54ba3a). Note: not yet present on the `paper` branch checkout — the
 branch predates the merge; WS3 runs against `main`'s Timbro.
 
+**Update 2026-07-07 (later same day):** RQ4 (temporal evolution) pre-registered in §8b —
+chain-reconstruction mechanics pending a skill-diffs schema probe, to be frozen in a dated
+addendum before any RQ4 outcome is computed. Domain-confound rule **D8** added to the §8
+amendment block (deterministic domain labels; Cramér's V gate at 0.6; domain fixed effect in
+every RQ2 regression).
+
 ## 8. WS3 pre-registered analysis rules (BINDING — decided while capable-model access existed)
 
 Every reported number follows the **`experiment-discipline` skill**: produced by a committed
@@ -347,6 +369,46 @@ Decision rules — follow literally, log any trigger in `paper/analysis/DEVIATIO
   web scale, with how-to/instructional pages as a register category) is the direct
   methodological precedent for the standardize→PCA→cluster→name-by-deviant-features pipeline —
   "established method, new corpus."
+- **D8 (domain confound, mirrors D4 — added 2026-07-07):** each skill gets a deterministic
+  domain label — use marketplace category metadata where present (ClawHub categories);
+  otherwise TF-IDF k-means topic assignment on content-word lemmas, k=10, seed 42, clusters
+  hand-labeled ONCE before any outcome analysis and frozen. Then: Cramér's V between register
+  clusters and domain labels; if V > 0.6, re-run clustering within each of the two largest
+  domains and report domain-stratified results as the primary RQ1 finding. Domain label also
+  enters every RQ2 regression as a fixed effect.
+- **D1 interaction note (added 2026-07-07 — does not modify D1's text):** the MinHash near-dup
+  collapse (D1 / WS1 step 5) applies to the **RQ1–RQ3 cross-sectional corpus** (latest snapshot
+  per skill); **RQ4 uses the pre-dedup version chains** keyed within a single repo.
+  `build_skill_diffs.py` (WS1) must therefore emit BOTH: the deduped latest-snapshot table and
+  a version-chain table (see WS1 step 1 note and §8b).
+
+### §8b — RQ4 pre-registration (added 2026-07-07)
+
+**RQ4:** How do individual SKILL.md files evolve linguistically across revisions, and does
+linguistic evolution relate to adoption? Positioning: the self-evolving-skills literature
+(SkillForge, SkillClaw, SAGE, etc.) improves skills by outcome but never characterizes WHAT
+changes in the text; we measure exactly that.
+
+**Data:** within-skill version chains reconstructed from skill-diffs. **Caveat (explicit):
+chain-reconstruction mechanics (grouping keys, ordering field, minimum metadata) are pending a
+schema probe of the HF dataset and will be frozen in a dated addendum BEFORE any RQ4 outcome is
+computed.** Placeholder rules that do not depend on schema:
+- chains require ≥3 versions;
+- forks are excluded from chains (a chain lives in one repo);
+- if fewer than 1,000 valid chains exist, RQ4 downgrades to descriptive/exploratory and no
+  hypothesis tests are reported.
+
+**Confirmatory hypotheses (separate family, BH q=0.10 within family):**
+- **H4a** — revisions increase length: log token count rises across versions
+  (comprehensiveness creep).
+- **H4b** — skills converge toward their register-cluster centroid over revisions: z-distance
+  on the 5 confirmatory features decreases with version index.
+
+**Analysis:** mixed-effects models with skill as random effect, version index as predictor,
+seeds 42.
+
+**Exploratory (explicitly non-confirmatory):** whether style deltas precede adoption changes
+(lagged install/star growth) — correlational only, no causal language.
 
 ## 9. WS4 pilot — full spec (mechanical once WS3 clusters exist)
 
