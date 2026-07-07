@@ -413,6 +413,12 @@ Decision rules — follow literally, log any trigger in `paper/analysis/DEVIATIO
   multi-file tips (progressive disclosure, one-folder-per-skill, auxiliary docs) are computed
   as corpus-level columns in WS1 from skill-diffs `bundled.parquet` (sibling files at HEAD),
   not in `timbro analyze`.
+- **Plain-language feature family (exploratory, never confirmatory):** English ports of codified
+  easy-language rules (issue #22), concepts from public doctrine (DIN SPEC 33429, CDC Clear
+  Communication Index, plainlanguage.gov) — klartext (Fraunhofer, internal-use license) provided
+  the audit map only; no code or lexicons from it. Enables the exploratory question: does the
+  machine-directed SKILL.md register convergently adopt codified plain-language norms? Second
+  reference register for RQ1 alongside Biber's dimensions.
 
 ### §8b — RQ4 pre-registration (added 2026-07-07)
 
