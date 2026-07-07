@@ -1,0 +1,61 @@
+# Promotional / marketing "hype" register -- deliberately distinct from the epistemic-certainty
+# boosters (boosters.txt): these are puffery/peacock adjectives, not certainty markers.
+# Base terms adapted from Wikipedia, "Manual of Style/Words to watch" (Puffery & Peacock
+# sections; shortcuts WP:PUFFERY / WP:PEACOCK):
+# https://en.wikipedia.org/wiki/Wikipedia:Manual_of_Style/Words_to_watch
+# License: CC BY-SA 4.0 -- https://creativecommons.org/licenses/by-sa/4.0/
+# This file is the ONLY CC BY-SA content in the repository. It is isolated as a standalone data
+# file: per the CC "collection" clause it does not affect the MIT license of the source code.
+# Any modified version of THIS LIST must remain under CC BY-SA 4.0 with attribution.
+# Additional promotional terms below contributed by the project maintainer.
+# One entry per line; matched case-insensitively on lemma; multiword entries as token sequences.
+acclaimed
+award-winning
+brilliant
+celebrated
+cutting-edge
+extraordinary
+iconic
+landmark
+legendary
+outstanding
+pioneering
+remarkable
+renowned
+virtuoso
+visionary
+world-class
+distinguished
+exceptional
+eminent
+illustrious
+esteemed
+revered
+peerless
+unparalleled
+unrivaled
+unmatched
+unsurpassed
+trailblazing
+groundbreaking
+transformative
+seminal
+defining
+premier
+elite
+top-tier
+first-rate
+world-renowned
+critically acclaimed
+highly regarded
+internationally acclaimed
+masterful
+stellar
+exemplary
+influential
+prestigious
+flagship
+benchmark
+definitive
+enduring
+timeless
