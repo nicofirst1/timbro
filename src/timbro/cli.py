@@ -33,6 +33,11 @@ def main():
     c.add_argument("--rubric", default="schimel", help="rubric name")
     c.add_argument("--json", action="store_true", help="raw JSON payload")
 
+    an = sub.add_parser("analyze", help="emit deterministic linguistic feature vectors")
+    an.add_argument("paths", nargs="+", help="one or more .md/.txt files")
+    an.add_argument("--format", choices=["jsonl", "csv"], default="jsonl")
+    an.add_argument("--out", help="write to this file instead of stdout")
+
     p = sub.add_parser("profiles", help="manage named exemplar/contrast profiles")
     psub = p.add_subparsers(dest="profiles_cmd", required=True)
 
@@ -132,6 +137,11 @@ def main():
             return
         print(render_text(result))
         return
+
+    if args.cmd == "analyze":
+        from timbro.analyze import run_analyze
+
+        sys.exit(run_analyze(args.paths, fmt=args.format, out_path=args.out))
 
     text = sys.stdin.read() if args.file == "-" else open(args.file, encoding="utf-8").read()
 

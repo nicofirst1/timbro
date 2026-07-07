@@ -8,6 +8,7 @@ wheels/
 
 # Virtual environments
 .venv
+.worktrees/
 
 # Local corpora (private / third-party content) -- bring your own
 data/

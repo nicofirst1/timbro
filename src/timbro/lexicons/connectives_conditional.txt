@@ -1,0 +1,17 @@
+# Fixed verbatim list (Implementer spec, issue #18). Matched case-insensitively on lemma;
+# multiword entries as token sequences.
+if
+then
+else
+unless
+otherwise
+whenever
+whereas
+therefore
+thus
+hence
+because
+so that
+in order to
+either
+provided that
