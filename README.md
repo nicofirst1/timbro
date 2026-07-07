@@ -231,11 +231,13 @@ uv run timbro score draft.md --profile science-clarity,academic
 
 ```
 src/timbro/
-├── core.py          # corpus → POS features + StyleDistance embedding → VoiceModel
+├── model.py         # corpus → POS features + StyleDistance embedding → VoiceModel
+├── text.py          # shared substrate: split_paragraphs/_sentences, strip_markup, MiniLM embedder
 ├── flow.py          # paragraph trajectory, circle-back, order gates
 ├── rewrite.py       # content-preservation guard + accept-rewrite loop
 ├── report.py        # the shared {distance, direction, flow} payload
 ├── rubrics/         # the `check` writing rubric: features (spaCy) + rules + registry
+├── cleanup/         # ingest-time corpus prep (LaTeX/paper extraction — not markdown)
 ├── cli.py           # `timbro score` + `timbro check`
 └── mcp_server.py    # MCP wrapper: score_voice, accept_rewrite, check_voice
 skills/timbro/       # Claude Code skill
