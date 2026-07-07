@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import contextlib
 import io
+import json
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from timbro.analyze import analyze_text, run_analyze
+from timbro.analyze import _hype_entries, _lexicon, analyze_text, run_analyze
 
 FIXTURE = (
     "---\n"
@@ -152,6 +153,80 @@ class DictFeatureTests(unittest.TestCase):
         # "because" is the one connective match / 8 tokens.
         features = analyze_text("We left early because it was raining.")
         self.assertEqual(features["dict_conditional_per_1k"], 1000 / 8)
+
+
+class PlainLanguageFeatureTests(unittest.TestCase):
+    """Hand-checked fixtures for issue #22's exploratory plain-language features."""
+
+    def test_second_person_per_1k(self):
+        # "You take your time." -> 5 non-space tokens (You take your time .);
+        # forms {you, your} match -> 2 / 5 * 1000.
+        features = analyze_text("You take your time.")
+        self.assertEqual(features["dict_second_person_per_1k"], 2 / 5 * 1000)
+
+    def test_long_sentence_ratio(self):
+        # One 26-word sentence (> 25 tokens) + one 2-word sentence -> 1 of 2 sentences long.
+        long_sent = (
+            "The quick brown fox jumps over the lazy dog and then runs across the "
+            "wide green field before it finally stops to rest near the river."
+        )
+        features = analyze_text(long_sent + " It rained.")
+        self.assertEqual(features["read_long_sentence_ratio"], 0.5)
+
+    def test_cross_reference_per_1k(self):
+        # "See also" is one cross-reference phrase; 6 non-space tokens (See also the other file .).
+        features = analyze_text("See also the other file.")
+        self.assertEqual(features["dict_cross_reference_per_1k"], 1000 / 6)
+
+    def test_plain_replacement_detected_and_annotated(self):
+        # "utilize" is the one complex-word match; 5 non-space tokens (We utilize the tool .).
+        features = analyze_text("We utilize the tool.")
+        self.assertEqual(features["dict_plain_replacement_per_1k"], 1000 / 5)
+        pairs = json.loads(features["dict_plain_replacements_json"])
+        self.assertIn(["utilize", "use"], pairs)
+
+    def test_long_paragraph_ratio(self):
+        # Para 1 has 7 sentence terminators (> 6); para 2 has 1. -> 1 of 2 paragraphs long.
+        text = "A. B. C. D. E. F. G.\n\nOnly one sentence."
+        features = analyze_text(text)
+        self.assertEqual(features["struct_long_paragraph_ratio"], 0.5)
+
+    def test_long_paragraph_ignores_code_fence(self):
+        # A fenced block full of periods must not count as a long prose paragraph.
+        text = "```\na. b. c. d. e. f. g. h.\n```\n\nJust one.\n"
+        features = analyze_text(text)
+        self.assertEqual(features["struct_long_paragraph_ratio"], 0.0)
+
+    def test_hype_detected_distinct_from_boosters(self):
+        # "exceptional" is hype, "certainly" is a booster; 5 tokens (This is certainly exceptional .).
+        # Each lexicon counts only its own token -> no double-counting.
+        features = analyze_text("This is certainly exceptional.")
+        self.assertEqual(features["dict_hype_per_1k"], 1000 / 5)
+        self.assertEqual(features["dict_booster_per_1k"], 1000 / 5)
+
+    def test_hype_matches_participial_and_hyphenated(self):
+        # Regression: form-matching must catch "groundbreaking" (lemma is mangled to
+        # "groundbreake") and "world-class" (spaCy splits it into world - class).
+        # Tokens: A world - class , groundbreaking result . = 8 non-space tokens; 2 hype hits.
+        features = analyze_text("A world-class, groundbreaking result.")
+        self.assertEqual(features["dict_hype_per_1k"], 2 / 8 * 1000)
+
+    def test_hype_and_boosters_lexicons_disjoint(self):
+        # Gap #1's "explicitly distinct from boosters.txt": no shared word between the lists.
+        hype_words = {w for entry in _hype_entries() for w in entry if w != "-"}
+        booster_words = {w for entry in _lexicon("boosters.txt") for w in entry}
+        self.assertTrue(hype_words.isdisjoint(booster_words))
+
+    def test_empty_file_new_features_zero(self):
+        # Issue #22 contract: empty file -> every new feature is 0/0.0, never None, never crash.
+        f = analyze_text("")
+        self.assertEqual(f["dict_hype_per_1k"], 0.0)
+        self.assertEqual(f["dict_second_person_per_1k"], 0.0)
+        self.assertEqual(f["dict_cross_reference_per_1k"], 0.0)
+        self.assertEqual(f["dict_plain_replacement_per_1k"], 0.0)
+        self.assertEqual(f["dict_plain_replacements_json"], "[]")
+        self.assertEqual(f["read_long_sentence_ratio"], 0.0)
+        self.assertEqual(f["struct_long_paragraph_ratio"], 0.0)
 
 
 class RunAnalyzeTests(unittest.TestCase):

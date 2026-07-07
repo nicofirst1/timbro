@@ -1,0 +1,223 @@
+# plainlanguage.gov "Use simple words and phrases" complex->plain substitution list.
+# Two-column TSV: complex<TAB>plain. Complex side matched case-insensitively as a
+# lemma-token sequence; plain side is the suggested replacement recorded on each match.
+# Source: U.S. federal plain-language guidance, "Use simple words and phrases",
+# https://www.plainlanguage.gov/guidelines/words/use-simple-words-and-phrases/
+# Extracted from the GSA/plainlanguage.gov source repository, dedicated to the public
+# domain under CC0 1.0 Universal: https://github.com/GSA/plainlanguage.gov
+# Rows the source marks "(omit)" (delete the word) and date/placeholder example rows are
+# excluded; where the source lists several complex words sharing one replacement, each is
+# split onto its own row. First/primary replacement kept where several are offered.
+accompany	go with
+accomplish	carry out
+accorded	given
+accordingly	so
+accrue	add
+accurate	correct
+additional	added
+address	discuss
+addressees	you
+adjacent to	next to
+advantageous	helpful
+adversely impact on	hurt
+advise	recommend
+afford an opportunity	allow
+aircraft	plane
+allocate	divide
+anticipate	expect
+a number of	some
+apparent	clear
+appreciable	many
+approximate	about
+arrive onboard	arrive
+as a means of	to
+ascertain	find out
+as prescribed by	in
+assist	aid
+assistance	aid
+attain	meet
+attempt	try
+at the present time	at present
+benefit	help
+by means of	by
+capability	ability
+caveat	warning
+close proximity	near
+combat environment	combat
+combined	joint
+commence	begin
+comply with	follow
+component	part
+comprise	form
+concerning	about
+consequently	so
+consolidate	combine
+constitutes	is
+contains	has
+convene	meet
+deem	believe
+delete	cut
+demonstrate	prove
+depart	leave
+designate	appoint
+desire	want
+determine	decide
+disclose	show
+discontinue	drop
+disseminate	give
+due to the fact that	due to
+during the period	during
+effect modifications	make changes
+elect	choose
+eliminate	cut
+employ	use
+encounter	meet
+endeavor	try
+ensure	make sure
+enumerate	count
+equipments	equipment
+equitable	fair
+establish	set up
+evidenced	showed
+evident	clear
+exhibit	show
+expedite	hasten
+expeditious	fast
+expend	spend
+expertise	ability
+expiration	end
+facilitate	ease
+failed to	didn't
+feasible	can be done
+females	women
+finalize	complete
+for a period of	for
+forfeit	give up
+forward	send
+frequently	often
+function	act
+furnish	give
+has a requirement for	needs
+herein	here
+heretofore	until now
+herewith	below
+however	but
+identical	same
+identify	find
+immediately	at once
+impacted	affected
+implement	carry out
+in accordance with	by
+in addition	also
+in an effort to	to
+inasmuch as	since
+in a timely manner	on time
+inception	start
+incumbent upon	must
+indicate	show
+indication	sign
+initial	first
+initiate	start
+in lieu of	instead
+in order that	for
+in order to	to
+in regard to	about
+in relation to	about
+in the amount of	for
+in the event of	if
+in the near future	shortly
+in view of	since
+in view of the above	so
+is applicable to	applies to
+is authorized to	may
+is in consonance with	agrees with
+interface	meet
+interpose no objection	don't object
+it appears	seems
+it is essential	must
+it is requested	please
+liaison	discussion
+limited number	limits
+magnitude	size
+maintain	keep
+maximum	greatest
+methodology	method
+minimize	decrease
+minimum	least
+modify	change
+monitor	check
+necessitate	cause
+notify	let know
+numerous	many
+objective	aim
+obligate	bind
+observe	see
+operate	run
+optimum	best
+option	choice
+parameters	limits
+participate	take part
+perform	do
+permit	let
+pertaining to	about
+portion	part
+possess	have
+practicable	practical
+preclude	prevent
+previous	earlier
+previously	before
+prioritize	rank
+prior to	before
+proceed	do
+proficiency	skill
+promulgate	issue
+provide	give
+provided that	if
+provides guidance for	guides
+purchase	buy
+pursuant to	by
+reflect	say
+regarding	about
+relative to	about
+relocate	move
+remain	stay
+remainder	rest
+remuneration	pay
+render	give
+represents	is
+request	ask
+require	must
+requirement	need
+reside	live
+retain	keep
+selection	choice
+set forth in	in
+similar to	like
+solicit	ask for
+state-of-the-art	latest
+submit	give
+subsequent	later
+subsequently	after
+substantial	large
+successfully complete	complete
+sufficient	enough
+terminate	end
+therefore	so
+therein	there
+thereof	its
+the undersigned	I
+timely	prompt
+transmit	send
+under the provisions of	under
+until such time as	until
+utilization	use
+utilize	use
+validate	confirm
+viable	practical
+vice	instead of
+warrant	call for
+whereas	because
+with reference to	about
+with the exception of	except for
+witnessed	saw
+your office	you

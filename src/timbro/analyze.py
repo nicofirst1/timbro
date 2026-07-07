@@ -30,6 +30,8 @@ _HEADING = re.compile(r"(?m)^[ \t]*(#{1,6})[ \t]+.*$")
 _TABLE_SEPARATOR = re.compile(r"(?m)^[ \t]*:?-{2,}:?(?:[ \t]*\|[ \t]*:?-{2,}:?)+[ \t]*$")
 _BULLET_LIST = re.compile(r"^[ \t]*[-*+][ \t]+")
 _ORDERED_LIST = re.compile(r"^[ \t]*\d+\.[ \t]+")
+_BLANK_LINE = re.compile(r"\n[ \t]*\n")
+_SENTENCE_END = re.compile(r"[.!?]+")  # ponytail: naive sentence count, no spaCy in _struct
 
 # Folk-advice exploratory features (#21).
 _INLINE_CODE_SPAN = re.compile(r"`([^`\n]+)`")
@@ -52,6 +54,10 @@ _CONTENT_POS = {"NOUN", "PROPN", "VERB", "ADJ", "ADV"}
 _COH_CONTENT_POS = {"NOUN", "PROPN", "VERB", "ADJ"}
 _CLAUSAL_DEPS = {"ccomp", "xcomp", "advcl", "acl", "relcl"}
 _CONDITIONAL_MARKS = {"if", "unless", "when"}
+_SECOND_PERSON = {"you", "your", "yours", "you're", "yourself"}
+_CROSS_REFERENCE = re.compile(
+    r"\b(?:see also|see below|see above|refer to|as described in|cf\.)", re.I
+)
 _LEXICON_DIR = Path(__file__).parent / "lexicons"
 
 
@@ -60,6 +66,35 @@ def _lexicon(name: str) -> tuple[tuple[str, ...], ...]:
     lines = (_LEXICON_DIR / name).read_text(encoding="utf-8").splitlines()
     entries = (ln.strip() for ln in lines if ln.strip() and not ln.startswith("#"))
     return tuple(tuple(entry.lower().split()) for entry in entries)
+
+
+@lru_cache(maxsize=None)
+def _plain_pairs() -> tuple[tuple[tuple[str, ...], str], ...]:
+    lines = (_LEXICON_DIR / "plain_wording.txt").read_text(encoding="utf-8").splitlines()
+    pairs = []
+    for ln in lines:
+        if not ln.strip() or ln.startswith("#"):
+            continue
+        complex_side, _, plain = ln.partition("\t")
+        pairs.append((tuple(complex_side.lower().split()), plain.strip()))
+    return tuple(pairs)
+
+
+@lru_cache(maxsize=None)
+def _hype_entries() -> tuple[tuple[str, ...], ...]:
+    # Hype is matched on surface FORM, not lemma: en_core_web_sm mangles participial adjectives
+    # ("groundbreaking" -> "groundbreake") and splits hyphenated compounds into three tokens
+    # ("world-class" -> world - class), so the lemma-matching used by the frozen boosters/hedges
+    # lexicons silently drops most of this list. Entries are tokenized the same way spaCy splits
+    # (hyphen kept as its own token) so multiword and hyphenated terms line up against the forms.
+    lines = (_LEXICON_DIR / "hype.txt").read_text(encoding="utf-8").splitlines()
+    entries = []
+    for ln in lines:
+        stripped = ln.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        entries.append(tuple(stripped.lower().replace("-", " - ").split()))
+    return tuple(entries)
 
 
 def _lexicon_matches(lemmas: list[str], entries: tuple[tuple[str, ...], ...]) -> int:
@@ -204,6 +239,12 @@ def _struct_features(raw: str) -> tuple[dict, str]:
             named_section = 1
             break
 
+    # Long-paragraph ratio (#22): split blank-line-delimited paragraphs of the raw text with
+    # frontmatter and fenced code removed, so neither is double-counted as prose.
+    without_fences = _FENCE.sub("", _FRONTMATTER.sub("", raw))
+    paragraphs = [p for p in _BLANK_LINE.split(without_fences) if p.strip()]
+    long_paragraphs = sum(1 for p in paragraphs if len(_SENTENCE_END.findall(p)) > 6)
+
     frontmatter = {}
     fm_match = _FRONTMATTER.match(raw)
     if fm_match:
@@ -250,6 +291,7 @@ def _struct_features(raw: str) -> tuple[dict, str]:
         "struct_external_ref_count": bare_refs + target_refs,
         "struct_named_section_present": named_section,
         "struct_name_format_valid": 1 if isinstance(name, str) and _NAME_FORMAT.fullmatch(name) else 0,
+        "struct_long_paragraph_ratio": long_paragraphs / len(paragraphs) if paragraphs else 0.0,
         **fm_desc,
         "frontmatter_json": json.dumps(frontmatter),
     }
@@ -273,6 +315,14 @@ def _nlp_features(prose: str) -> dict:
     else:
         out["syn_mean_tree_depth"] = None
         out["syn_clausal_per_sentence"] = None
+
+    if sentences:
+        long_sents = sum(
+            1 for sent in sentences if sum(1 for t in sent if not t.is_space) > 25
+        )
+        out["read_long_sentence_ratio"] = long_sents / len(sentences)
+    else:
+        out["read_long_sentence_ratio"] = 0.0
 
     out["dict_imperative_ratio"] = _imperative_ratio(sentences)
     out["dict_first_person_subject_ratio"] = _first_person_ratio(sentences)
@@ -306,6 +356,10 @@ def _nlp_features(prose: str) -> dict:
     out["dict_booster_per_1k"] = (
         _lexicon_matches(all_lemmas, _lexicon("boosters.txt")) / n_all * 1000 if n_all else 0.0
     )
+    all_forms = [t.text.lower() for t in all_tokens]
+    out["dict_hype_per_1k"] = (
+        _lexicon_matches(all_forms, _hype_entries()) / n_all * 1000 if n_all else 0.0
+    )
     out["dict_negation_per_1k"] = (
         _lexicon_matches(all_lemmas, _lexicon("negations.txt")) / n_all * 1000 if n_all else 0.0
     )
@@ -317,6 +371,22 @@ def _nlp_features(prose: str) -> dict:
     out["dict_conditional_clauses_per_sentence"] = _conditional_clauses_per_sentence(
         doc, len(sentences)
     )
+
+    second_person = sum(1 for t in all_tokens if t.text.lower() in _SECOND_PERSON)
+    out["dict_second_person_per_1k"] = second_person / n_all * 1000 if n_all else 0.0
+
+    cross_refs = len(_CROSS_REFERENCE.findall(prose))
+    out["dict_cross_reference_per_1k"] = cross_refs / n_all * 1000 if n_all else 0.0
+
+    plain_matches = 0
+    plain_replacements = []
+    for entry, plain in _plain_pairs():
+        hits = _lexicon_matches(all_lemmas, (entry,))
+        if hits:
+            plain_matches += hits
+            plain_replacements.append([" ".join(entry), plain])
+    out["dict_plain_replacement_per_1k"] = plain_matches / n_all * 1000 if n_all else 0.0
+    out["dict_plain_replacements_json"] = json.dumps(plain_replacements)
 
     if len(sentences) < 2:
         out["coh_lemma_overlap_adj"] = None
@@ -350,7 +420,7 @@ def _write_jsonl(rows: list[dict], out) -> None:
 
 
 def _write_csv(rows: list[dict], out) -> None:
-    fieldnames = [k for k in rows[0] if k != "frontmatter_json"]
+    fieldnames = [k for k in rows[0] if not k.endswith("_json")]
     writer = csv.DictWriter(out, fieldnames=fieldnames, extrasaction="ignore")
     writer.writeheader()
     writer.writerows(rows)
