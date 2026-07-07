@@ -164,6 +164,12 @@ Code in `paper/corpus/`, data in `paper/data/` (**gitignored** — add `paper/da
    `before_sha == prev.after_sha`; roots from `skills_initial.parquet`, pairs from
    `diffs_clean.parquet`). **Direct parquet download, not datasets-server row APIs** (they fail
    on the large configs — see §8b access gotcha).
+   *(Added 2026-07-07, motivated by issue #21's folk-advice feature family)*: `build_skill_diffs.py`
+   also emits per-skill sibling-file columns derived from `bundled.parquet` (sibling files at
+   HEAD): `n_sibling_files`, `has_scripts_dir`, `has_references_dir`, `has_assets_dir`,
+   `has_readme_in_folder`. These operationalize the multi-file practitioner tips (progressive
+   disclosure, one-folder-per-skill, auxiliary docs) that `timbro analyze` cannot see since it
+   only ever receives a single document's text.
 2. `build_gos.py`: download `skills_2000.tar.gz` only (29MB), extract SKILL.md files.
 3. `build_clawhub.py`: fetch feed (1 request), then per-skill file fetches for all 549 with the
    documented recipe; sleep to stay far under 3000/min; record `downloads` metadata. The
@@ -401,6 +407,12 @@ Decision rules — follow literally, log any trigger in `paper/analysis/DEVIATIO
   `skill_cluster_id`/`is_canonical` is used (a) as a robustness check reported alongside, and
   (b) as the fork-linkage tool for RQ4 exclusions (§8b addendum). Rationale: preserves the
   pre-registration while not reimplementing fork detection.
+- **Folk-advice feature family (added 2026-07-07 — exploratory, never confirmatory):**
+  practitioner-tip features specced in issue #21 (`struct_` additions, `fm_desc_` group,
+  `dict_` additions); used only in exploratory RQ2 analyses testing community advice;
+  multi-file tips (progressive disclosure, one-folder-per-skill, auxiliary docs) are computed
+  as corpus-level columns in WS1 from skill-diffs `bundled.parquet` (sibling files at HEAD),
+  not in `timbro analyze`.
 
 ### §8b — RQ4 pre-registration (added 2026-07-07)
 
