@@ -73,9 +73,18 @@ olmo-eval (Ai2, June 2026) · Graph of Skills (arXiv:2604.05333) ·
   single tone axis in customer support ≠ our measured deterministic feature vector ×
   adoption/execution. Needs a direct differentiation note in related work.
 - ClawHub study (`hu2026-clawhub`, arXiv:2604.13064) — closest RQ1 analog: cross-lingual
-  functional clustering of 26.5K skills, but topic-level (bag-of-words) only, not linguistic.
+  functional clustering of 26,502 skills (crawled up to 2026-03-18), but topic-level only —
+  TF-IDF + Truncated SVD + k-means on title+summary; verifier searches for readability/Flesch/
+  syntactic/style features all NOT FOUND (verified 2026-07-07) — our differentiation holds.
+  Adjacent, not competing: their submission-time risk prediction found "primary documentation
+  emerging as the most informative submission-time signal" (best classifier LogReg 72.62% acc /
+  78.95 AUROC) — the closest existing text→outcome result, but it predicts security risk, not
+  adoption.
 - SoK: Agentic Skills (`jiang2026-sokskills`, arXiv:2602.20867) — representation × scope
   taxonomy naming natural-language-only skill prose as a first-class category; RQ1 positioning.
+  (Verified 2026-07-07: verbatim abstract obtained; no linguistic measurement — readability/
+  linguistic/style/lexical all NOT FOUND. Documents the ClawHavoc campaign, ~1,200 malicious
+  skills.)
 - SkillsBench (`li2026-skillsbench`, arXiv:2602.12670) — 87-task execution benchmark; "compact
   documentation (+19.0/+21.5pp) outperformed exhaustive prose (+0.7pp)"; RQ3 precedent and
   candidate WS4 harness.
@@ -83,11 +92,15 @@ olmo-eval (Ai2, June 2026) · Graph of Skills (arXiv:2604.05333) ·
   Online*) — Multidimensional Analysis, the methodological precedent for the RQ1 clustering
   pipeline (see §8 amendment).
 
-**⚠ BLOCKING action item (2026-07-07):** `skillstructure2026` (arXiv:2604.24026, "From Skill
-Text to Skill Structure: The Scheduling-Structural-Logical Representation for Agent Skills") is
-the largest unresolved novelty risk — status `to read`, known only from a search snippet. MUST
-be fetched and read before related-work positioning is locked. If it does measured linguistic
-features of skill text, RQ1 framing needs revision.
+**✓ RESOLVED — NO OVERLAP (verified 2026-07-07, fetch-and-quote against arXiv):**
+`skillstructure2026` (arXiv:2604.24026, "From Skill Text to Skill Structure: The
+Scheduling-Structural-Logical Representation for Agent Skills") — formerly flagged as the
+largest unresolved novelty risk — converts skill text into a structured SSL representation via
+an LLM normalizer and evaluates representation quality (Skill Discovery MRR@50 0.649→0.729;
+Risk Assessment macro F1 0.409→0.509). No linguistic feature measurement, no adoption metrics.
+Bonus: its abstract line — skills are "text-heavy artifacts... whose machine-usable evidence
+remains embedded largely in natural-language descriptions" — is usable as motivation for our
+linguistic lens.
 
 **Known-fabricated (never cite):** "Prompts in the Wild" (ACL, 57.5K-prompt ontology study) —
 does not exist; it was hallucinated in the original deep-research report.
@@ -97,8 +110,8 @@ does not exist; it was hallucinated in the original deep-research report.
 | Source | What it is | Unique full-text skills | Outcome proxies | License |
 |---|---|---|---|---|
 | HF `shl0ms/skill-diffs` | Full SKILL.md snapshots per commit, 5,891 GitHub repos, 4 platforms | **~630K–665K** (use `bundled` config or latest `after_content` per `skill_id`) | repo `stars`, dates, `intent_class`, `quality_score`; **no installs** | per-record `license_spdx` — filter per row |
-| HF `davidliuk/graph-of-skills-data` | Paper-curated benchmark libraries (`skills_2000.tar.gz` is the superset). **Caveat 2026-07-07:** the paper↔dataset provenance link (Graph of Skills, arXiv:2604.05333) is plausible (author handle + skill count match) but not confirmed from the paper text — confirm (paper's GitHub repo or HF dataset card) before citing the dataset as the paper's artifact | 2,000 (substantive, ~6KB avg) | none | MIT |
-| ClawHub live registry | Sanctioned API: `GET https://clawhub.ai/v1/feeds/skills` (all 549, one request, robots.txt-allowed) + per skill `GET /api/v1/skills/{slug}/file?path=SKILL.md`; rate limit 3000 reads/min; authenticated `/api/v1/skills/export` ZIP exists | **549** (small!) | catalog sortable by `downloads` — skill-level adoption signal | must cache, honor 429, link back to canonical pages |
+| HF `davidliuk/graph-of-skills-data` | Paper-curated benchmark libraries (`skills_2000.tar.gz` is the superset). **Provenance confirmed artifact (verified 2026-07-07, MIT):** the HF dataset card reciprocally cites arXiv:2604.05333 (Dawei Liu et al.), the paper's GitHub repo links the dataset; skill-library configs 200–2000 | 2,000 (substantive, ~6KB avg) | none | MIT |
+| ClawHub live registry | Sanctioned API: `GET https://clawhub.ai/v1/feeds/skills` (all 549, one request, robots.txt-allowed) + per skill `GET /api/v1/skills/{slug}/file?path=SKILL.md`; rate limit 3000 reads/min; authenticated `/api/v1/skills/export` ZIP exists. **Reconciliation note 2026-07-07:** hu2026-clawhub's 26,502 is a March 2026 crawl (up to 2026-03-18); live ClawHub as of July 2026 is ~549 — plausibly explained by a post-ClawHavoc purge (>30% of hu's crawl flagged suspicious/malicious; the SoK paper documents ClawHavoc, ~1,200 malicious skills). Plausible-not-confirmed — reconcile explicitly in the manuscript | **549** (small!) | catalog sortable by `downloads` — skill-level adoption signal | must cache, honor 429, link back to canonical pages |
 | HF `amoghacloud/clawskills-intelligence-corpus` | 5,147 near-identical templated stubs ("SISR" boilerplate, ~400B each) | ~5.1K **low-quality stubs** | none | MIT |
 | skills.sh marketplace (probed 2026-07-04) | Ling et al.'s source. Public sitemaps enumerate **~20,000** skill URLs (`owner/repo/skill`). Detail pages (robots-allowed) embed JSON-LD with **total installs**, stars, first-seen date, security-audit verdicts + only a 466-char SKILL.md preview. Full text NOT available (API is Vercel-OIDC-gated and robots-disallowed — do not use it) | 0 full texts directly — **join installs onto skill-diffs texts via the owner/repo/skill path** | **skill-level total installs** (not per-platform; per-platform counts exist nowhere) | robots.txt allows pages/sitemaps; `/terms` unread — read it before the crawl |
 
@@ -113,6 +126,9 @@ Corpus conclusions baked into the plan:
   restrict to single-skill repos for the star analysis).
 - **Redistribute derived feature vectors, never raw skill texts.** skill-diffs is mixed-license
   (per-record SPDX); ClawHub reuse terms require caching + linkback + no mirroring.
+- *(Added 2026-07-07)* Additional corpus-landscape datapoint for the narrative:
+  liu2026-skillscanwild analyzed **31,132 skills across skills.rest + skillsmp.com** (Dec 2025
+  crawl) — two further marketplaces not currently among our corpus sources.
 
 ## 4. Workstreams
 
@@ -275,6 +291,13 @@ statement per §3.
 - Next actions: (1) probe skills.sh (WS1 open sub-task); (2) file WS2 Issue A on GitHub;
   (3) watch NeurIPS workshop list Jul 11.
 
+**Update 2026-07-07 — WS2 tooling implemented.** GitHub issues #17 (`timbro analyze`
+library-backed feature vectors) and #18 (custom extractors: imperatives, cohesion overlap,
+`dict_*`/`coh_*` lexicon densities) were closed as completed 2026-07-06. Verified on `main`:
+`src/timbro/analyze.py` and `src/timbro/lexicons/` (boosters, conditional connectives, hedges,
+negations) exist (merge b54ba3a). Note: not yet present on the `paper` branch checkout — the
+branch predates the merge; WS3 runs against `main`'s Timbro.
+
 ## 8. WS3 pre-registered analysis rules (BINDING — decided while capable-model access existed)
 
 Every reported number follows the **`experiment-discipline` skill**: produced by a committed
@@ -339,10 +362,13 @@ are legitimate pre-registration amendments, motivated by the lit-review synthesi
   is workable; fallback: Terminal-Bench 2.0 via Harbor, skill matched to task by keyword. Task
   list committed to `paper/pilot/tasks.json` before any execution.
 - **Conditions (amended 2026-07-07):** 5 per task — **condition 0: no-skill control** (task run
-  with no skill loaded; motivation: liu2026-skillsvote shows low-quality/irrelevant skill
-  exposure can *actively hurt* task success, so original-vs-restyled alone can't anchor the
-  effect), the original skill, + 3 restylings targeting the 3 largest WS3 clusters (generate
-  all 3 even if the original already sits in one; that measures restyle noise).
+  with no skill loaded; motivation: liu2026-skillsvote — **abstract-level support only**: the
+  verified abstract says "indiscriminate updates can pollute future context," but the full text
+  was unreachable (ar5iv 404, Semantic Scholar rate-limited) so the "actively hurts" effect
+  size is unverified as of 2026-07-07; the control arm is also motivated by li2026-skillsbench's
+  length findings and standard design practice), the original skill, + 3 restylings targeting
+  the 3 largest WS3 clusters (generate all 3 even if the original already sits in one; that
+  measures restyle noise).
 - **Restyling protocol:** fixed per-cluster prompt templates in `paper/pilot/prompts/`; any
   strong LLM may generate. Acceptance gates, all mandatory, max 3 attempts then drop the task
   and log it: (a) code blocks, commands, file paths, and frontmatter **byte-identical** to the
@@ -350,8 +376,10 @@ are legitimate pre-registration amendments, motivated by the lit-review synthesi
   on the 5 confirmatory features; (c) human audit of a 20% random sample of accepted variants;
   (d) *(added 2026-07-07)* the restyle acceptance report includes the **token-length delta of
   each variant vs. the original**, carried as a covariate in the analysis (motivation:
-  li2026-skillsbench — compact documentation +19.0/+21.5pp vs. exhaustive prose +0.7pp; length
-  alone is known to swing execution outcomes).
+  li2026-skillsbench, numbers verified verbatim 2026-07-07 — "compact and standard-length
+  Skills (+19.0 and +21.5 pp) outperform detailed (+14.5 pp) and comprehensive documentation
+  (+0.7 pp)"; the cliff is specifically at *comprehensive*; length alone is known to swing
+  execution outcomes).
 - **Runs (amended 2026-07-07):** 5 conditions × 24 tasks × 3 seeds = **360**, temperature 0.2.
   Per-run manifest: skill hash, prompt hash, model+quantization, seed, harness commit
   (experiment-discipline). *(Added 2026-07-07)* every run also logs **whether the skill was
