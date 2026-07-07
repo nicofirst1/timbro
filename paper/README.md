@@ -1,6 +1,7 @@
 # Paper plan — Linguistic topology of agent skill files
 
-**Status:** master plan, verified 2026-07-04. Written to be executable by less capable models.
+**Status:** master plan, verified 2026-07-04; amended + independently verification-swept
+2026-07-07 (all dated blocks below). Written to be executable by less capable models.
 **Branch policy:** all paper work lives on the `paper` branch under `paper/`. Only Timbro
 functionality (WS2) merges to `main`, via normal issue/PR flow.
 
@@ -133,7 +134,8 @@ Corpus conclusions baked into the plan:
   referred to skills.sh or a pre-purge registry. Do not repeat the 13.7K figure.
 - The slop-stub corpus is **kept as a labeled low-quality class** — a validation set for whether
   our features separate templated slop from organic documentation (on-brand for Timbro).
-- Skill-level installs exist only on skills.sh (40K) and ClawHub (549). GitHub stars are
+- Skill-level installs exist only on skills.sh (~20K per our 2026-07-04 sitemap probe; Ling
+  et al. report 40,285 listings in their earlier crawl) and ClawHub (549). GitHub stars are
   repo-level (many skills per repo → attenuated signal; model with repo random effects or
   restrict to single-skill repos for the star analysis).
 - **Redistribute derived feature vectors, never raw skill texts.** skill-diffs is mixed-license
@@ -198,6 +200,11 @@ Code in `paper/corpus/`, data in `paper/data/` (**gitignored** — add `paper/da
 
 ### WS2 — Timbro vertical slices (July–Aug) — file as GitHub issues on `main`, one per branch/PR
 
+*(Status 2026-07-07: DONE for the core — Issue A/B landed as #17/#18, closed 2026-07-06,
+merged to `main` (see §7). The spec below stays for reference. Exploratory extensions filed
+as #21 (folk-advice features) and #22 (plain-language features), both `agent:mechanical`,
+milestone M5 — optional for the workshop paper, wanted for the full paper.)*
+
 Follow repo conventions (CLAUDE.md): implementer specs are decisions; run
 `uv run pytest` + `uv run ruff check src/` before done; don't touch `_PENALTY`/`_WEIGHTS`/verdicts.
 
@@ -248,8 +255,9 @@ analyze time.
    on features with **log-length covariate**, platform fixed effects, repo random effects (or
    single-skill-repo subset for stars). Benjamini–Hochberg across the feature family.
    Report effect sizes with CIs, not just p-values.
-5. Bonus (cheap, data already there): stylistic drift over time using skill-diffs revision
-   history — are skills converging toward one dialect?
+5. ~~Bonus (cheap, data already there): stylistic drift over time using skill-diffs revision
+   history — are skills converging toward one dialect?~~ *(Superseded 2026-07-07: this is now
+   pre-registered RQ4 — run it ONLY under §8b's rules, not as an ad-hoc bonus.)*
 
 **Acceptance:** scripted, re-runnable (`uv run python paper/analysis/run_all.py`), figures to
 `paper/figures/`, a findings memo `paper/analysis/FINDINGS.md`.
@@ -259,9 +267,11 @@ analyze time.
 Design skeleton (do not run without user budget approval):
 - ~20–30 tasks from Harbor/Terminal-Bench (or ClawGym's 200-instance eval bench) where a skill
   file is loaded.
-- For each task's skill: 3–4 **content-preserving restylings**, one per WS3 cluster profile.
+- For each task's skill: **content-preserving restylings**, one per WS3 cluster profile.
   Timbro verifies each variant actually lands in the target linguistic profile (dogfooding).
-- Fixed model, 3 seeds, deterministic verifier from the framework. ≈ 240–360 runs.
+- Fixed model, 3 seeds, deterministic verifier from the framework.
+- *(2026-07-07)* This skeleton is superseded by the **frozen full spec in §9** (5 conditions
+  incl. no-skill control × 24 tasks × 3 seeds = 360 runs) — implement from §9, not from here.
 - Analysis: paired success rates (McNemar / mixed-effects logistic), report minimum detectable
   effect; a null result is publishable as "topology matters for adoption but not execution at
   this scale" — do not spin it.
@@ -316,8 +326,10 @@ statement per §3.
   (`clawhub_research/feed_skills.json`) — transient; WS1 step 3 re-fetches fresh.
 - Subagent verification reports (citations, datasets, ClawHub) summarized into §2–§3; the
   underlying facts were empirically checked, not assumed.
-- Next actions: (1) probe skills.sh (WS1 open sub-task); (2) file WS2 Issue A on GitHub;
-  (3) watch NeurIPS workshop list Jul 11.
+- ~~Next actions: (1) probe skills.sh (WS1 open sub-task); (2) file WS2 Issue A on GitHub;
+  (3) watch NeurIPS workshop list Jul 11.~~ *(2026-07-07: (1) done — recipe in WS1 step 7;
+  (2) done — #17/#18 closed. Still open: (3) NeurIPS workshop list ~Jul 11; skills.sh `/terms`
+  check before the crawl; `kubectl port-forward` test on NM-BAIOS before pilot runs.)*
 
 **Update 2026-07-07 — WS2 tooling implemented.** GitHub issues #17 (`timbro analyze`
 library-backed feature vectors) and #18 (custom extractors: imperatives, cohesion overlap,
