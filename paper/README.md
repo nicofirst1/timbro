@@ -69,7 +69,7 @@ Coverage matrix vs. closest prior art:
 
 ### Citation whitelist (verified real — use only these until extended)
 
-**Amendment 2026-07-07:** `paper/literature.md` is now the authoritative verified-source
+**Amendment 2026-07-07:** `paper/literature/literature.md` is now the authoritative verified-source
 registry (~76+ papers, each independently verified before status "fully read"); the whitelist
 below remains the core positioning set.
 
@@ -80,7 +80,7 @@ SWE-World (arXiv:2602.03419) · Harbor (github.com/laude-institute/harbor, Termi
 olmo-eval (Ai2, June 2026) · Graph of Skills (arXiv:2604.05333) ·
 "Prompting in the Wild" (arXiv:2412.17298, MSR 2025) · PromptSet.
 
-**Promoted to whitelist 2026-07-07** (from `literature.md`, fully read/verified):
+**Promoted to whitelist 2026-07-07** (from `literature/literature.md`, fully read/verified):
 - SkillForge (`liu2026-skillforge`, arXiv:2604.08618) — closest methodological neighbor found:
   measures a named "Style" axis of skill text with a task-outcome link, but it is an LLM-judged
   single tone axis in customer support ≠ our measured deterministic feature vector ×
@@ -385,14 +385,14 @@ Decision rules — follow literally, log any trigger in `paper/analysis/DEVIATIO
 ### §8 amendment (2026-07-07 — pre-registration amendment; analysis has not run. D1–D7 and the confirmatory family above are unchanged)
 
 - **Construct-validity citations per confirmatory feature** (from
-  `paper/lit_review_psycholinguistics.md`): `dict_imperative_ratio` ← Vander Linden &
+  `paper/literature/lit_review_psycholinguistics.md`): `dict_imperative_ratio` ← Vander Linden &
   Di Eugenio 1996 (COLING-96, imperatives in instructional text); `dict_hedge_per_1k` ←
   Hyland 1998/2005; `read_flesch_kincaid_grade` ← Kincaid et al. 1975 (Bailin & Grafstein 2001
   critique motivates pairing with `syn_*`/`coh_*`); `syn_mean_tree_depth` ← Gibson 1998
   (Dependency Locality Theory) + Lu 2010; `coh_lemma_overlap_adj` ← Grosz/Joshi/Weinstein 1995
   (Centering) + Barzilay & Lapata 2008 (entity grid).
 - **New exploratory covariate (explicitly NOT confirmatory):** description-field
-  completeness/quality — the practitioner review (`paper/lit_review_practitioner.md` §6) argues
+  completeness/quality — the practitioner review (`paper/literature/lit_review_practitioner.md` §6) argues
   the `description` frontmatter field is its own activation mechanic, distinct from body-prose
   linguistic features. Exploratory only; labeled exploratory in the paper.
 - **WS3 method framing:** Biber's Multidimensional Analysis (Biber 1988; Biber & Egbert 2018 at
@@ -499,7 +499,7 @@ served endpoint — GPU time, not API dollars. User approves the GPU-time plan b
 
 **Design (frozen before first run; amended 2026-07-07 — the spec was not yet frozen, so these
 are legitimate pre-registration amendments, motivated by the lit-review synthesis in
-`paper/literature.md` / `paper/lit_review_practitioner.md`):**
+`paper/literature/literature.md` / `paper/literature/lit_review_practitioner.md`):**
 - **Tasks:** 24 from the ClawGym eval bench (stratified by gating type) if the OpenClaw harness
   is workable; fallback: Terminal-Bench 2.0 via Harbor, skill matched to task by keyword. Task
   list committed to `paper/pilot/tasks.json` before any execution.
