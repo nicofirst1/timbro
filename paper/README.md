@@ -121,7 +121,7 @@ does not exist; it was hallucinated in the original deep-research report.
 
 | Source | What it is | Unique full-text skills | Outcome proxies | License |
 |---|---|---|---|---|
-| HF `shl0ms/skill-diffs` | Full SKILL.md snapshots per commit, 5,891 GitHub repos, 4 platforms | **~630K–665K** (use `bundled` config or latest `after_content` per `skill_id`) | repo `stars`, dates, `intent_class`, `quality_score`; **no installs** | per-record `license_spdx` — filter per row |
+| HF `shl0ms/skill-diffs` (**schema verified 2026-07-07 via datasets-server**) | Full SKILL.md snapshots per commit, **5,891 repos across 4 platforms**: `diffs.parquet` 986,515 commit-level rows / 36 cols; `diffs_clean.parquet` 130,631 true before/after pairs; `skills_initial.parquet` 664,872 creation snapshots; `repos.parquet` 5,891; `bundled.parquet` 630,119 sibling files at HEAD | **664,872** initial skill snapshots (986,515 commit-level rows; 130,631 clean pairs) | repo `stars` + `license_spdx` in `repos.parquet` (join on repo); per-edit `intent_class`/`quality_score` labels included; **no installs** | per-record/per-repo `license_spdx` — filter per row |
 | HF `davidliuk/graph-of-skills-data` | Paper-curated benchmark libraries (`skills_2000.tar.gz` is the superset). **Provenance confirmed artifact (verified 2026-07-07, MIT):** the HF dataset card reciprocally cites arXiv:2604.05333 (Dawei Liu et al.), the paper's GitHub repo links the dataset; skill-library configs 200–2000 | 2,000 (substantive, ~6KB avg) | none | MIT |
 | ClawHub live registry | Sanctioned API: `GET https://clawhub.ai/v1/feeds/skills` (all 549, one request, robots.txt-allowed) + per skill `GET /api/v1/skills/{slug}/file?path=SKILL.md`; rate limit 3000 reads/min; authenticated `/api/v1/skills/export` ZIP exists. **Reconciliation note 2026-07-07:** hu2026-clawhub's 26,502 is a March 2026 crawl (up to 2026-03-18); live ClawHub as of July 2026 is ~549 — plausibly explained by a post-ClawHavoc purge (>30% of hu's crawl flagged suspicious/malicious; the SoK paper documents ClawHavoc, ~1,200 malicious skills). Plausible-not-confirmed — reconcile explicitly in the manuscript | **549** (small!) | catalog sortable by `downloads` — skill-level adoption signal | must cache, honor 429, link back to canonical pages |
 | HF `amoghacloud/clawskills-intelligence-corpus` | 5,147 near-identical templated stubs ("SISR" boilerplate, ~400B each) | ~5.1K **low-quality stubs** | none | MIT |
@@ -158,6 +158,12 @@ Code in `paper/corpus/`, data in `paper/data/` (**gitignored** — add `paper/da
    latest-snapshot table above (RQ1–RQ3 cross-sectional corpus), and (b) a **version-chain
    table** (all per-commit snapshots keyed within a single repo, pre-dedup) for RQ4. Chain
    grouping/ordering mechanics are frozen only after the schema probe (§8b caveat).
+   *(Schema frozen 2026-07-07, see §8b addendum)*: concrete artifacts — (a) cross-sectional
+   table = latest content state per canonical `skill_id`, deduped per D1; (b) version-chain
+   table = the §8b chain definition (group by `skill_id`, order by `commit_date`, link
+   `before_sha == prev.after_sha`; roots from `skills_initial.parquet`, pairs from
+   `diffs_clean.parquet`). **Direct parquet download, not datasets-server row APIs** (they fail
+   on the large configs — see §8b access gotcha).
 2. `build_gos.py`: download `skills_2000.tar.gz` only (29MB), extract SKILL.md files.
 3. `build_clawhub.py`: fetch feed (1 request), then per-skill file fetches for all 549 with the
    documented recipe; sleep to stay far under 3000/min; record `downloads` metadata. The
@@ -320,6 +326,12 @@ addendum before any RQ4 outcome is computed. Domain-confound rule **D8** added t
 amendment block (deterministic domain labels; Cramér's V gate at 0.6; domain fixed effect in
 every RQ2 regression).
 
+**Update 2026-07-07 (end of day):** skill-diffs schema probe returned and verified
+(datasets-server /info + /search + dataset card). §8b chain mechanics **FROZEN** in the §8b
+addendum; §3 skill-diffs row updated to verified counts (986,515 commit rows / 664,872 initial
+skills / 130,631 clean pairs / 5,891 repos). **RQ4 is now fully pre-registered** — no open
+placeholders remain before RQ4 outcomes may be computed.
+
 ## 8. WS3 pre-registered analysis rules (BINDING — decided while capable-model access existed)
 
 Every reported number follows the **`experiment-discipline` skill**: produced by a committed
@@ -381,6 +393,14 @@ Decision rules — follow literally, log any trigger in `paper/analysis/DEVIATIO
   per skill); **RQ4 uses the pre-dedup version chains** keyed within a single repo.
   `build_skill_diffs.py` (WS1) must therefore emit BOTH: the deduped latest-snapshot table and
   a version-chain table (see WS1 step 1 note and §8b).
+- **D1 shipped-dedup note (added 2026-07-07, post schema probe — does not modify D1's text):**
+  the skill-diffs dataset ships its own MinHash clusters (`skill_cluster_id`, Jaccard≥0.7, plus
+  `skill_semantic_cluster_id`, embedding cos≥0.85, with `is_canonical`/`is_semantic_canonical`
+  flags) — MORE aggressive than D1's pre-registered 0.9. **Decision:** D1's own 0.9 / 5-gram
+  dedup remains the pre-registered primary for the RQ1–RQ3 cross-sectional corpus; the shipped
+  `skill_cluster_id`/`is_canonical` is used (a) as a robustness check reported alongside, and
+  (b) as the fork-linkage tool for RQ4 exclusions (§8b addendum). Rationale: preserves the
+  pre-registration while not reimplementing fork detection.
 
 ### §8b — RQ4 pre-registration (added 2026-07-07)
 
@@ -409,6 +429,36 @@ seeds 42.
 
 **Exploratory (explicitly non-confirmatory):** whether style deltas precede adoption changes
 (lagged install/star growth) — correlational only, no causal language.
+
+#### §8b addendum — chain mechanics FROZEN (2026-07-07; skill-diffs schema verified via HF datasets-server /info, /search + dataset card)
+
+The schema probe promised above has run; the open placeholder is now frozen:
+
+- **Source tables:** `diffs.parquet` (986,515 rows / 36 cols, full commit-by-commit table);
+  use `diffs_clean.parquet` (130,631 rows) for true before/after pairs (`is_initial` excluded)
+  and `skills_initial.parquet` (664,872 rows) for chain roots. (`repos.parquet`, 5,891 rows,
+  carries per-repo n_skills/n_records/n_diff_pairs/license_spdx/stars/pushed_at;
+  `bundled.parquet`, 630,119 rows, is sibling files at HEAD.)
+- **Keys:** `skill_id` = stable ID per (repo, skill_path); `pair_id` = SHA1 of
+  (skill, before_sha, after_sha). Root row has `is_initial=True` with NULL `before_*`.
+- **Chain definition:** group by `skill_id`, order by `commit_date` (ISO 8601 w/ tz), require
+  link integrity `before_sha == previous after_sha`; broken links split the chain and **only
+  the longest contiguous segment is kept** (log the count of split chains).
+- **Version count for the ≥3 rule** = number of distinct content states in the longest
+  contiguous segment (initial + ≥2 linked diffs).
+- **Fork exclusion:** `skill_id` is already repo-scoped; additionally, when a
+  `skill_cluster_id` (dataset-shipped MinHash linkage, Jaccard≥0.7) spans multiple repos, only
+  the chain of the `is_canonical` member enters RQ4 — the others are forks/copies.
+- **Per-edit labels** (`intent_class`, `intent_confidence`, `intent_source`, `quality_tags`,
+  `quality_score`; PR metadata `pr_title`/`pr_body`/`merged_at` when matched) may be used ONLY
+  in the exploratory edit-taxonomy analysis — never as confirmatory predictors.
+- **Chain-depth evidence** (the ≥3-version rule is feasible): `repos.parquet` shows
+  n_records ≫ n_skills as the norm (e.g. 31 skills / 242 diff pairs ≈ 8.8 versions/skill); one
+  skill_id (c4ffff46268f3035) has 250+ commits over 5 days with semver-tagged messages.
+- **Access gotcha for WS1 implementers:** datasets-server `/first-rows` and `/rows` fail on the
+  large configs ("Scan size limit exceeded", no page index); `/filter` errors regardless of
+  quoting. Use `/search` (needs ~10–20s index warmup) or **download the parquet files directly**
+  for bulk work — do not burn time on the row APIs.
 
 ## 9. WS4 pilot — full spec (mechanical once WS3 clusters exist)
 
