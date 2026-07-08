@@ -23,6 +23,15 @@ Canonical results ledger for WS1 (experiment-discipline §4). Numbers are cited 
       (`[a-z0-9]`-normalized owner/repo/name). corpus.parquet is exactly the 15 `CORPUS_COLUMNS`
       (skill_diffs sibling cols stay in `src_skill_diffs.parquet`). **Run PENDING** — needs
       `dedup_map.parquet` first.
+- [~] `parse_weekly_installs` — re-parse the cached skills.sh HTML for the sparkline
+      weekly-install series. **Written + unit-tested** (ponytail-reviewed) 2026-07-08.
+      Pre-freeze inspection DONE: the "9–16-value" series was a thousands-separator artifact —
+      the sparkline is always an 8-week window; frozen separator `,\s+` yields 8 values on
+      19,906/19,906 (see RESULTS). Adds `weekly_installs` + `installs_wk_mean` (mean of the
+      series; primary RQ2 outcome per ADR-0007; renamed from `installs_wk_recent` after the
+      naming flag was resolved 2026-07-08 — estimator unchanged, tests pass post-rename) →
+      `skillssh_weekly.parquet` (owner/repo/skill key, WS3-side join artifact). **Run
+      PENDING** (re-parse of the cache).
 - [x] `build_skillssh.py` — installs join. **Gate cleared + crawl done 2026-07-08** (see
       RESULTS). `skills.sh/robots.txt` allows the sitemaps/detail pages (only `/api/*`
       disallowed), `/terms` permits "reasonable use, including caching results on your own
@@ -52,6 +61,28 @@ Canonical results ledger for WS1 (experiment-discipline §4). Numbers are cited 
 ## RESULTS
 
 All counts cited from `manifests/*.manifest.json` (never retyped). Newest on top.
+
+### 2026-07-08 — weekly-installs re-parse: the "9–16-value" series is a thousands-separator artifact
+
+Mandatory pre-freeze inspection (§8 amd 2: "the 9–16-value series must be inspected once before
+the re-parse is frozen"). Re-scanned all 19,911 cached skills.sh `.body` files for the sparkline
+`aria-label="Weekly installs: …"`. 19,906 carry it (5 no-aria = the crawl's unresolved detail
+pages). **The earlier "8 vs 9–16 values" split was a parsing artifact, not a real signal:**
+skills.sh renders values ≥1,000 with a thousands-separator comma (`1,901`), so a naive
+`split(",")` overcounts — `586, 437, 220, 145, 205, 177, 235, 1,901` is **8** weekly values
+(last = 1901), not 9. Splitting on `", "` (comma + whitespace) and stripping intra-value commas
+yields **exactly 8 values on 19,906/19,906 pages — 0 exceptions, 0 non-integer tokens**. The
+n=16 spike (314 pages) is simply series where all 8 values are ≥1,000.
+
+- **FROZEN parse rule:** value separator = regex `,\s+`; within each token strip `,` and parse
+  int. The sparkline is **always an 8-week window** (single crawl anchor 2026-07-08 — state the
+  window limitation wherever the outcome is reported). **580 / 19,906** series are all-zero.
+- **Outcome fields** (`parse_weekly_installs` → `skillssh_weekly.parquet`, keyed owner/repo/skill,
+  a WS3-side join artifact like `skillssh_meta.parquet`, NOT a `CORPUS_COLUMNS` field):
+  `weekly_installs` = the 8-int series; `installs_wk_mean` = its mean (§8 amd 2 def; all-zero
+  → 0.0). ~~⚠ naming flag~~ **RESOLVED 2026-07-08 (user decision, ADR-0007):** estimator =
+  mean of the full 8-week series, column renamed `installs_wk_recent` → `installs_wk_mean`
+  (code + tests updated; 10/10 pass).
 
 ### 2026-07-08 — RQ2 install-join key: frontmatter-name viability + miss breakdown
 
