@@ -117,6 +117,14 @@ dedup.py + merge.py written, runs pending; step 8 not yet written (see LEDGER ST
    treatment as step 5, English-only filter applied to all cells identically.
    **Data rules frozen in ADR-0008; timebox ~2 days, then RQ5 kill criteria applies.**
 
+10. `build_machine_cell.py` *(added 2026-07-08 — ADR-0009, exploratory)*: HF
+    `zhang-ziao/SkillFlow-exp-skills` (~598 machine-generated SKILL.md, 11 LLMs; domain
+    labels joined from `zhang-ziao/SkillFlow-Task` task families) + `Qwen-Applications/
+    Trace2Skill` `released_skills/` (4 evolved variants + human baseline, vignette only).
+    Tag `source=machine_authored`, carry `generator_model`. Same dedup/English treatment.
+    **Beware the name collision** (ADR-0009): `beita6969/SkillFlow-Dataset` is unrelated —
+    pin by exact dataset ID. Timebox ~half a day, kill per ADR-0009.
+
 **Acceptance:** a WS1 `REPORT.md` with per-source counts, dedup stats (exact + near-dup
 removal rates), platform breakdown, license breakdown, install-join rates (both denominators
 per LEDGER 2026-07-08). No data files in git (DVC pointers only).
@@ -160,6 +168,11 @@ analyze time.
    family, log-length covariate, BH q=0.10 within family; `C3−C1` and `C2−C1` descriptive
    (bracket + era shift). ≥5k docs per human cell after dedup or downgrade to descriptive.
    Genre caveat (README ≠ procedure even for humans) named in the paper per ADR-0008.
+8. Machine-authored cell *(added 2026-07-08 — ADR-0009, exploratory ONLY)*: `timbro analyze`
+   over the WS1 step-10 cell; descriptive machine-vs-organic comparison on the full feature
+   set, per-generator-model variation, optional AUC probe with D5's ablation guard.
+   Trace2Skill baseline→evolved feature deltas as a case-study box. No hypothesis tests,
+   no BH family, never a headline claim; feeds RQ4 discussion + future work.
 
 **Acceptance:** scripted, re-runnable (`uv run python paper/code/ws3/run_all.py`), figures to
 `paper/figures/`, a findings memo `paper/code/ws3/FINDINGS.md`, deviations in
@@ -237,8 +250,13 @@ needs: anonymized repo, derived-features-only data release, license statement pe
   (timeboxed ~2 days), WS3 gains step 7. **Frozen same day as ADR-0008 (D10)** — bracketing
   design `[C3−C2, C3−C1]` (the naive DiD algebra collapses to C3−C2; contamination makes it
   a lower bound), two-sided tests on the 5-feature family, ≥5k/cell floor.
+- **2026-07-08 (later still):** machine-authored register cell added as ADR-0009
+  (exploratory, never confirmatory) — `SkillFlow-exp-skills` (598 skills, 11 LLMs, clean
+  authorship provenance; the gap skill-diffs can't fill) + Trace2Skill vignette; WS1 step 10,
+  WS3 step 8. SkillForge scare resolved: `liu2026-skillforge` (arXiv:2604.08618) verified
+  fully-read in literature.md — the haiku hunt found no *artifacts*, the paper is fine.
 - Still open: NeurIPS workshop list ~Jul 11; `kubectl port-forward` test on NM-BAIOS before
-  pilot runs; WS1 dedup.py + merge.py + step 8 + step 9 (RQ5).
+  pilot runs; WS1 dedup.py + merge.py + steps 8–10.
 
 ## 9. WS4 pilot — full spec (mechanical once WS3 clusters exist)
 

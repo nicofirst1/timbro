@@ -22,7 +22,7 @@ GitHub stars **only** on single-skill repos.
 *(Superseded 2026-07-08 — see [ADR-0007](0007-temporal-confounds-d9.md): primary outcome is
 now the trailing weekly install rate; ClawHub downloads removed.)*
 
-Decision rules — follow literally, log any trigger in `paper/analysis/DEVIATIONS.md`:
+Decision rules — follow literally, log any trigger in `paper/ws3/DEVIATIONS.md`:
 - **D1 dedup:** if near-dup removal cuts skill-diffs by >60% (fork explosion), the unit of
   analysis becomes the near-dup cluster: one canonical doc + `cluster_size` as covariate.
   Never treat near-duplicates as independent observations.
