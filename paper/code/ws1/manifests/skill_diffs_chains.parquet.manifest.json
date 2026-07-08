@@ -1,13 +1,6 @@
 {
-  "git_commit": "e34117fc4a147891fa6402361d6d7e66bb662203-dirty",
+  "git_commit": "7b9ffa4f103208d43aa1973ae09c005e11c48ec5-dirty",
   "inputs": [
-    {
-      "file": "repos.parquet",
-      "hf_dataset": "shl0ms/skill-diffs",
-      "n_rows": 5891,
-      "sha256": "0a7cbae91211cc3b87b2214b2283ebe64ef93806ddbfcd6b65010912c1a601eb",
-      "size_bytes": 174966
-    },
     {
       "columns_projected": [
         "skill_id",
@@ -50,23 +43,14 @@
       "n_rows": 130631,
       "sha256": "5a95e04458c4df376d47ef07402e8afde045e42fe11e4d3b7e3638c207841cf8",
       "size_bytes": 405027618
-    },
-    {
-      "columns_projected": [
-        "skill_id",
-        "bundled_count",
-        "bundled_files.list.element.path"
-      ],
-      "file": "bundled.parquet",
-      "hf_dataset": "shl0ms/skill-diffs",
-      "n_rows": 630119,
-      "size_bytes": 3375032487
     }
   ],
-  "n_distinct_skills": 664875,
-  "n_rows": 664875,
-  "output": "src_skill_diffs.parquet",
-  "output_sha256": "17594bd4bac36bcfddc818247c3d03f431b5cee1e6cd02535775aebdd6e15379",
+  "n_chains": 218626,
+  "n_forks_excluded": 446249,
+  "n_rows": 289145,
+  "n_split_chains": 15306,
+  "output": "skill_diffs_chains.parquet",
+  "output_sha256": "9d92df6337ab05215837c206bb14c929558356c3e2bf284c56f10b0b8aa0d5c8",
   "packages": {
     "huggingface_hub": "1.19.0",
     "pyarrow": "24.0.0"
@@ -74,5 +58,5 @@
   "script": "build_skill_diffs.py",
   "seed": 42,
   "source": "skill_diffs",
-  "utc": "2026-07-08T08:20:50.301820+00:00"
+  "utc": "2026-07-08T08:12:01.071634+00:00"
 }

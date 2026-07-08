@@ -3,17 +3,21 @@
 Canonical results ledger for WS1 (experiment-discipline §4). Numbers are cited from
 `manifests/*.manifest.json` / `REPORT.md`, never retyped. Newest on top.
 
-## PENDING
+## STATUS
 
-- [ ] `build_skill_diffs.py` — anchor corpus (cross-sectional + version-chain tables)
-- [ ] `build_gos.py` — graph-of-skills 2000
-- [ ] `build_clawhub.py` — live ClawHub feed (~549)
-- [ ] `build_slop.py` — labeled low-quality stubs
-- [ ] `dedup.py` — exact + MinHash near-dup collapse (D1)
-- [ ] `merge.py` — corpus.parquet + REPORT.md
-- [ ] **GATED** `build_skillssh.py` — installs join. **Blocked on:** (a) read `skills.sh/terms`
-      and confirm crawling is permitted; (b) explicit user sign-off (≈3h crawl of ~20K pages,
-      §5.3/§6 guardrails). Code may be written; the crawl must NOT run until both clear.
+- [x] `build_skill_diffs.py` — anchor corpus (cross-sectional + version-chain tables). Done
+      2026-07-08 (see RESULTS). Cross-sectional rebuilt via `--cross-only` after the CRLF
+      frontmatter fix; chains built via `--chains-only`.
+- [x] `build_gos.py` — graph-of-skills 2000. Done.
+- [ ] `build_clawhub.py` — live ClawHub feed (~549). Not yet written.
+- [x] `build_slop.py` — labeled low-quality stubs. Done.
+- [ ] `dedup.py` — exact + MinHash near-dup collapse (D1). Not yet written.
+- [ ] `merge.py` — corpus.parquet + REPORT.md. Not yet written.
+- [~] `build_skillssh.py` — installs join. **Gate cleared 2026-07-08:** `skills.sh/robots.txt`
+      allows the sitemaps/detail pages (only `/api/*` disallowed), and `/terms` permits
+      "reasonable use, including caching results on your own infrastructure" (read + user
+      sign-off recorded). Crawl **running** (~20K detail pages at ≤2 req/s, resumable via the
+      on-disk HTML cache). Output `skillssh_meta.parquet` pending completion.
 
 ## PRE-REG — WS1 corpus assembly (2026-07-07)
 
@@ -37,4 +41,40 @@ Canonical results ledger for WS1 (experiment-discipline §4). Numbers are cited 
 
 ## RESULTS
 
-_(none yet — builders pending)_
+All counts cited from `manifests/*.manifest.json` (never retyped). Newest on top.
+
+### 2026-07-08 — skill-diffs anchor corpus (both tables)
+
+- **Cross-sectional** `src_skill_diffs.parquet`: **664,875** rows / 664,875 distinct skills
+  (`src_skill_diffs.parquet.manifest.json`, git `e34117f`). Upstream D7 asserts all passed:
+  skills_initial 664,872 · diffs_clean 130,631 · repos 5,891 · bundled 630,119.
+  - Rebuilt via `--cross-only` after the CRLF frontmatter fix (`_text.extract_frontmatter`,
+    `[\r\n]+` fences). Frontmatter now parsed on 637,772 rows (95%). Residual unstripped
+    (`frontmatter_json` null AND body opens with `---`) = 1,018 rows (0.15%); of those only
+    159 are cleanly fixable (121 leading-whitespace, 38 close-at-EOF), rest are genuine
+    non-frontmatter `---` rules. 0 valid `---<fm>---` docs fail → not a regex bug; left as-is.
+- **Version chains** `skill_diffs_chains.parquet`: **289,145** version-rows across **218,626**
+  chains (`skill_diffs_chains.parquet.manifest.json`). 15,306 chains split on a broken link;
+  **446,249** fork skills excluded. RQ4-eligible (≥3 versions): **14,388** — well above the
+  §8b <1,000 "descriptive-only" floor, so RQ4 stands as a real analysis.
+  - **Fork-explosion note (D1-adjacent):** 446,249 / 664,875 = **67%** of skills are
+    non-canonical cross-repo copies (dataset-shipped `skill_cluster_id`, Jaccard≥0.7). This is
+    the RQ4 fork-exclusion filter, NOT the pre-registered D1 MinHash near-dup collapse (0.9
+    Jaccard, runs in `dedup.py`, not yet run) — but the magnitude flags that D1's >60%
+    fork-explosion clause is live and must be checked when dedup runs.
+
+### 2026-07-08 — GOS + slop sources
+
+- `src_gos.parquet`: **2,000** rows (`src_gos.parquet.manifest.json`) — matches
+  `GOS_EXPECTED_SKILLS`.
+- `src_slop.parquet`: **5,147** rows (`src_slop.parquet.manifest.json`) — matches
+  `SLOP_EXPECTED_STUBS`.
+
+### 2026-07-08 — skills.sh parser fix (pre-crawl validation)
+
+- Detail-page URLs are `/{owner}/{repo}/{skill}` (no `/skills/` prefix); the original regex
+  matched 0 live pages, which would have made the ~20K-page crawl yield an empty table. Fixed
+  + unit-tested; verified on real cached pages: **671/671 extract installs**
+  (`interactionStatistic.userInteractionCount`; min 214 / median 997 / max 34,613). `stars`,
+  `first_seen`, `audit_verdict` are NOT in the JSON-LD → null. Final `skillssh_meta.parquet`
+  count pending crawl completion.

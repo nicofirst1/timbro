@@ -572,6 +572,67 @@ def run_chains_only() -> None:
           f"({n_split} chains split on a broken link, {n_excluded} fork skills excluded)")
 
 
+def run_cross_only() -> None:
+    """Resumable rebuild of ONLY the cross-sectional table (src_skill_diffs.parquet).
+
+    Mirrors the (a) half of run_full but reads the hub-cached skills_initial + diffs_clean
+    (already downloaded by --chains-only via hf_hub_download) instead of re-streaming them,
+    and leaves the already-built chains table untouched. Use after a change to the text/
+    frontmatter logic (extract_frontmatter) so the committed cross-sectional output is
+    regenerated to match the current code. bundled.parquet's sibling columns come from the
+    same cheap projected range read as run_full (the full file is 3.4GB; only paths needed).
+    """
+    api = HfApi()
+    sizes = {s.rfilename: s.size for s in api.dataset_info(REPO_ID, files_metadata=True).siblings}
+    fs = HfFileSystem()
+
+    print("[cross-only] repos.parquet (cached) ...")
+    repos_path = hf_hub_download(repo_id=REPO_ID, filename="repos.parquet", repo_type=REPO_TYPE)
+    repos_idx = _load_repos_index(repos_path)
+
+    print("[cross-only] skills_initial.parquet + diffs_clean.parquet (cached, read locally) ...")
+    initial_path = hf_hub_download(repo_id=REPO_ID, filename="skills_initial.parquet", repo_type=REPO_TYPE)
+    clean_path = hf_hub_download(repo_id=REPO_ID, filename="diffs_clean.parquet", repo_type=REPO_TYPE)
+    initial_rows = pq.read_table(initial_path, columns=INITIAL_COLS).to_pylist()
+    clean_rows = pq.read_table(clean_path, columns=CLEAN_COLS).to_pylist()
+
+    n_initial, n_clean = len(initial_rows), len(clean_rows)
+    for fn, n in (("skills_initial.parquet", n_initial), ("diffs_clean.parquet", n_clean)):
+        expected = SKILL_DIFFS_EXPECTED[fn]
+        if n != expected:
+            print(f"D7 SPEC/REALITY CONFLICT: {fn} has {n} rows, expected {expected}. Stopping.")
+            sys.exit(1)
+
+    print("[cross-only] projecting bundled.parquet (sibling paths only, content skipped) ...")
+    bundled_idx = _load_bundled_index(fs)
+
+    states_by_skill = build_states_by_skill(initial_rows, clean_rows)
+
+    print("[cross-only] building cross-sectional table ...")
+    cross_rows = build_cross_sectional(states_by_skill, repos_idx, bundled_idx)
+    cross_table = _rows_to_table(cross_rows, _cross_sectional_schema())
+    cross_out = data_dir() / "src_skill_diffs.parquet"
+    pq.write_table(cross_table, str(cross_out))
+    inputs = [
+        {"hf_dataset": REPO_ID, "file": "repos.parquet", "n_rows": SKILL_DIFFS_EXPECTED["repos.parquet"],
+         "size_bytes": sizes.get("repos.parquet"), "sha256": sha256_file(repos_path)},
+        {"hf_dataset": REPO_ID, "file": "skills_initial.parquet", "n_rows": n_initial,
+         "size_bytes": sizes.get("skills_initial.parquet"), "columns_projected": INITIAL_COLS,
+         "sha256": sha256_file(initial_path)},
+        {"hf_dataset": REPO_ID, "file": "diffs_clean.parquet", "n_rows": n_clean,
+         "size_bytes": sizes.get("diffs_clean.parquet"), "columns_projected": CLEAN_COLS,
+         "sha256": sha256_file(clean_path)},
+        {"hf_dataset": REPO_ID, "file": "bundled.parquet", "n_rows": SKILL_DIFFS_EXPECTED["bundled.parquet"],
+         "size_bytes": sizes.get("bundled.parquet"),
+         "columns_projected": ["skill_id", "bundled_count", "bundled_files.list.element.path"]},
+    ]
+    write_manifest(
+        cross_out, source=SOURCE_SKILL_DIFFS, inputs=inputs, n_rows=len(cross_rows),
+        packages=["huggingface_hub", "pyarrow"], extra={"n_distinct_skills": len(states_by_skill)},
+    )
+    print(f"[cross-only] wrote {len(cross_rows)} rows to {cross_out.name}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -585,9 +646,17 @@ def main() -> None:
         help="Resumable rebuild of ONLY skill_diffs_chains.parquet (RQ4). ~2.1GB via "
         "hf_hub_download; skips bundled.parquet and leaves the cross-sectional table alone.",
     )
+    parser.add_argument(
+        "--cross-only",
+        action="store_true",
+        help="Resumable rebuild of ONLY src_skill_diffs.parquet (cross-sectional). Reuses the "
+        "hub-cached skills_initial/diffs_clean; leaves the chains table alone.",
+    )
     args = parser.parse_args()
     if args.chains_only:
         run_chains_only()
+    elif args.cross_only:
+        run_cross_only()
     elif args.full:
         run_full()
     else:
