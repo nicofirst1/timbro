@@ -126,7 +126,7 @@ does not exist; it was hallucinated in the original deep-research report.
 | HF `davidliuk/graph-of-skills-data` | Paper-curated benchmark libraries (`skills_2000.tar.gz` is the superset). **Provenance confirmed artifact (verified 2026-07-07, MIT):** the HF dataset card reciprocally cites arXiv:2604.05333 (Dawei Liu et al.), the paper's GitHub repo links the dataset; skill-library configs 200–2000 | 2,000 (substantive, ~6KB avg) | none | MIT |
 | ClawHub live registry | Sanctioned API: `GET https://clawhub.ai/v1/feeds/skills` (all 549, one request, robots.txt-allowed) + per skill `GET /api/v1/skills/{slug}/file?path=SKILL.md`; rate limit 3000 reads/min; authenticated `/api/v1/skills/export` ZIP exists. **Reconciliation note 2026-07-07:** hu2026-clawhub's 26,502 is a March 2026 crawl (up to 2026-03-18); live ClawHub as of July 2026 is ~549 — plausibly explained by a post-ClawHavoc purge (>30% of hu's crawl flagged suspicious/malicious; the SoK paper documents ClawHavoc, ~1,200 malicious skills). Plausible-not-confirmed — reconcile explicitly in the manuscript | **549** (small!) | catalog sortable by `downloads` — skill-level adoption signal | must cache, honor 429, link back to canonical pages |
 | HF `amoghacloud/clawskills-intelligence-corpus` | 5,147 near-identical templated stubs ("SISR" boilerplate, ~400B each) | ~5.1K **low-quality stubs** | none | MIT |
-| skills.sh marketplace (probed 2026-07-04) | Ling et al.'s source. Public sitemaps enumerate **~20,000** skill URLs (`owner/repo/skill`). Detail pages (robots-allowed) embed JSON-LD with **total installs**, stars, first-seen date, security-audit verdicts + only a 466-char SKILL.md preview. Full text NOT available (API is Vercel-OIDC-gated and robots-disallowed — do not use it) | 0 full texts directly — **join installs onto skill-diffs texts via the owner/repo/skill path** | **skill-level total installs** (not per-platform; per-platform counts exist nowhere) | robots.txt allows pages/sitemaps; `/terms` unread — read it before the crawl |
+| skills.sh marketplace (probed 2026-07-04; corrected 2026-07-08) | Ling et al.'s source. Public sitemaps enumerate **~20,000** skill URLs (`owner/repo/skill`; ~53 are stray `/api/*` entries to skip). Detail pages (robots-allowed) embed JSON-LD carrying **total installs** (`userInteractionCount`) — but NOT stars/first-seen/audit-verdict (corrected 2026-07-08: those are not in the structured data; the crawl yields them null). **Full SKILL.md text IS present** — rendered in the Next.js hydration payload (`__next_f`), the same content as skill-diffs (corrected 2026-07-08: the 2026-07-04 "466-char preview / full text unavailable" note was wrong — it missed the JS-hydrated body; verified by heading-overlap against skill-diffs). Never call the API (Vercel-OIDC-gated, robots-disallowed) | 0 used directly — **join installs onto skill-diffs texts via the owner/repo/skill path**; skills.sh's rendered text is a possible fallback for skills absent from skill-diffs | **skill-level total installs** (not per-platform; per-platform counts exist nowhere) | robots.txt allows pages/sitemaps (only `/api/*` disallowed); `/terms` read + cleared 2026-07-08 (permits reasonable cached use) |
 
 Corpus conclusions baked into the plan:
 - **skill-diffs anchors the corpus** (2–3 orders of magnitude larger than everything else).
@@ -271,7 +271,8 @@ Design skeleton (do not run without user budget approval):
   Timbro verifies each variant actually lands in the target linguistic profile (dogfooding).
 - Fixed model, 3 seeds, deterministic verifier from the framework.
 - *(2026-07-07)* This skeleton is superseded by the **frozen full spec in §9** (5 conditions
-  incl. no-skill control × 24 tasks × 3 seeds = 360 runs) — implement from §9, not from here.
+  incl. no-skill control × 24 tasks × 3 seeds = 360 runs; *amended 2026-07-08:* × 3 model
+  scales = 1,080 runs) — implement from §9, not from here.
 - Analysis: paired success rates (McNemar / mixed-effects logistic), report minimum detectable
   effect; a null result is publishable as "topology matters for adoption but not execution at
   this scale" — do not spin it.
@@ -490,9 +491,33 @@ The schema probe promised above has run; the open placeholder is now frozen:
   quoting. Use `/search` (needs ~10–20s index warmup) or **download the parquet files directly**
   for bulk work — do not burn time on the row APIs.
 
+#### §8b addendum 2 — exploratory embedding-delta analysis (added 2026-07-08; NEVER confirmatory)
+
+**Question:** how much of a skill's version-to-version movement in a learned semantic space is
+explained by the interpretable linguistic feature deltas we already compute — and does the
+degree of overlap differ by domain?
+
+- **No training.** Frozen off-the-shelf sentence encoder only (default:
+  `sentence-transformers/all-MiniLM-L6-v2`, chunk + mean-pool for texts over its context
+  window; pin the exact encoder + pooling in a dated line before results are computed).
+  Deliberately NOT a trained encoder-decoder on (v1→v2) pairs: a seq2seq's loss is dominated
+  by copying, so its latent space encodes content/domain rather than edit direction, and
+  training our own skill representations would erode the no-overlap claim vs
+  `skillstructure2026`.
+- **Data:** the same before/after pairs as RQ4 (`diffs_clean.parquet`, chain rules above).
+  Δemb = emb(after) − emb(before); Δfeat = Timbro feature-vector delta (features already
+  computed for RQ4 — no new extraction).
+- **Analysis:** CCA / linear probe from Δfeat to Δemb; report shared variance (R²), overall
+  and split by domain (D8 domain labels). Correlational language only.
+- **Purpose:** pilot for a possible follow-up paper (trained edit-representation model). If
+  shared variance is high, linguistic features capture most of what a semantic space sees in
+  skill edits; if low, that gap motivates the follow-up. Either way it stays out of the
+  confirmatory families and out of the abstract's claims.
+
 ## 9. WS4 pilot — full spec (mechanical once WS3 clusters exist)
 
-**Compute:** open-weights coder model served with vLLM on the Fraunhofer **NM-BAIOS k8s
+**Compute:** open-weights coder models (*amended 2026-07-08: three same-family sizes — see
+the model-scale bullet below*) served with vLLM on the Fraunhofer **NM-BAIOS k8s
 cluster** (use the `nm-baios-gpu` skill; Job template on wiki page
 [[nm-baios-gpu-batch-jobs]]). The eval harness runs on the local machine (on VPN) against the
 served endpoint — GPU time, not API dollars. User approves the GPU-time plan before any runs.
@@ -522,18 +547,52 @@ are legitimate pre-registration amendments, motivated by the lit-review synthesi
   Skills (+19.0 and +21.5 pp) outperform detailed (+14.5 pp) and comprehensive documentation
   (+0.7 pp)"; the cliff is specifically at *comprehensive*; length alone is known to swing
   execution outcomes).
-- **Runs (amended 2026-07-07):** 5 conditions × 24 tasks × 3 seeds = **360**, temperature 0.2.
+- **Model scale (added 2026-07-08; pre-freeze amendment):** scale becomes a third crossed
+  factor with 3 levels — **same-family instruct coder models at ~7B / ~14B / ~32B, same
+  quantization across all three** (AWQ 4-bit), so quantization does not confound scale.
+  Motivation: the paper's prescriptive value depends on the *size* of the style effect
+  relative to what a practitioner can otherwise buy — scale is the natural yardstick — and
+  cross-model heterogeneity in prior skill/context results (li2026-skillsbench,
+  jimenez2024-sweagent) means a single-model estimate may not transport. Default trio:
+  Qwen2.5-Coder-{7B,14B,32B}-Instruct AWQ; a newer same-family trio may be substituted
+  **only before the first run**, pinned in `paper/pilot/models.json`. All three served on
+  the H100 where possible (7B is cheap there); 7B may fall back to a MIG A100 slice only if
+  the H100 queue blocks — hardware recorded per run in the manifest, disclosed if mixed.
+  The **harness stays fixed** across all scales (harness variation would be confounded with
+  the task set — deliberately out of scope).
+- **Runs (amended 2026-07-07; re-amended 2026-07-08):** 3 scales × 5 conditions × 24 tasks
+  × 3 seeds = **1,080**, temperature 0.2.
   Per-run manifest: skill hash, prompt hash, model+quantization, seed, harness commit
   (experiment-discipline). *(Added 2026-07-07)* every run also logs **whether the skill was
   actually invoked/triggered**; success-conditional-on-invocation is a secondary outcome
   (motivation: contested ~56% non-invocation anecdote in the practitioner review — a restyled
-  skill that never fires can't show a style effect).
-- **Stats:** mixed-effects logistic `success ~ condition + (1|task)`; pairwise McNemar
-  original-vs-each-variant; always report the MDE for this n. A null is publishable — report it
-  straight.
+  skill that never fires can't show a style effect). *(Added 2026-07-08)* invocation rate is
+  also reported **per scale** (pre-registered secondary descriptive: smaller models may
+  simply not fire the skill, which is a mediator of any scale×style pattern).
+- **Stats (amended 2026-07-08):** mixed-effects logistic
+  `success ~ condition * scale + (1|task)`, scale as an ordered factor (treatment-coded
+  contrasts + a log-parameter trend). Pre-registered estimands, in order: (a) condition
+  effect **within each scale** — the original RQ3 question, now per-scale; pairwise McNemar
+  original-vs-each-variant stays, per scale; (b) scale main effect, in the same pp units;
+  (c) condition × scale interaction — "does style sensitivity change with capability";
+  expected underpowered at this n, report its MDE, **exploratory unless it clears the
+  test**. Variance decomposition (task / scale / condition / seed) is descriptive only.
+  Always report the MDE for this n. A null is publishable — report it straight.
+- **Practical-significance goalpost (fixed 2026-07-08, before any run):** style
+  recommendations are framed as *actionable* in the paper only if the best-vs-worst
+  condition gap is **≥ 5 pp with a 95% CI excluding 0** in the pooled model. Below that,
+  the calibrated claim is "style effects are small relative to scale," reported straight —
+  with the headline comparison in common units: **pp gained by best restyling vs pp gained
+  per scale step**. Either outcome is a publishable, prescriptive result.
+- **Pre-run power check (blocking, added 2026-07-08):** before any GPU run, simulate the
+  MDE for the pooled condition effect under the frozen n (sweep task ICC 0.2–0.4). If MDE
+  > 5 pp, increase seeds (the cheap axis) until MDE ≤ 5 pp, or record in the WS4 ledger why
+  not — decided and written **before** runs, not after.
 - **Abort criteria:** restyle acceptance fails on >30% of tasks → stop and redesign the
   protocol; the verifier disagrees with itself on identical (condition, seed) reruns → fix the
-  harness before generating any results.
+  harness before generating any results. *(Added 2026-07-08)* a scale that cannot complete
+  the harness protocol (< 50% of its no-skill-control runs produce a parseable episode) is
+  **dropped to descriptive and logged** — never silently substituted with a different model.
 - **RQ3 motivation (added 2026-07-07):** convergent, independently-mined evidence that
   more/redundant instruction context can hurt, not help, execution — Lost in the Middle
   (arXiv:2307.03172, TACL 2023, mid-context degradation), WebArena (removing the "Unachievable"
@@ -548,10 +607,13 @@ are legitimate pre-registration amendments, motivated by the lit-review synthesi
 - GPUs: full **H100 ~94GB** (`nvidia.com/gpu`) — contended, expect queueing; ~12× **A100 MIG
   2g.10gb slices** — usually free. A 32B model needs the H100; MIG slices fit only ≤7B at
   4-bit. Primary: 32B on H100. Fallback if H100 queue blocks: 14B-class AWQ on H100 off-hours,
-  or a ~7B 4-bit on MIG (note the model change in the paper).
+  or a ~7B 4-bit on MIG (note the model change in the paper). *(2026-07-08: partly
+  superseded — all three scales are now in-design (§9 model-scale bullet); "fallback"
+  language applies only to hardware placement, not to which models run.)*
 - **Hard cap `activeDeadlineSeconds: 21600` (6h) on every Job** — the vLLM server cannot run
-  persistently. Chunk the 360 runs (288 pre-amendment; see §9 amendment 2026-07-07) into ≤6h
-  batches; put `HF_HOME` on the home PVC
+  persistently. Chunk the 1,080 runs (288 pre-amendment 2026-07-07, 360 pre-amendment
+  2026-07-08; see the dated §9 amendments) into ≤6h
+  batches; only the 32B third runs at full H100 cost — 14B/7B are cheaper per run; put `HF_HOME` on the home PVC
   (`home-nicolo`, RWX NFS) so each relaunch skips the model download (documented
   "whole evening lost" gotcha otherwise).
 - **Endpoint exposure is undocumented ground**: no Service/Ingress pattern in the wiki. Try
