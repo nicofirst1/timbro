@@ -36,3 +36,4 @@ Run `scripts/release.sh <new-version>` — it bumps both `.claude-plugin/plugin.
 - `en_core_web_sm` is pinned as a direct-URL wheel dep (needs `tool.hatch.metadata.allow-direct-references`). No manual `spacy download`.
 - Defaults resolve relative to the package dir (`src/timbro/sample/`), not CWD — so the plugin works inside its cache sandbox.
 - `data/` is gitignored (private corpora); the shipped `src/timbro/sample/` is the only corpus that publishes.
+- `paper/data/` corpus artifacts are DVC-tracked (local cache only, no remote): commit the `.dvc` pointer, `dvc checkout` restores the bytes.
