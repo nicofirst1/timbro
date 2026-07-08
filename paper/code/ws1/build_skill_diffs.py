@@ -14,7 +14,7 @@ is NOT needed and is skipped) and writes:
   (b) paper/data/skill_diffs_chains.parquet -- per-version chain table for RQ4
 
 Both are gated behind `--full` and are NOT invoked by the probe. See
-paper/README.md §4 WS1 step 1 and §8b + addendum for the frozen chain mechanics.
+paper/PLAN.md §4 WS1 step 1 and ADR-0005 + addendum for the frozen chain mechanics.
 """
 
 from __future__ import annotations
@@ -37,11 +37,11 @@ REPO_ID = "shl0ms/skill-diffs"
 REPO_TYPE = "dataset"
 
 # Tables actually consumed by the --full extract. diffs.parquet (986,515-row raw
-# commit-level superset) is NOT needed: per README §8b addendum, chain roots come
+# commit-level superset) is NOT needed: per README ADR-0005 addendum, chain roots come
 # from skills_initial.parquet and pairs from diffs_clean.parquet. Skipping it saves
 # ~2.2GB of the naive "download everything" estimate.
 EXTRACT_FILES = ["skills_initial.parquet", "diffs_clean.parquet", "repos.parquet", "bundled.parquet"]
-ALL_FROZEN_FILES = list(SKILL_DIFFS_EXPECTED)  # the 5 files frozen in §8b
+ALL_FROZEN_FILES = list(SKILL_DIFFS_EXPECTED)  # the 5 files frozen in ADR-0005
 
 SIBLING_COLUMNS = [
     "n_sibling_files",
@@ -115,7 +115,7 @@ def run_probe() -> None:
     print(f"\n[probe] total size of all 5 frozen files: {total_all / 1e9:.2f} GB")
     print(f"[probe] size needed for --full extract ({', '.join(EXTRACT_FILES)}): {total_extract / 1e9:.2f} GB")
     print(f"[probe] diffs.parquet ({skipped / 1e9:.2f} GB) is skipped by --full -- not consumed "
-          f"by the chain-building logic (§8b addendum).")
+          f"by the chain-building logic (ADR-0005 addendum).")
     print("\n[probe] done. Re-run with --full to perform the real extract (not run here).")
 
 
@@ -302,7 +302,7 @@ def build_cross_sectional(states_by_skill: dict, repos_idx: dict, bundled_idx: d
 
 
 def build_chains(states_by_skill: dict) -> tuple[list[dict], int]:
-    """Version-chain rows per §8b addendum: group by skill_id (already done),
+    """Version-chain rows per ADR-0005 addendum: group by skill_id (already done),
     order by commit_date (already done), require before_sha == prev.after_sha;
     on a broken link split the chain and keep only the longest contiguous segment.
     """
@@ -523,7 +523,7 @@ def run_chains_only() -> None:
     hf_hub_download (cached + auto-resume on a partial download), then reads only the columns
     it needs locally. It skips bundled.parquet (3.4GB, sibling features -> cross-sectional only)
     and repos.parquet (repo metadata -> cross-sectional only). Chain mechanics are identical to
-    run_full (§8b addendum). Use this to recover from an interrupted --full run without re-doing
+    run_full (ADR-0005 addendum). Use this to recover from an interrupted --full run without re-doing
     the ~5.5GB, non-resumable streaming extract.
     """
     print("[chains-only] downloading skills_initial.parquet (resumable, cached) ...")

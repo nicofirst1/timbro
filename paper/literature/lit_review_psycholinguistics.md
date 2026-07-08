@@ -5,8 +5,8 @@ WebFetch; every entry below was confirmed against a real abstract/publisher page
 
 This review is deliberately **not** about LLMs, prompting, or the agent-skill ecosystem — that
 related-work ground is covered in `paper/literature_review.md`. Its job is different: to ground the
-`timbro analyze` feature groups (README §"WS2 — Issue A") and the RQ1 clustering design (README
-§"WS3", §8 "D3 clustering") in the pre-existing psycholinguistics and corpus-linguistics literature
+`timbro analyze` feature groups (PLAN.md §4 "WS2 — Issue A") and the RQ1 clustering design (README
+§"WS3", ADR-0004 "D3 clustering") in the pre-existing psycholinguistics and corpus-linguistics literature
 that studies exactly these properties of English text — readability, lexical diversity, syntactic
 complexity, cohesion, stance/hedging, register variation, and function-word distributional style —
 independent of any LLM or agentic framing. Every feature group in Issue A has a decades-deep, mostly
@@ -184,8 +184,8 @@ lexico-grammatical features across a corpus, extracts continuous "dimensions" of
 bundle of features that pattern together), and locates registers as points along those dimensions
 rather than as discrete pre-labeled categories. Methodologically this is standardized-feature-vectors-
 in, factor/cluster-structure-out — exactly the shape of our own plan to standardize `desc_*`/`syn_*`/
-`lex_*`/`dict_*` features and run PCA→HDBSCAN over them to find "instruction dialects" (README §"WS3",
-§8 "D3 clustering"). A separate, complementary sub-literature analyzes procedural/instructional
+`lex_*`/`dict_*` features and run PCA→HDBSCAN over them to find "instruction dialects" (PLAN.md §4 "WS3",
+ADR-0004 "D3 clustering"). A separate, complementary sub-literature analyzes procedural/instructional
 registers specifically, giving direct linguistic precedent for the imperative-mood and
 conditional-connective features in `dict_*`.
 
@@ -267,7 +267,7 @@ classical statistics, exactly the deterministic-counting posture `posdep_*` take
 
 ## 8. Synthesis
 
-Every feature group in `timbro analyze` (README §"WS2 — Issue A") has an independent, pre-LLM
+Every feature group in `timbro analyze` (PLAN.md §4 "WS2 — Issue A") has an independent, pre-LLM
 lineage in psycholinguistics or corpus linguistics: `read_*`/`desc_*` in the readability-formula
 critique tradition (§1), `lex_*` in vocabulary-diversity psychometrics and word-frequency effects
 (§2), `syn_*` in dependency-locality theory and L2 syntactic-complexity indices (§3), `coh_*` in
@@ -275,7 +275,7 @@ Coh-Metrix cohesion and centering-theory local coherence (§4), `dict_*`'s hedge
 Hyland's metadiscourse framework (§5) and its imperative/conditional half in corpus studies of
 instructional-text register specifically (§6), and `posdep_*` in the function-word stylometric
 tradition running from Mosteller & Wallace through Burrows' Delta (§7). This gives every one of the
-five README §8 "confirmatory feature family" members — `dict_imperative_ratio`, `dict_hedge_per_1k`,
+five ADR-0004 "confirmatory feature family" members — `dict_imperative_ratio`, `dict_hedge_per_1k`,
 `read_flesch_kincaid_grade`, `syn_mean_tree_depth`, `coh_lemma_overlap_adj` — a citable construct-
 validity anchor independent of the agent-skill literature.
 

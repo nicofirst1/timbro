@@ -43,13 +43,13 @@ Canonical results ledger for WS1 (experiment-discipline §4). Numbers are cited 
 - **Goal:** assemble a deduplicated cross-sectional skill corpus + a version-chain table,
   with per-source provenance, for RQ1–RQ4. This is corpus construction, not a hypothesis
   test; the "results" are counts, dedup/near-dup rates, join rates, license/platform breakdowns.
-- **Data + expected upstream counts** (frozen §8b, asserted at run time via `_schema.*_EXPECTED`):
+- **Data + expected upstream counts** (frozen ADR-0005, asserted at run time via `_schema.*_EXPECTED`):
   - `shl0ms/skill-diffs`: diffs 986,515 · diffs_clean 130,631 · skills_initial 664,872 ·
     repos 5,891 · bundled 630,119.
   - `davidliuk/graph-of-skills-data` (skills_2000): 2,000 skills.
   - `amoghacloud/clawskills-intelligence-corpus`: 5,147 stubs (labeled low-quality class).
   - ~~ClawHub live feed: ~549~~ **DROPPED 2026-07-08** (see RESULTS) — narrative hook only.
-- **Method:** direct parquet download for skill-diffs (NOT datasets-server row APIs — §8b
+- **Method:** direct parquet download for skill-diffs (NOT datasets-server row APIs — ADR-0005
   access gotcha); exact dedup by normalized-text SHA256, near-dup via `datasketch` MinHash,
   0.9 Jaccard on 5-gram shingles, seed 42 (D1). Canonical doc per near-dup cluster.
 - **Confirms if:** each source's row count matches its `_EXPECTED` (skill-diffs / GOS / slop);
@@ -64,7 +64,7 @@ All counts cited from `manifests/*.manifest.json` (never retyped). Newest on top
 
 ### 2026-07-08 — weekly-installs re-parse: the "9–16-value" series is a thousands-separator artifact
 
-Mandatory pre-freeze inspection (§8 amd 2: "the 9–16-value series must be inspected once before
+Mandatory pre-freeze inspection (ADR-0007: "the 9–16-value series must be inspected once before
 the re-parse is frozen"). Re-scanned all 19,911 cached skills.sh `.body` files for the sparkline
 `aria-label="Weekly installs: …"`. 19,906 carry it (5 no-aria = the crawl's unresolved detail
 pages). **The earlier "8 vs 9–16 values" split was a parsing artifact, not a real signal:**
@@ -79,7 +79,7 @@ n=16 spike (314 pages) is simply series where all 8 values are ≥1,000.
   window limitation wherever the outcome is reported). **580 / 19,906** series are all-zero.
 - **Outcome fields** (`parse_weekly_installs` → `skillssh_weekly.parquet`, keyed owner/repo/skill,
   a WS3-side join artifact like `skillssh_meta.parquet`, NOT a `CORPUS_COLUMNS` field):
-  `weekly_installs` = the 8-int series; `installs_wk_mean` = its mean (§8 amd 2 def; all-zero
+  `weekly_installs` = the 8-int series; `installs_wk_mean` = its mean (ADR-0007 def; all-zero
   → 0.0). ~~⚠ naming flag~~ **RESOLVED 2026-07-08 (user decision, ADR-0007):** estimator =
   mean of the full 8-week series, column renamed `installs_wk_recent` → `installs_wk_mean`
   (code + tests updated; 10/10 pass).
@@ -173,7 +173,7 @@ these enter the manuscript, back them with a committed probe first.
 - **Version chains** `skill_diffs_chains.parquet`: **289,145** version-rows across **218,626**
   chains (`skill_diffs_chains.parquet.manifest.json`). 15,306 chains split on a broken link;
   **446,249** fork skills excluded. RQ4-eligible (≥3 versions): **14,388** — well above the
-  §8b <1,000 "descriptive-only" floor, so RQ4 stands as a real analysis.
+  ADR-0005 <1,000 "descriptive-only" floor, so RQ4 stands as a real analysis.
   - **Fork-explosion note (D1-adjacent):** 446,249 / 664,875 = **67%** of skills are
     non-canonical cross-repo copies (dataset-shipped `skill_cluster_id`, Jaccard≥0.7). This is
     the RQ4 fork-exclusion filter, NOT the pre-registered D1 MinHash near-dup collapse (0.9

@@ -7,7 +7,7 @@ skills.sh (Ling et al.'s marketplace) exposes ~20,000 skill detail pages via pub
 robots-allowed sitemaps. Each detail page embeds a JSON-LD block carrying total installs
 (schema.org `userInteractionCount`), stars, first-seen date, and security-audit verdicts.
 Joined onto skill-diffs texts by `owner/repo/skill`, this is the PRIMARY RQ2 outcome
-(paper/README.md §3–§4 step 7).
+(ADR-0003 + paper/PLAN.md §4 step 7).
 
 The crawl itself is ~3h over ~20K pages and is gated on two conditions
 (paper/code/ws1/LEDGER.md "GATED" note, paper/README.md §5/§6):
@@ -76,13 +76,13 @@ def _assert_not_api(url: str) -> None:
     """Hard guard: never call skills.sh/api/* — OIDC-gated AND robots-disallowed.
 
     This check is deliberately not configurable. If you are tempted to special-case an
-    /api/ URL here, stop — read paper/README.md §3's skills.sh row and §5 guardrail 3 again.
+    /api/ URL here, stop — read ADR-0003's skills.sh row and paper/PLAN.md §5 guardrail 3 again.
     """
     parsed = urlparse(url)
     if parsed.netloc.endswith("skills.sh") and "/api/" in parsed.path:
         raise RuntimeError(
             f"REFUSING to call {url!r}: skills.sh/api/* is OIDC-gated and robots-disallowed "
-            "(paper/README.md §3, §5 guardrail 3). This is a hard guard, not a bug."
+            "(ADR-0003, paper/PLAN.md §5 guardrail 3). This is a hard guard, not a bug."
         )
 
 

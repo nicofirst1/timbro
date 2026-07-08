@@ -3,10 +3,8 @@
 **Status:** the executable path (renamed from README.md 2026-07-08; README.md is now a short
 pointer index). Split 2026-07-08: locked decisions, novelty position,
 citation whitelist, corpus facts, and the **BINDING pre-registered analysis rules**
-(§0, §2, §3, §8, §8b, rules D1–D9) now live as ADRs in **`docs/adr/`** (they win on any
-conflict); `DECISIONS.md` is the index mapping §-labels → ADR files, so §-references below
-resolve through it where the number is missing here. Written to be executable by less capable
-models.
+(rules D1–D9) now live as ADRs in **`docs/adr/`** (they win on any conflict). Written to be
+executable by less capable models.
 **Branch policy:** all paper work lives on the `paper` branch under `paper/`. Only Timbro
 functionality (WS2) merges to `main`, via normal issue/PR flow.
 
@@ -20,11 +18,10 @@ functionality (WS2) merges to `main`, via normal issue/PR flow.
   (Claude Code, OpenClaw, OpenCode, Hermes)?
 - **RQ2 (adoption):** Do these features predict adoption proxies (installs/downloads, stars,
   update survival), controlling for length, topic, and ecosystem? *(Amended 2026-07-08:
-  primary outcome = trailing weekly install rate; age covariate mandatory — DECISIONS.md
-  §8 amendment 2.)*
+  primary outcome = trailing weekly install rate; age covariate mandatory — ADR-0007.)*
 - **RQ3 (execution, pilot):** Does restyling a skill's prose into a different linguistic
   profile — content held constant — change agent task-success rate?
-- **RQ4 (temporal evolution — added 2026-07-07, pre-registered in §8b):** How do individual
+- **RQ4 (temporal evolution — added 2026-07-07, pre-registered in ADR-0005):** How do individual
   SKILL.md files evolve linguistically across revisions, and does linguistic evolution relate
   to adoption? Positioning: the self-evolving-skills literature (SkillForge, SkillClaw, SAGE,
   etc.) improves skills by outcome but never characterizes WHAT changes in the text; we measure
@@ -35,7 +32,7 @@ domain-driven (skills differ by domain — healthcare vs. software dev etc.; hu2
 already shows topic-level clusters). Our claim is *linguistic* dialects, so we must show they
 are not merely topic clusters — and if they ARE domain-aligned, that is itself a register
 finding (Biber: registers are situationally defined), to be reported as such, not hidden.
-See rule D8 in §8.
+See rule D8 in ADR-0004.
 
 **Explicitly avoided (saturated):** predicting static generation quality or domain
 classification from these features (prompt-datasets study; arXiv:2510.09316).
@@ -53,15 +50,15 @@ dedup.py + merge.py written, runs pending; step 8 not yet written (see LEDGER ST
 1. `build_skill_diffs.py`: stream `shl0ms/skill-diffs` with `datasets` (streaming mode, do not
    load 8GB in RAM). Emit one row per unique `skill_id`: latest SKILL.md text, `repo`,
    `platform`, `stars`, `license_spdx`, first/last commit dates, `n_revisions`.
-   *(Amended 2026-07-07 for RQ4, see §8b)*: emit **BOTH** tables — (a) the deduped
+   *(Amended 2026-07-07 for RQ4, see ADR-0005)*: emit **BOTH** tables — (a) the deduped
    latest-snapshot table above (RQ1–RQ3 cross-sectional corpus), and (b) a **version-chain
    table** (all per-commit snapshots keyed within a single repo, pre-dedup) for RQ4.
-   *(Schema frozen 2026-07-07, see §8b addendum)*: concrete artifacts — (a) cross-sectional
+   *(Schema frozen 2026-07-07, see ADR-0005 addendum)*: concrete artifacts — (a) cross-sectional
    table = latest content state per canonical `skill_id`, deduped per D1; (b) version-chain
-   table = the §8b chain definition (group by `skill_id`, order by `commit_date`, link
+   table = the ADR-0005 chain definition (group by `skill_id`, order by `commit_date`, link
    `before_sha == prev.after_sha`; roots from `skills_initial.parquet`, pairs from
    `diffs_clean.parquet`). **Direct parquet download, not datasets-server row APIs** (they fail
-   on the large configs — see §8b access gotcha).
+   on the large configs — see ADR-0005 access gotcha).
    *(Added 2026-07-07, motivated by issue #21's folk-advice feature family)*: `build_skill_diffs.py`
    also emits per-skill sibling-file columns derived from `bundled.parquet` (sibling files at
    HEAD): `n_sibling_files`, `has_scripts_dir`, `has_references_dir`, `has_assets_dir`,
@@ -69,7 +66,7 @@ dedup.py + merge.py written, runs pending; step 8 not yet written (see LEDGER ST
    disclosure, one-folder-per-skill, auxiliary docs) that `timbro analyze` cannot see since it
    only ever receives a single document's text.
 2. `build_gos.py`: download `skills_2000.tar.gz` only (29MB), extract SKILL.md files.
-3. ~~`build_clawhub.py`~~ **DROPPED 2026-07-08** (LEDGER + DECISIONS.md §3 amendment) —
+3. ~~`build_clawhub.py`~~ **DROPPED 2026-07-08** (LEDGER + ADR-0006) —
    ClawHub is narrative hook only.
 4. `build_slop.py`: clone `amoghacloud/clawskills-intelligence-corpus` (few MB), tag every doc
    `source=slop_stub`.
@@ -124,12 +121,12 @@ analyze time.
    original research report (imperative-dense vs. conditional-rich vs. narrative, etc.).
    Confound gates: platform (D4), domain (D8), era (D9).
 4. Adoption models (RQ2): Spearman screens, then regressions of the confirmatory outcomes
-   (per §8 amendment 2 / ADR-0007: primary `log1p(installs_wk_mean)`; robustness `log1p(total installs)`;
+   (per ADR-0007: primary `log1p(installs_wk_mean)`; robustness `log1p(total installs)`;
    stars on single-skill repos) on features with **log-length + log-age covariates**, platform
    and domain fixed effects, repo random effects. Benjamini–Hochberg per D6. Report effect
    sizes with CIs, not just p-values.
-5. RQ4 temporal evolution: ONLY under §8b's frozen rules (chains ≥3 versions; 14,388 eligible
-   per LEDGER). Includes the §8b addendum 2 embedding-delta exploratory.
+5. RQ4 temporal evolution: ONLY under ADR-0005's frozen rules (chains ≥3 versions; 14,388 eligible
+   per LEDGER). Includes the ADR-0005 addendum 2 embedding-delta exploratory.
 6. Holdout: characterize `rq2_holdout_candidates.parquet` topic/dialect novelty BEFORE scoring
    it; report degradation as a drift signal (LEDGER open problem, 2026-07-08).
 
@@ -143,12 +140,12 @@ Do not run without user budget approval; implement from §9, not from memory.
 
 ### WS5 — Manuscript (Sep–Oct) — `paper/manuscript/`
 
-Outline: Intro → Related work (whitelist in DECISIONS.md §2; position vs. Ling and Cho
+Outline: Intro → Related work (whitelist in ADR-0002; position vs. Ling and Cho
 explicitly) → Corpus & tool (Timbro release, `uvx` trial path — coordinate with repo issue #9
 so reviewers can run it) → Topology & adoption findings → Pilot → Limitations (proxies ≠
 quality; pilot scale; English-only; install-count noise per Ling; weekly-install definition
-opacity per §8 amendment 2). Run the `schimel-pass` and `nico-voice` skills on drafts. ARR
-needs: anonymized repo, derived-features-only data release, license statement per §3.
+opacity per ADR-0007). Run the `schimel-pass` and `nico-voice` skills on drafts. ARR
+needs: anonymized repo, derived-features-only data release, license statement per ADR-0003.
 
 ### WS6 — Venue calendar
 
@@ -158,12 +155,12 @@ needs: anonymized repo, derived-features-only data release, license statement pe
   by Oct 1.
 - Backup: COLM 2027 (~late Mar) if WS4 becomes the centerpiece.
 - **Sep 1, 2026:** skills.sh re-crawl #2 (cached recipe, ~3h, ≤2 req/s) — second 8-week
-  window → 16-week weekly-install series for the §8b lagged exploratory (pinned 2026-07-08,
+  window → 16-week weekly-install series for the ADR-0005 lagged exploratory (pinned 2026-07-08,
   ADR-0007). Skipping it = log why in the WS1 LEDGER.
 
 ## 5. Guardrails for executing agents
 
-1. **Citations:** only from the whitelist in DECISIONS.md §2 or newly *verified* sources
+1. **Citations:** only from the whitelist in ADR-0002 or newly *verified* sources
    (fetch and confirm the paper exists and says what you claim). Never cite from memory.
 2. **Data hygiene:** nothing under `paper/data/` gets committed (DVC pointers only).
    Redistribute feature vectors, never raw skill text.
@@ -191,15 +188,15 @@ needs: anonymized repo, derived-features-only data release, license statement pe
 ## 7. State snapshot
 
 - 2026-07-04: branch `paper` created; master plan written; citations/datasets/ClawHub
-  verified by subagent sweeps (details now in DECISIONS.md §2–§3).
-- 2026-07-07: WS2 core done (#17/#18 merged to `main`, b54ba3a). RQ4 pre-registered (§8b),
+  verified by subagent sweeps (details now in ADR-0002/ADR-0003).
+- 2026-07-07: WS2 core done (#17/#18 merged to `main`, b54ba3a). RQ4 pre-registered (ADR-0005),
   chain mechanics frozen same day after the schema probe. D8 added.
 - 2026-07-08: WS1 builds done except dedup/merge (LEDGER). ClawHub dropped. skills.sh crawl
   complete (19,906 skills). Install-join key decided (loose `[a-z0-9]`, ~100% on
   corpus-present skills).
 - **2026-07-08 (this update):** plan split — binding decisions and pre-registration moved
-  verbatim to `DECISIONS.md` (§0, §2, §3, §8, §8b; section numbers preserved). New §8
-  amendment 2: weekly-install series discovered in the crawl cache sparkline aria-labels
+  verbatim to ADRs in `docs/adr/` (ADR-0001–0005). New ADR-0007
+  amendment: weekly-install series discovered in the crawl cache sparkline aria-labels
   (100% coverage) → primary RQ2 outcome becomes `installs_wk_recent` (renamed
   `installs_wk_mean` later that day, ADR-0007); mandatory
   `log1p(skill_age_days)` covariate; **D9** era-confound rule. WS1 gains step 8 (cache

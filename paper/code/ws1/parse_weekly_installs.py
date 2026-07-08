@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-r"""Re-parse the cached skills.sh HTML for the sparkline weekly-install series (§8 amd 2).
+r"""Re-parse the cached skills.sh HTML for the sparkline weekly-install series (ADR-0007).
 
 No re-crawl: reads the on-disk crawl cache written by build_skillssh.py
 (paper/data/skillssh_cache/<sha>.body + <sha>.meta.json) and emits

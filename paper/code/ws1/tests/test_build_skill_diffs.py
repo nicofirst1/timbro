@@ -1,8 +1,8 @@
 """Chain-logic tests for build_skill_diffs (the RQ4 version-chain table).
 
 Seam under test: build_chains(states_by_skill) and apply_fork_exclusion(rows) —
-the §8b chain mechanics that run_chains_only() relies on. Expected values are
-derived from the spec (§8b addendum: link before_sha==prev.after_sha, split on a
+the ADR-0005 chain mechanics that run_chains_only() relies on. Expected values are
+derived from the spec (ADR-0005 addendum: link before_sha==prev.after_sha, split on a
 broken link and keep the longest contiguous segment; drop non-canonical members of
 a multi-repo cluster), not from running the code.
 """

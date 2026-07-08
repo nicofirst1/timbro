@@ -30,7 +30,7 @@ SOURCE_GOS = "graph_of_skills"
 SOURCE_CLAWHUB = "clawhub"
 SOURCE_SLOP = "slop_stub"
 
-# Frozen upstream row counts (paper/README.md §8b, verified 2026-07-07).
+# Frozen upstream row counts (ADR-0005, verified 2026-07-07).
 # Builders assert against these at run time; a mismatch is a D7 spec/reality
 # conflict → stop and log, do not silently substitute.
 SKILL_DIFFS_EXPECTED = {

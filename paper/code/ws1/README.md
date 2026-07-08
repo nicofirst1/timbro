@@ -1,7 +1,7 @@
 # WS1 — Corpus assembly
 
 Builds `paper/data/corpus.parquet` (the RQ1–RQ3 cross-sectional corpus) plus a
-version-chain table for RQ4, from the sources in `paper/README.md` §3–§4. Governed by
+version-chain table for RQ4, from the sources in ADR-0003 (`paper/docs/adr/0003-corpus-sources.md`) and `paper/PLAN.md` §4. Governed by
 the `experiment-discipline` skill; pre-registration and per-source counts live in
 [`LEDGER.md`](./LEDGER.md).
 
@@ -18,7 +18,7 @@ the `experiment-discipline` skill; pre-registration and per-source counts live i
    Only scripts, manifests, `LEDGER.md`, and `REPORT.md` are tracked.
 5. **Upstream counts are asserted, not assumed** (`_schema.*_EXPECTED`). A mismatch is a
    D7 spec/reality conflict → stop, log in `LEDGER.md`, ask the user. Do not substitute.
-6. **Redistribute derived features, never raw skill text** (paper/README.md §3).
+6. **Redistribute derived features, never raw skill text** (ADR-0003).
 
 ## Layout
 

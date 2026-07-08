@@ -9,8 +9,7 @@ Where things live:
   guardrails, state snapshot, WS4 pilot spec.
 - **[docs/adr/](docs/adr/)** — the decisions record (ADRs 0001–0007): locked decisions,
   novelty position, citation whitelist, corpus facts, and the **binding pre-registered
-  analysis rules** (§8, §8b, D1–D9). ADRs win over PLAN.md on any conflict.
-- **[DECISIONS.md](DECISIONS.md)** — thin index mapping legacy §-labels to ADR files.
+  analysis rules** (ADR-0004/0005, D1–D9). ADRs win over PLAN.md on any conflict.
 - **[code/ws1/LEDGER.md](code/ws1/LEDGER.md)** — WS1 results ledger (manifest-backed counts,
   build status).
 - **[literature/literature.md](literature/literature.md)** — verified-source registry

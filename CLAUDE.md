@@ -39,6 +39,4 @@ Run `scripts/release.sh <new-version>` — it bumps both `.claude-plugin/plugin.
 - `paper/data/` corpus artifacts are DVC-tracked (local cache only, no remote): commit the `.dvc` pointer, `dvc checkout` restores the bytes.
 
 ## Paper (branch `paper`, dir `paper/`)
-
-- `paper/README.md` is a pointer index. The path is `paper/PLAN.md`; binding decisions + pre-registration live in `paper/docs/adr/` (indexed by `paper/DECISIONS.md`, legacy §-labels → ADR files). **ADRs win over PLAN.md on any conflict**; pre-reg text is never edited in place — amendments are dated blocks or new ADRs.
-- WS1 results ledger: `paper/code/ws1/LEDGER.md` (manifest-backed numbers, never retype them).
+If you are working on the paper read  `paper/README.md` which is a pointer index.
