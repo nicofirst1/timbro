@@ -13,6 +13,14 @@ wheels/
 # Local corpora (private / third-party content) -- bring your own
 data/
 
+# paper/data holds DVC-tracked corpus artifacts. Bytes live in .dvc/cache (no remote);
+# only the .dvc pointers + DVC's own .gitignore are committed. Re-include the dir (the
+# data/ rule above otherwise swallows it), ignore its contents, keep the pointers.
+!paper/data/
+paper/data/*
+!paper/data/*.dvc
+!paper/data/.gitignore
+
 # Local agent config
 .claude/
 

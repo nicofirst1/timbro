@@ -1,0 +1,5 @@
+outs:
+- md5: a3f1417a2a9939370b2993007f108d48
+  size: 812738
+  hash: md5
+  path: src_slop.parquet

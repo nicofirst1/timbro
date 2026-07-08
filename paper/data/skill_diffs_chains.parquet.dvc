@@ -1,0 +1,5 @@
+outs:
+- md5: e91d5742de47e44b1b175e100b52ab70
+  size: 971017293
+  hash: md5
+  path: skill_diffs_chains.parquet

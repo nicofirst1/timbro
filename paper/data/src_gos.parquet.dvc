@@ -1,0 +1,5 @@
+outs:
+- md5: 0b45eb100cc71c9cf5b858882947d761
+  size: 5137880
+  hash: md5
+  path: src_gos.parquet
