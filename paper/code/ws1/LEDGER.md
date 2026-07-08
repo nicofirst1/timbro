@@ -12,17 +12,21 @@ Canonical results ledger for WS1 (experiment-discipline §4). Numbers are cited 
 - [✗] `build_clawhub.py` — **DROPPED as a data source 2026-07-08** (see RESULTS). Not built.
       ClawHub kept as a narrative hook only (ClawHavoc purge).
 - [x] `build_slop.py` — labeled low-quality stubs. Done.
-- [~] `dedup.py` — exact + MinHash near-dup collapse (D1). **Written + unit-tested** (TDD,
+- [x] `dedup.py` — exact + MinHash near-dup collapse (D1). **Written + unit-tested** (TDD,
       ponytail-reviewed) 2026-07-08. Emits a compact `dedup_map.parquet` (skill_id →
       near_dup_cluster_id / cluster_size / is_canonical), not a text copy. MinHash 0.9 Jaccard
       enforced by an explicit `jaccard() >= 0.9` post-filter on LSH candidates (LSH banding
-      alone only approximates). **Full 672k-row run PENDING** — will surface the live D1 >60%
-      fork-explosion STOP check.
+      alone only approximates). **Full 672k-row run done 2026-07-08 (see RESULTS) — D1
+      fork-explosion STOP FIRED (skill_diffs near-dup removal 0.6658 > 60%); consult
+      resolved 2026-07-08 → ADR-0010 (cluster unit; RQ2 join dedupes to entry-level
+      representative, NOT canonical-only).**
 - [~] `merge.py` — corpus.parquet + REPORT.md + `rq2_holdout_candidates.parquet`. **Written +
       unit-tested** (TDD, ponytail-reviewed) 2026-07-08. Loose install-join key
       (`[a-z0-9]`-normalized owner/repo/name). corpus.parquet is exactly the 15 `CORPUS_COLUMNS`
-      (skill_diffs sibling cols stay in `src_skill_diffs.parquet`). **Run PENDING** — needs
-      `dedup_map.parquet` first.
+      (skill_diffs sibling cols stay in `src_skill_diffs.parquet`). **Run PENDING** —
+      `dedup_map.parquet` now exists; install join being reworked per ADR-0010
+      (entry-level representative, see RESULTS 2026-07-08 D1-consult entry) — run after
+      that lands + review.
 - [x] `parse_weekly_installs` — re-parse the cached skills.sh HTML for the sparkline
       weekly-install series. **Written + unit-tested** (ponytail-reviewed) 2026-07-08.
       Pre-freeze inspection DONE: the "9–16-value" series was a thousands-separator artifact —
@@ -61,6 +65,44 @@ Canonical results ledger for WS1 (experiment-discipline §4). Numbers are cited 
 ## RESULTS
 
 All counts cited from `manifests/*.manifest.json` (never retyped). Newest on top.
+
+### 2026-07-08 — D1 consult resolved: RQ2 join representative = entry-level, NOT canonical-only (ADR-0010)
+
+Ad-hoc inspection (decision-support, not a builder manifest — back with a committed probe
+before any figure enters the manuscript) of the install join under the fired D1 consequence.
+Row-level join matches **12,428** skill_diffs rows = only **9,686** distinct loose
+`(owner,repo,name)` entries (**1.28×** row over-count from same-key duplicate rows, not
+cross-repo forks); matched near-dup clusters **9,702** ≈ entries, so near-dup structure
+barely collapses the labeled set — and it reproduces the earlier install-join probe
+(9,660 exact / 9,874 loose). Canonical-only joining recovers just **5,667** entries
+(−41%): `is_canonical` is text-dedup-chosen, install-blind.
+
+- **Decision (ADR-0010):** corpus.parquet keeps all rows + cluster columns; RQ1/RQ3 filter
+  `is_canonical`; RQ2 install join dedupes to one representative row per distinct entry
+  (cluster-canonical if present, else max `n_revisions`, else smallest `skill_id`); RQ2
+  models cluster SEs on `near_dup_cluster_id`; REPORT.md carries the inflation diagnostics.
+  Sensitivity check: RQ2 rerun canonical-only.
+- **merge.py rework + run:** entry-level join implementation pending (sonnet-dispatched,
+  opus-reviewed), then the full merge run.
+
+### 2026-07-08 — dedup full 672k run: D1 FORK-EXPLOSION STOP FIRED
+
+Ran `dedup.py` over the pooled text sources (src_skill_diffs + src_gos + src_slop). The
+pre-registered D1 STOP (>60% near-dup removal on skill_diffs) **fired** — as anticipated from
+the 67% dataset-shipped fork rate already recorded below. Numbers from
+`dedup_map.parquet.manifest.json` (sha256 `0c8f7320…`, datasketch 2.0.0, seed 42):
+
+- `dedup_map.parquet`: **672,022** rows (one per pooled skill; skill_id → near_dup_cluster_id
+  / cluster_size / is_canonical). Inputs pinned by sha256 in the manifest.
+- **Exact dedup:** 672,022 → **256,376** distinct normalized texts (`exact_removal_rate`
+  0.6185). Normalization = lowercase + whitespace-collapse (so folds case/spacing variants,
+  not strictly byte-identical).
+- **Near-dup (MinHash 0.9 Jaccard, 5-gram word shingles, num_perm=128):** 672,022 →
+  **227,407** clusters pooled (`near_dup_removal_rate` 0.6616).
+- **D1 trigger — `skill_diffs_near_dup_removal_rate` = 0.6658 > 0.60 → `d1_fork_explosion:
+  true`.** Per pre-reg: **unit of analysis becomes the near-dup cluster; near-dups are NOT
+  independent samples.** Downstream (merge.py, RQ2/RQ4 modeling) must collapse to canonical /
+  cluster-robust — **pending user consult before merge.py runs.**
 
 ### 2026-07-08 — weekly-installs re-parse: full-cache run (skillssh_weekly.parquet)
 

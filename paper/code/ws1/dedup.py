@@ -15,6 +15,7 @@ near_dup_cluster_id. Canonical per cluster: source rank (skill_diffs < graph_of_
 from __future__ import annotations
 
 import hashlib
+import logging
 import re
 
 import pyarrow.parquet as pq
@@ -23,6 +24,8 @@ from datasketch import MinHash, MinHashLSH
 from _manifest import SEED, data_dir, sha256_file, write_manifest
 from _schema import SOURCE_GOS, SOURCE_SKILL_DIFFS, SOURCE_SLOP
 from _text import string_table
+
+log = logging.getLogger("dedup")
 
 OUT_COLUMNS = ["skill_id", "near_dup_cluster_id", "cluster_size", "is_canonical"]
 
@@ -89,6 +92,7 @@ def assign_clusters(rows: list[dict]) -> list[dict]:
     rows: list of dicts with at least skill_id, source, text, n_revisions.
     No I/O — safe for unit tests.
     """
+    log.info("exact-dedup over %d pooled rows...", len(rows))
     # 1. Exact dedup by normalized-text SHA256.
     exact_classes: dict[str, list[dict]] = {}
     for r in rows:
@@ -104,18 +108,26 @@ def assign_clusters(rows: list[dict]) -> list[dict]:
     digests = sorted(rep_by_digest.keys())
 
     # 2. Near-dup via MinHash LSH over exact-class representatives.
-    minhashes = {d: _minhash(shingles(rep_by_digest[d]["_norm"])) for d in digests}
+    log.info("MinHashing %d exact-class reps...", len(digests))
+    minhashes = {}
+    for i, d in enumerate(digests):
+        minhashes[d] = _minhash(shingles(rep_by_digest[d]["_norm"]))
+        if (i + 1) % 50_000 == 0:
+            log.info("  minhash %d/%d", i + 1, len(digests))
     lsh = MinHashLSH(threshold=_JACCARD_THRESHOLD, num_perm=_NUM_PERM)
     for d in digests:
         lsh.insert(d, minhashes[d])
 
     uf = _UnionFind(digests)
-    for d in digests:
+    log.info("LSH querying %d reps for near-dup pairs...", len(digests))
+    for i, d in enumerate(digests):
         for cand in lsh.query(minhashes[d]):
             # LSH banding only approximates the threshold; post-filter on the MinHash
             # Jaccard estimate so the 0.9 bound is actually enforced (LEDGER pre-reg).
             if cand != d and minhashes[d].jaccard(minhashes[cand]) >= _JACCARD_THRESHOLD:
                 uf.union(d, cand)
+        if (i + 1) % 50_000 == 0:
+            log.info("  lsh query %d/%d", i + 1, len(digests))
 
     # 3. Connected components -> near_dup_cluster_id, assigned by lexicographically
     #    smallest skill_id among all members (across all exact classes) in the component.
@@ -153,6 +165,11 @@ def assign_clusters(rows: list[dict]) -> list[dict]:
 
 
 def main():
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [dedup] %(message)s",
+        datefmt="%H:%M:%S",
+    )
     d = data_dir()
     src_paths = {
         SOURCE_SKILL_DIFFS: d / "src_skill_diffs.parquet",
@@ -160,7 +177,7 @@ def main():
         SOURCE_SLOP: d / "src_slop.parquet",
     }
 
-    print("[dedup] Reading pooled text sources...")
+    log.info("Reading pooled text sources...")
     rows: list[dict] = []
     for source, path in src_paths.items():
         table = pq.read_table(path, columns=["skill_id", "text", "n_revisions"])
@@ -168,9 +185,9 @@ def main():
         for r in cols:
             rows.append({"skill_id": r["skill_id"], "source": source, "text": r["text"], "n_revisions": r["n_revisions"]})
     n_input = len(rows)
-    print(f"[dedup] Pooled {n_input} rows across {len(src_paths)} sources")
+    log.info("Pooled %d rows across %d sources", n_input, len(src_paths))
 
-    print("[dedup] Computing exact + near-dup clusters...")
+    log.info("Computing exact + near-dup clusters...")
     out_rows = assign_clusters(rows)
 
     n_exact_classes = len(
@@ -189,20 +206,20 @@ def main():
     d1_fork_explosion = skill_diffs_near_dup_removal_rate > 0.60
 
     if d1_fork_explosion:
-        print(
-            f"*** D1 FORK-EXPLOSION: skill_diffs near-dup removal "
-            f"{skill_diffs_near_dup_removal_rate:.4f} > 60% — unit of analysis must become "
-            f"the cluster; STOP and consult (LEDGER pre-reg) ***"
+        log.warning(
+            "*** D1 FORK-EXPLOSION: skill_diffs near-dup removal %.4f > 60%% — unit of "
+            "analysis must become the cluster; STOP and consult (LEDGER pre-reg) ***",
+            skill_diffs_near_dup_removal_rate,
         )
 
     out_rows.sort(key=lambda r: r["skill_id"])
     n_rows = len(out_rows)
 
     out_path = d / "dedup_map.parquet"
-    print(f"[dedup] Writing {out_path}...")
+    log.info("Writing %s...", out_path)
     pq.write_table(string_table(out_rows, OUT_COLUMNS), str(out_path))
 
-    print("[dedup] Writing manifest...")
+    log.info("Writing manifest...")
     write_manifest(
         out_path,
         source="dedup",
@@ -223,7 +240,7 @@ def main():
         },
     )
 
-    print(f"[dedup] Complete. Wrote {n_rows} rows to {out_path.name}")
+    log.info("Complete. Wrote %d rows to %s", n_rows, out_path.name)
 
 
 if __name__ == "__main__":

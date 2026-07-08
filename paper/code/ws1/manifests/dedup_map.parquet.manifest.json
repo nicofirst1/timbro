@@ -1,0 +1,35 @@
+{
+  "d1_fork_explosion": true,
+  "exact_removal_rate": 0.6185005848022833,
+  "git_commit": "a8494a3bdc847305dfd3265b883f5325822c653d-dirty",
+  "inputs": [
+    {
+      "file": "src_skill_diffs.parquet",
+      "sha256": "17594bd4bac36bcfddc818247c3d03f431b5cee1e6cd02535775aebdd6e15379"
+    },
+    {
+      "file": "src_gos.parquet",
+      "sha256": "e505150f123b0a2f8c42e9a89d713d4bb0af6c7d2fda2a96107c8a8bb9eeb60e"
+    },
+    {
+      "file": "src_slop.parquet",
+      "sha256": "6cbf5d6953c83f6b5a9149a6c35f8f73f86659d82a282f962a6bc47a59382ae7"
+    }
+  ],
+  "n_exact_classes": 256376,
+  "n_input": 672022,
+  "n_near_dup_clusters": 227407,
+  "n_rows": 672022,
+  "near_dup_removal_rate": 0.6616078045064001,
+  "output": "dedup_map.parquet",
+  "output_sha256": "0c8f7320382f5f6c27212a95dc5231cb109fedf28b799c9116a38bbf72104699",
+  "packages": {
+    "datasketch": "2.0.0",
+    "pyarrow": "24.0.0"
+  },
+  "script": "dedup.py",
+  "seed": 42,
+  "skill_diffs_near_dup_removal_rate": 0.665771761609325,
+  "source": "dedup",
+  "utc": "2026-07-08T15:54:45.171208+00:00"
+}
