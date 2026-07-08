@@ -441,7 +441,7 @@ def test_render_report_contains_handed_numbers_and_does_not_recompute():
             "n_entries_matched": 9686,  # sentinel: == n_installs_matched
             "n_clusters_matched": 9702,  # sentinel
             "n_canonical_entries_matched": 5667,  # sentinel: canonical-only-would-recover
-            "install_join_rate_present": 0.999,  # sentinel, must appear verbatim
+            "install_labeled_share_skill_diffs": 0.999,  # sentinel, must appear verbatim
             "install_join_rate_ceiling": 0.853,  # sentinel
             "repo_overlap": 816,
             "holdout_n": 1701,
@@ -465,3 +465,6 @@ def test_render_report_contains_handed_numbers_and_does_not_recompute():
     assert "9686" in report or "9,686" in report
     assert "9702" in report or "9,702" in report
     assert "5667" in report or "5,667" in report
+    # renamed share label (was mislabeled "install_join_rate_present (vs corpus-present skills)")
+    assert "install_labeled_share_skill_diffs (labeled entries / all skill_diffs rows)" in report
+    assert "install_join_rate_present" not in report

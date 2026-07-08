@@ -278,7 +278,10 @@ def render_report(stats: dict) -> str:
     lines.append(
         f"- n_canonical_entries_matched (canonical-only would recover): {ij.get('n_canonical_entries_matched')}"
     )
-    lines.append(f"- install_join_rate_present (vs corpus-present skills): {ij.get('install_join_rate_present')}")
+    lines.append(
+        "- install_labeled_share_skill_diffs (labeled entries / all skill_diffs rows): "
+        f"{ij.get('install_labeled_share_skill_diffs')}"
+    )
     lines.append(f"- install_join_rate_ceiling (vs repo-overlap ceiling): {ij.get('install_join_rate_ceiling')}")
     lines.append(f"- repo_overlap: {ij.get('repo_overlap')}")
     lines.append(f"- holdout_n (rq2_holdout_candidates.parquet): {ij.get('holdout_n')}")
@@ -354,7 +357,7 @@ def main():
     n_skill_diffs = install_stats["n_skill_diffs"]
     n_matched = install_stats["n_installs_matched"]
     ceiling = holdout_stats["ceiling"]
-    install_join_rate_present = (n_matched / n_skill_diffs) if n_skill_diffs else 0.0
+    install_labeled_share_skill_diffs = (n_matched / n_skill_diffs) if n_skill_diffs else 0.0
     install_join_rate_ceiling = (n_matched / ceiling) if ceiling else 0.0
 
     pooled.sort(key=lambda r: r["skill_id"])
@@ -397,7 +400,7 @@ def main():
             "n_entries_matched": install_stats["n_entries_matched"],
             "n_clusters_matched": install_stats["n_clusters_matched"],
             "n_canonical_entries_matched": install_stats["n_canonical_entries_matched"],
-            "install_join_rate_present": install_join_rate_present,
+            "install_labeled_share_skill_diffs": install_labeled_share_skill_diffs,
             "install_join_rate_ceiling": install_join_rate_ceiling,
             "repo_overlap": holdout_stats["repo_overlap"],
             "holdout_n": len(holdout_rows),
@@ -442,7 +445,7 @@ def main():
             "n_entries_matched": install_stats["n_entries_matched"],
             "n_clusters_matched": install_stats["n_clusters_matched"],
             "n_canonical_entries_matched": install_stats["n_canonical_entries_matched"],
-            "install_join_rate_present": install_join_rate_present,
+            "install_labeled_share_skill_diffs": install_labeled_share_skill_diffs,
             "install_join_rate_ceiling": install_join_rate_ceiling,
             "repo_overlap": holdout_stats["repo_overlap"],
             "holdout_n": len(holdout_rows),

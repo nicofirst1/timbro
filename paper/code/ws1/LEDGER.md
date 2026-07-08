@@ -20,13 +20,12 @@ Canonical results ledger for WS1 (experiment-discipline §4). Numbers are cited 
       fork-explosion STOP FIRED (skill_diffs near-dup removal 0.6658 > 60%); consult
       resolved 2026-07-08 → ADR-0010 (cluster unit; RQ2 join dedupes to entry-level
       representative, NOT canonical-only).**
-- [~] `merge.py` — corpus.parquet + REPORT.md + `rq2_holdout_candidates.parquet`. **Written +
-      unit-tested** (TDD, ponytail-reviewed) 2026-07-08. Loose install-join key
+- [x] `merge.py` — corpus.parquet + REPORT.md + `rq2_holdout_candidates.parquet`. **Written +
+      unit-tested** (TDD, ponytail-reviewed) 2026-07-08; install join reworked to ADR-0010
+      entry-level representative (sonnet-implemented, opus-reviewed). Loose install-join key
       (`[a-z0-9]`-normalized owner/repo/name). corpus.parquet is exactly the 15 `CORPUS_COLUMNS`
-      (skill_diffs sibling cols stay in `src_skill_diffs.parquet`). **Run PENDING** —
-      `dedup_map.parquet` now exists; install join being reworked per ADR-0010
-      (entry-level representative, see RESULTS 2026-07-08 D1-consult entry) — run after
-      that lands + review.
+      (skill_diffs sibling cols stay in `src_skill_diffs.parquet`). **Full run done
+      2026-07-08 (see RESULTS)** — 672,022 rows, 9,686 install-labeled entries, holdout 1,704.
 - [x] `parse_weekly_installs` — re-parse the cached skills.sh HTML for the sparkline
       weekly-install series. **Written + unit-tested** (ponytail-reviewed) 2026-07-08.
       Pre-freeze inspection DONE: the "9–16-value" series was a thousands-separator artifact —
@@ -65,6 +64,25 @@ Canonical results ledger for WS1 (experiment-discipline §4). Numbers are cited 
 ## RESULTS
 
 All counts cited from `manifests/*.manifest.json` (never retyped). Newest on top.
+
+### 2026-07-08 — merge.py full run: corpus.parquet assembled (ADR-0010 entry-level join)
+
+Ran the reworked `merge.py` (ADR-0010; sonnet-implemented, opus-reviewed APPROVE) over the
+three pooled sources + `dedup_map.parquet` + `skillssh_meta.parquet`. Numbers from
+`corpus.parquet.manifest.json` (sha256 `5b7f02f0…`, pyarrow 24.0.0, git `e73139c`):
+
+- `corpus.parquet`: **672,022** rows (skill_diffs 664,875 + GOS 2,000 + slop 5,147; 0 pooled
+  skill_ids missing from dedup_map). **227,407** canonical rows. All 15 `CORPUS_COLUMNS`.
+- **Install join (entry-level, ADR-0010):** `n_matched_rows` **12,428** → `n_entries_matched`
+  **9,686** labeled rows (1.28× row inflation killed); `n_clusters_matched` **9,702**;
+  canonical-only would have recovered **5,667** (the −41% ADR-0010 avoided). Reproduces the
+  consult inspection exactly. Ceiling rate **0.8366** (9,686 / 11,578 repo-overlap triples;
+  the ~15% gap = temporal-skew skills, see holdout). Labeled share of skill_diffs rows
+  0.0146 (the ≤1.74% coverage caveat, now exact; manifest key
+  `install_labeled_share_skill_diffs` — renamed from a mislabeled
+  `install_join_rate_present` and REPORT/manifest regenerated same day, same output sha).
+- `rq2_holdout_candidates.parquet`: **1,704** rows (manifest; ≈ the probe's ~1,701),
+  temporally out-of-sample RQ2 candidates. DVC pointers committed for both artifacts.
 
 ### 2026-07-08 — D1 consult resolved: RQ2 join representative = entry-level, NOT canonical-only (ADR-0010)
 

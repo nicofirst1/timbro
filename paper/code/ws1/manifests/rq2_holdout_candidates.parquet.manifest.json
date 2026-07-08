@@ -1,0 +1,21 @@
+{
+  "ceiling": 11578,
+  "git_commit": "e73139cec8bd304c382a62f28ce33659d4158b69-dirty",
+  "inputs": [
+    {
+      "file": "skillssh_meta.parquet",
+      "sha256": "0e126f4360bdf7489567918a8289c13c39003cb1309197a4789ea5e9960fd86a"
+    }
+  ],
+  "n_rows": 1704,
+  "output": "rq2_holdout_candidates.parquet",
+  "output_sha256": "ca7a486585448ca3a2107655393c4eff14c43a70914c5e1dcb37f6ed7990a8b7",
+  "packages": {
+    "pyarrow": "24.0.0"
+  },
+  "repo_overlap": 816,
+  "script": "merge.py",
+  "seed": 42,
+  "source": "rq2_holdout_candidates",
+  "utc": "2026-07-08T16:31:39.883147+00:00"
+}

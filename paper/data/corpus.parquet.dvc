@@ -1,0 +1,5 @@
+outs:
+- md5: 82962a40896079b4d00d50a7ce112e18
+  size: 2644985821
+  hash: md5
+  path: corpus.parquet

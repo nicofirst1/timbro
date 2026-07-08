@@ -1,0 +1,51 @@
+{
+  "dedup_map_missing_n": 0,
+  "git_commit": "e73139cec8bd304c382a62f28ce33659d4158b69-dirty",
+  "holdout_n": 1704,
+  "inputs": [
+    {
+      "file": "src_skill_diffs.parquet",
+      "sha256": "17594bd4bac36bcfddc818247c3d03f431b5cee1e6cd02535775aebdd6e15379"
+    },
+    {
+      "file": "src_gos.parquet",
+      "sha256": "e505150f123b0a2f8c42e9a89d713d4bb0af6c7d2fda2a96107c8a8bb9eeb60e"
+    },
+    {
+      "file": "src_slop.parquet",
+      "sha256": "6cbf5d6953c83f6b5a9149a6c35f8f73f86659d82a282f962a6bc47a59382ae7"
+    },
+    {
+      "file": "dedup_map.parquet",
+      "sha256": "0c8f7320382f5f6c27212a95dc5231cb109fedf28b799c9116a38bbf72104699"
+    },
+    {
+      "file": "skillssh_meta.parquet",
+      "sha256": "0e126f4360bdf7489567918a8289c13c39003cb1309197a4789ea5e9960fd86a"
+    }
+  ],
+  "install_join_rate_ceiling": 0.8365866298151667,
+  "install_labeled_share_skill_diffs": 0.01456815190825343,
+  "n_canonical": 227407,
+  "n_canonical_entries_matched": 5667,
+  "n_clusters_matched": 9702,
+  "n_entries_matched": 9686,
+  "n_installs_matched": 9686,
+  "n_matched_rows": 12428,
+  "n_rows": 672022,
+  "output": "corpus.parquet",
+  "output_sha256": "5b7f02f07961c86b57ee6e3b6da299e09b80566ed9f7896d1306f66e203c9011",
+  "packages": {
+    "pyarrow": "24.0.0"
+  },
+  "per_source_counts": {
+    "graph_of_skills": 2000,
+    "skill_diffs": 664875,
+    "slop_stub": 5147
+  },
+  "repo_overlap": 816,
+  "script": "merge.py",
+  "seed": 42,
+  "source": "corpus",
+  "utc": "2026-07-08T16:31:38.217551+00:00"
+}
