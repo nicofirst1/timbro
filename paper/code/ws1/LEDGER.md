@@ -23,15 +23,15 @@ Canonical results ledger for WS1 (experiment-discipline §4). Numbers are cited 
       (`[a-z0-9]`-normalized owner/repo/name). corpus.parquet is exactly the 15 `CORPUS_COLUMNS`
       (skill_diffs sibling cols stay in `src_skill_diffs.parquet`). **Run PENDING** — needs
       `dedup_map.parquet` first.
-- [~] `parse_weekly_installs` — re-parse the cached skills.sh HTML for the sparkline
+- [x] `parse_weekly_installs` — re-parse the cached skills.sh HTML for the sparkline
       weekly-install series. **Written + unit-tested** (ponytail-reviewed) 2026-07-08.
       Pre-freeze inspection DONE: the "9–16-value" series was a thousands-separator artifact —
       the sparkline is always an 8-week window; frozen separator `,\s+` yields 8 values on
       19,906/19,906 (see RESULTS). Adds `weekly_installs` + `installs_wk_mean` (mean of the
       series; primary RQ2 outcome per ADR-0007; renamed from `installs_wk_recent` after the
       naming flag was resolved 2026-07-08 — estimator unchanged, tests pass post-rename) →
-      `skillssh_weekly.parquet` (owner/repo/skill key, WS3-side join artifact). **Run
-      PENDING** (re-parse of the cache).
+      `skillssh_weekly.parquet` (owner/repo/skill key, WS3-side join artifact). **Run done
+      2026-07-08** (see RESULTS) — 19,906 rows, live counts reproduce the pre-freeze inspection.
 - [x] `build_skillssh.py` — installs join. **Gate cleared + crawl done 2026-07-08** (see
       RESULTS). `skills.sh/robots.txt` allows the sitemaps/detail pages (only `/api/*`
       disallowed), `/terms` permits "reasonable use, including caching results on your own
@@ -61,6 +61,24 @@ Canonical results ledger for WS1 (experiment-discipline §4). Numbers are cited 
 ## RESULTS
 
 All counts cited from `manifests/*.manifest.json` (never retyped). Newest on top.
+
+### 2026-07-08 — weekly-installs re-parse: full-cache run (skillssh_weekly.parquet)
+
+Ran `parse_weekly_installs.py` over the on-disk skills.sh crawl cache (no re-crawl). Live
+counts reproduce the frozen pre-freeze inspection exactly, confirming the `,\s+` separator
+rule holds across the whole cache.
+
+- `skillssh_weekly.parquet`: **19,906** rows (`skillssh_weekly.parquet.manifest.json`, sha256
+  `d64d7395…`, `pyarrow` 24.0.0). One row per resolved `/{owner}/{repo}/{skill}` detail page,
+  keyed owner/repo/skill; a WS3-side join artifact (like `skillssh_meta.parquet`), **not** a
+  `CORPUS_COLUMNS` field. Every series is exactly 8 values (schema-checked; 0 length
+  exceptions). **5** pages no-aria/unparseable (the crawl's unresolved detail pages — matches
+  the 19,911 scanned − 19,906), **580** all-zero series (→ `installs_wk_mean` 0.0). 0 mean
+  mismatches vs `mean(series)`.
+- Fields: `weekly_installs` (8-int list), `installs_wk_mean` (its mean, ADR-0007). Manifest
+  records `window_weeks=8`; single crawl anchor 2026-07-08 — state the 8-week window
+  limitation wherever the outcome is reported. DVC-tracked (`.dvc` pointer committed; bytes
+  local-cache only).
 
 ### 2026-07-08 — weekly-installs re-parse: the "9–16-value" series is a thousands-separator artifact
 

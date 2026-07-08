@@ -1,0 +1,5 @@
+outs:
+- md5: 01531cfca0b0c8ee5d846225d0d37c3d
+  size: 571544
+  hash: md5
+  path: skillssh_weekly.parquet

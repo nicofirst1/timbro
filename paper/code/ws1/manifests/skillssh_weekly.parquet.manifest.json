@@ -1,0 +1,22 @@
+{
+  "git_commit": "8cece8dc7627c73cfc5ec6456d70be2dafab9cf7-dirty",
+  "inputs": [
+    {
+      "cache_dir": "skillssh_cache",
+      "n_pages_scanned": 19911
+    }
+  ],
+  "n_all_zero": 580,
+  "n_no_aria": 5,
+  "n_rows": 19906,
+  "output": "skillssh_weekly.parquet",
+  "output_sha256": "d64d7395e2df80702b671362f5fd2e773f75db5391725ac334fbf82fe2fdf569",
+  "packages": {
+    "pyarrow": "24.0.0"
+  },
+  "script": "parse_weekly_installs.py",
+  "seed": 42,
+  "source": "skillssh_weekly",
+  "utc": "2026-07-08T15:13:07.773074+00:00",
+  "window_weeks": 8
+}
