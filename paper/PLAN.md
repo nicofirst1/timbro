@@ -157,8 +157,9 @@ needs: anonymized repo, derived-features-only data release, license statement pe
 - **ARR Oct 2026** (exact deadline TBA, assume mid-Oct): full paper. Buffer: WS5 draft done
   by Oct 1.
 - Backup: COLM 2027 (~late Mar) if WS4 becomes the centerpiece.
-- Optional: September skills.sh re-crawl (cached recipe, ~3h) to extend the weekly-install
-  window — optional, not blocking (§8 amendment 2).
+- **Sep 1, 2026:** skills.sh re-crawl #2 (cached recipe, ~3h, ≤2 req/s) — second 8-week
+  window → 16-week weekly-install series for the §8b lagged exploratory (pinned 2026-07-08,
+  ADR-0007). Skipping it = log why in the WS1 LEDGER.
 
 ## 5. Guardrails for executing agents
 
@@ -199,7 +200,8 @@ needs: anonymized repo, derived-features-only data release, license statement pe
 - **2026-07-08 (this update):** plan split — binding decisions and pre-registration moved
   verbatim to `DECISIONS.md` (§0, §2, §3, §8, §8b; section numbers preserved). New §8
   amendment 2: weekly-install series discovered in the crawl cache sparkline aria-labels
-  (100% coverage) → primary RQ2 outcome becomes `installs_wk_recent`; mandatory
+  (100% coverage) → primary RQ2 outcome becomes `installs_wk_recent` (renamed
+  `installs_wk_mean` later that day, ADR-0007); mandatory
   `log1p(skill_age_days)` covariate; **D9** era-confound rule. WS1 gains step 8 (cache
   re-parse, no re-crawl).
 - Still open: NeurIPS workshop list ~Jul 11; `kubectl port-forward` test on NM-BAIOS before

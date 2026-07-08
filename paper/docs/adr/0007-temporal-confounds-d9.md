@@ -37,7 +37,8 @@
 - **§8b lagged exploratory now has data:** the weekly series is its basis. The window
   limitation (~8 weeks, single crawl anchor) must be stated wherever it is reported. An
   optional September re-crawl of the cached, resumable skills.sh recipe would extend the
-  window — optional, not blocking.
+  window — optional, not blocking. *(Resolved 2026-07-08, user decision: re-crawl #2 pinned
+  for Sep 1, 2026 in PLAN.md WS6 — skipping it must be logged in the WS1 LEDGER.)*
 - **Known limitation (for the manuscript):** skills.sh does not document how "weekly installs"
   is computed (dedup, bot filtering, week boundaries); carry the same install-noise caveat as
   Ling et al. The 9–16-value series must be inspected once before the re-parse is frozen
