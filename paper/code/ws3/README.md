@@ -1,0 +1,50 @@
+# WS3 — Corpus analysis
+
+Turns `paper/data/corpus.parquet` (WS1 output) into the paper's RQ1–RQ4 findings.
+Reads `main`'s Timbro (`timbro analyze`, #17/#18) — the `paper` branch predates that
+merge. Governed by the `experiment-discipline` skill; per-step results and the frozen
+analysis rules (D1–D9, ADR-0004/0005) are cited in [`LEDGER.md`](./LEDGER.md). ADRs win
+on any conflict.
+
+**Blocked until WS1 finishes:** `corpus.parquet` does not exist yet (dedup.py + merge.py
+written but not run — WS1 LEDGER). Step 1 below can't run until it does.
+
+## Reproducibility contract (inherited from WS1)
+
+1. **Every number is produced by a committed script**, never hand-typed. `FINDINGS.md`
+   (the acceptance memo) is generated, not authored by hand.
+2. **Seed is 42 everywhere** (PCA/HDBSCAN/k-means init, any bootstrap/CV sampling).
+3. **Data is never committed.** Features + figures land in `paper/data/` / `paper/figures/`
+   (gitignored). Only scripts, `LEDGER.md`, `FINDINGS.md`, `DEVIATIONS.md` are tracked.
+4. **Pre-registered rules bind.** Length AND age are always covariates; multiple-comparison
+   correction (BH, D6) always; effect sizes with CIs. Any departure → `DEVIATIONS.md`.
+5. **Redistribute derived features, never raw skill text** (ADR-0003).
+
+## Layout (grows as steps land)
+
+```
+paper/code/ws3/
+├── featurize.py       # step 1: corpus.parquet canonical docs → features.parquet
+├── tests/             # pure-seam unit tests (no parquet, no spaCy, sub-second)
+├── run_all.py         # (todo) re-runnable driver: steps 1→6
+├── FINDINGS.md        # (todo, generated) acceptance memo
+└── DEVIATIONS.md      # (todo) any departure from the pre-registered rules
+```
+
+## Steps (PLAN.md §4 WS3)
+
+1. **featurize** — `timbro analyze` over canonical docs → `features.parquet`. *(scaffolded)*
+2. **descriptives** — feature distributions per source/platform; organic-vs-slop AUC.
+3. **RQ1 clustering** — standardize → PCA → HDBSCAN (fallback k-means); name clusters;
+   confound gates platform (D4) / domain (D8) / era (D9).
+4. **RQ2 adoption** — regress `log1p(installs_wk_mean)` (+ robustness outcomes) on features,
+   log-length + log-age covariates, platform/domain FE, repo RE; BH per D6.
+5. **RQ4 temporal** — chains ≥3 versions (ADR-0005), 14,388 eligible; embedding-delta explor.
+6. **holdout** — characterize `rq2_holdout_candidates.parquet` novelty before scoring.
+
+## Run
+
+```bash
+uv run pytest paper/code/ws3/tests/                 # pure seams, no data needed
+uv run python paper/code/ws3/featurize.py           # needs corpus.parquet (WS1)
+```

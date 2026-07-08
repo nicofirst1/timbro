@@ -110,7 +110,7 @@ repo conventions in CLAUDE.md apply (implementer specs are decisions; `uv run py
 **Non-goals:** no new rubric, no changes to scoring/verdicts, no LLM calls, no network at
 analyze time.
 
-### WS3 — Corpus analysis (Aug) — `paper/analysis/`
+### WS3 — Corpus analysis (Aug) — `paper/code/ws3/`
 
 1. Run `timbro analyze` over `corpus.parquet` canonical docs → `paper/data/features.parquet`.
    (WS3 runs against `main`'s Timbro — the `paper` branch predates the #17/#18 merge.)
@@ -130,9 +130,9 @@ analyze time.
 6. Holdout: characterize `rq2_holdout_candidates.parquet` topic/dialect novelty BEFORE scoring
    it; report degradation as a drift signal (LEDGER open problem, 2026-07-08).
 
-**Acceptance:** scripted, re-runnable (`uv run python paper/analysis/run_all.py`), figures to
-`paper/figures/`, a findings memo `paper/analysis/FINDINGS.md`, deviations in
-`paper/analysis/DEVIATIONS.md`.
+**Acceptance:** scripted, re-runnable (`uv run python paper/code/ws3/run_all.py`), figures to
+`paper/figures/`, a findings memo `paper/code/ws3/FINDINGS.md`, deviations in
+`paper/code/ws3/DEVIATIONS.md`.
 
 ### WS4 — Pilot execution experiment (Sep) — `agent:judgment`, frozen spec in §9 below
 
