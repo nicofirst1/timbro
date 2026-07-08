@@ -9,7 +9,8 @@ Canonical results ledger for WS1 (experiment-discipline §4). Numbers are cited 
       2026-07-08 (see RESULTS). Cross-sectional rebuilt via `--cross-only` after the CRLF
       frontmatter fix; chains built via `--chains-only`.
 - [x] `build_gos.py` — graph-of-skills 2000. Done.
-- [ ] `build_clawhub.py` — live ClawHub feed (~549). Not yet written.
+- [✗] `build_clawhub.py` — **DROPPED as a data source 2026-07-08** (see RESULTS). Not built.
+      ClawHub kept as a narrative hook only (ClawHavoc purge).
 - [x] `build_slop.py` — labeled low-quality stubs. Done.
 - [ ] `dedup.py` — exact + MinHash near-dup collapse (D1). Not yet written.
 - [ ] `merge.py` — corpus.parquet + REPORT.md. Not yet written.
@@ -29,7 +30,7 @@ Canonical results ledger for WS1 (experiment-discipline §4). Numbers are cited 
     repos 5,891 · bundled 630,119.
   - `davidliuk/graph-of-skills-data` (skills_2000): 2,000 skills.
   - `amoghacloud/clawskills-intelligence-corpus`: 5,147 stubs (labeled low-quality class).
-  - ClawHub live feed: ~549 (drift allowed — record actual, no hard assert).
+  - ~~ClawHub live feed: ~549~~ **DROPPED 2026-07-08** (see RESULTS) — narrative hook only.
 - **Method:** direct parquet download for skill-diffs (NOT datasets-server row APIs — §8b
   access gotcha); exact dedup by normalized-text SHA256, near-dup via `datasketch` MinHash,
   0.9 Jaccard on 5-gram shingles, seed 42 (D1). Canonical doc per near-dup cluster.
@@ -42,6 +43,39 @@ Canonical results ledger for WS1 (experiment-discipline §4). Numbers are cited 
 ## RESULTS
 
 All counts cited from `manifests/*.manifest.json` (never retyped). Newest on top.
+
+### 2026-07-08 — source-overlap decisions (drop ClawHub; RQ2 coverage; no GitHub scrape)
+
+Descriptive figures below are from an ad-hoc overlap check on the committed corpus
+parquets + the live ClawHub feed (`/v1/feeds/skills`, fetched 2026-07-08); repo-level
+(unit = GitHub `owner/repo`), decision-support only — not a builder manifest. If any of
+these enter the manuscript, back them with a committed probe first.
+
+- **ClawHub DROPPED as a data source.** The only robots-allowed bulk feed
+  (`/v1/feeds/skills`) is a *verified-publisher allowlist*: 660 entries, no `downloads`/
+  install field at all, and content not inline. Its 329 `public-github` entries resolve to
+  just **2 vendor monorepos** — `nvidia/skills` (231) + `aws/agent-toolkit-for-aws` (98) —
+  both already indexed by skills.sh, `nvidia/skills` also in skill-diffs. The other 331
+  (`public-clawhub`) are only reachable via `/api/*` (robots-disallowed). So ClawHub adds
+  ~2 vendor repos of near-redundant content and **zero adoption signal**. Kept only as the
+  ClawHavoc narrative hook. (The full ~52k ClawHub registry has no sanctioned bulk access;
+  adoption numbers cited in the wild are third-party scrapes.)
+- **RQ2 install-coverage is small — selection-bias caveat (pre-registered robustness item).**
+  skills.sh installs (`skillssh_meta.parquet`, 19,906 skills / 2,452 repos) overlap
+  skill-diffs on **816 repos = 13.9% of the 5,887 text-corpus repos**. Of skills.sh's 19,906
+  skills, 11,578 (58%) sit in a shared repo → **install-labeled text skills ≤ ~11,578 = ≤1.74%
+  of the 664,875-skill corpus** (repo-level ceiling; exact skill-level join lands in `merge.py`).
+  n≈11.6k is ample statistical power; the risk is **generalizability** — skills.sh is a curated
+  directory, so labeled skills skew toward promoted ones. **Actions:** report the join/coverage
+  rate as RQ2's denominator; run a selection-bias check (labeled vs unlabeled on length /
+  quality / platform); use repo-level `stars` (already present, 90% coverage) as a
+  breadth-coverage adoption proxy to cross-check the install-based RQ2 result.
+- **No direct GitHub SKILL.md scrape.** skill-diffs already IS the GitHub crawl (664,875
+  skills, full history); GitHub Code Search can't enumerate more (1,000-result cap, rate
+  limits) and would be near-fully redundant. Stats we'd want are mostly already shipped
+  (`stars` 90%, dates 100%, `n_revisions` 100%, `license_spdx` 39%). An optional
+  `build_github_stats.py` (5,887 repos → `forks` + license backfill, repo-level/coarse) is
+  **parked** — polish, not a blocker, add only if `forks` is wanted as a covariate.
 
 ### 2026-07-08 — skill-diffs anchor corpus (both tables)
 
