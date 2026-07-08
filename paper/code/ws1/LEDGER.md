@@ -12,8 +12,17 @@ Canonical results ledger for WS1 (experiment-discipline §4). Numbers are cited 
 - [✗] `build_clawhub.py` — **DROPPED as a data source 2026-07-08** (see RESULTS). Not built.
       ClawHub kept as a narrative hook only (ClawHavoc purge).
 - [x] `build_slop.py` — labeled low-quality stubs. Done.
-- [ ] `dedup.py` — exact + MinHash near-dup collapse (D1). Not yet written.
-- [ ] `merge.py` — corpus.parquet + REPORT.md. Not yet written.
+- [~] `dedup.py` — exact + MinHash near-dup collapse (D1). **Written + unit-tested** (TDD,
+      ponytail-reviewed) 2026-07-08. Emits a compact `dedup_map.parquet` (skill_id →
+      near_dup_cluster_id / cluster_size / is_canonical), not a text copy. MinHash 0.9 Jaccard
+      enforced by an explicit `jaccard() >= 0.9` post-filter on LSH candidates (LSH banding
+      alone only approximates). **Full 672k-row run PENDING** — will surface the live D1 >60%
+      fork-explosion STOP check.
+- [~] `merge.py` — corpus.parquet + REPORT.md + `rq2_holdout_candidates.parquet`. **Written +
+      unit-tested** (TDD, ponytail-reviewed) 2026-07-08. Loose install-join key
+      (`[a-z0-9]`-normalized owner/repo/name). corpus.parquet is exactly the 15 `CORPUS_COLUMNS`
+      (skill_diffs sibling cols stay in `src_skill_diffs.parquet`). **Run PENDING** — needs
+      `dedup_map.parquet` first.
 - [x] `build_skillssh.py` — installs join. **Gate cleared + crawl done 2026-07-08** (see
       RESULTS). `skills.sh/robots.txt` allows the sitemaps/detail pages (only `/api/*`
       disallowed), `/terms` permits "reasonable use, including caching results on your own
@@ -43,6 +52,49 @@ Canonical results ledger for WS1 (experiment-discipline §4). Numbers are cited 
 ## RESULTS
 
 All counts cited from `manifests/*.manifest.json` (never retyped). Newest on top.
+
+### 2026-07-08 — RQ2 install-join key: frontmatter-name viability + miss breakdown
+
+Ad-hoc probe (`skillssh_meta.parquet` × `src_skill_diffs.parquet`, both committed corpus
+parquets; decision-support, not a builder manifest — if any figure enters the manuscript,
+back it with a committed probe first). Repo overlap = **816** owner/repo (reproduces the
+overlap finding below). skills.sh keys on `owner/repo/skill` (the repo folder); skill-diffs
+dropped `skill_path`, so the only corpus-side skill key is the `frontmatter_json` `name:`
+field. Question: does a name-based join recover skill-level installs (the primary RQ2 outcome)?
+
+Of the **11,578** skills.sh triples in the 816 overlapping repos:
+
+| count | share | category |
+|------:|------:|----------|
+| 9,660 | 83.4% | exact frontmatter-`name` match |
+| 1,701 | 14.7% | skill **absent from the skill-diffs snapshot** — skills.sh crawl (2026-07-08) postdates the HF snapshot; no text to join onto, unjoinable by construction |
+| 214 | 1.8% | matches only after `[a-z0-9]` normalization (hyphen/underscore/space/case; e.g. ss `anomaly-detection` vs fm `anomaly detection`) |
+| 3 | 0.0% | repo's SKILL.md files carry no `name:` frontmatter (`astral-sh/claude-code-plugins`) |
+
+- **The apparent 83% "loss" is mostly the wrong denominator.** The 14.7% are skills we hold
+  no text for (temporal skew) → excluded from RQ2 regardless of join quality. Against
+  **corpus-present** skills, exact-name recovers **9,660 / 9,874 = 97.8%**; loose `[a-z0-9]`
+  normalization recovers **9,874 / 9,874 ≈ 100%** (the 3 no-frontmatter skills aside).
+- **Decision — loose join key (D-adjacent, method):** `merge.py` joins installs on
+  `_join_key(s) = re.sub(r"[^a-z0-9]", "", s.lower())` applied to `owner`, `repo`, and the
+  skill/name on both sides — recovers the +214 for one regex. REPORT.md reports **two** rates:
+  vs corpus-present skills (~100%, the RQ2 coverage number) and vs the repo-overlap ceiling
+  (9,874 / 11,578 = 85.3%, with the 14.7% temporal-skew gap named). **No `build_skill_diffs`
+  re-run** — `skill_path` is not needed; frontmatter `name` suffices.
+- **Holdout artifact:** `merge.py` also emits `rq2_holdout_candidates.parquet` — the ~1,701
+  skills.sh triples in overlapping repos that carry an `installs` label but match no corpus
+  text (a free byproduct of the join). Candidate *temporally out-of-sample* RQ2 test set:
+  train on the skill-diffs∩skills.sh join, test on these newer skills (their SKILL.md text
+  fetched from GitHub in WS3 — targeted known `owner/repo/skill` paths, NOT the enumeration
+  crawl rejected below).
+- **OPEN PROBLEM — concept drift, not just a temporal holdout (flagged 2026-07-08, NB):** the
+  1,701 are *newer* skills and the field moves fast, so they likely carry **new directions** —
+  topics, capabilities, and instruction dialects absent from the training snapshot. So the
+  holdout confounds *temporal generalization* with *distribution shift*: a model degrading on
+  it may be meeting genuinely novel skill types, not failing features. WS3 must (a) characterize
+  the holdout's topic/dialect novelty vs training BEFORE scoring it, and (b) report degradation
+  as a drift signal, not fold it into plain test error. The same caveat qualifies any RQ1
+  "dialect stability over time" claim.
 
 ### 2026-07-08 — source-overlap decisions (drop ClawHub; RQ2 coverage; no GitHub scrape)
 
