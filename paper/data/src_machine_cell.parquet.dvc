@@ -1,0 +1,5 @@
+outs:
+- md5: 83bdff3aa6b2f43daaace2c60ea484cb
+  size: 1801188
+  hash: md5
+  path: src_machine_cell.parquet

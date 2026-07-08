@@ -35,6 +35,12 @@ Canonical results ledger for WS1 (experiment-discipline §4). Numbers are cited 
       naming flag was resolved 2026-07-08 — estimator unchanged, tests pass post-rename) →
       `skillssh_weekly.parquet` (owner/repo/skill key, WS3-side join artifact). **Run done
       2026-07-08** (see RESULTS) — 19,906 rows, live counts reproduce the pre-freeze inspection.
+- [x] `build_machine_cell.py` — machine-authored register cell (ADR-0009, exploratory,
+      WS1 step 10). **Written + unit-tested + run 2026-07-08** (sonnet-implemented,
+      opus-reviewed APPROVE; see RESULTS). 587 rows → `src_machine_cell.parquet`
+      (standalone cell, NOT folded into corpus.parquet).
+- [ ] `build_human_baseline.py` — RQ5 human cells (ADR-0008, WS1 step 9). In progress
+      2026-07-08 (sonnet-dispatched).
 - [x] `build_skillssh.py` — installs join. **Gate cleared + crawl done 2026-07-08** (see
       RESULTS). `skills.sh/robots.txt` allows the sitemaps/detail pages (only `/api/*`
       disallowed), `/terms` permits "reasonable use, including caching results on your own
@@ -64,6 +70,29 @@ Canonical results ledger for WS1 (experiment-discipline §4). Numbers are cited 
 ## RESULTS
 
 All counts cited from `manifests/*.manifest.json` (never retyped). Newest on top.
+
+### 2026-07-08 — machine-authored cell built (ADR-0009, exploratory): src_machine_cell.parquet
+
+Ran `build_machine_cell.py` (WS1 step 10). Numbers from
+`src_machine_cell.parquet.manifest.json` (sha256 `28f022cc…`):
+
+- **587** rows total: `zhang-ziao/SkillFlow-exp-skills` **582** + `Qwen-Applications/
+  Trace2Skill` released_skills **5** (4 evolved variants + the human-written Anthropic
+  xlsx baseline, byte-identical frontmatter to the two "combined" deepening variants —
+  confirming it as their evolution source). 18 columns = `CORPUS_COLUMNS` +
+  `generator_model` / `domain` / `task_family`. 11 distinct generator models; 20/20 task
+  families mapped to the 5 SkillFlow domains (0 unmapped). 0 empty bodies.
+- **Expected-count deviation, resolved loud:** ADR-0009's "~598" counts `index.json`
+  entries; only **582** carry `has_skill_md=True` (verified live 2026-07-08). Asserted
+  against 582 (`SKILLFLOW_EXP_SKILLS_EXPECTED` in `_schema.py`, reasoning documented
+  inline) — the assert targets text-bearing rows, not raw index entries.
+- Domain labels: static 20-family → 5-domain table transcribed from `SkillFlow-Task`'s
+  README (task.toml has no domain field). Name-collision guard honored (ADR-0009):
+  `beita6969/SkillFlow-Dataset` never touched, IDs pinned exact. License: SkillFlow rows
+  `license_spdx` null (unspecified upstream); Trace2Skill evolved `Apache-2.0`; baseline
+  `Proprietary` (its own frontmatter). Standalone exploratory cell — NOT merged into
+  corpus.parquet (ADR-0009: never confirmatory; WS3 step 8 consumes it directly).
+  DVC-tracked.
 
 ### 2026-07-08 — merge.py full run: corpus.parquet assembled (ADR-0010 entry-level join)
 

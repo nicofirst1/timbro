@@ -1,0 +1,33 @@
+{
+  "git_commit": "e73139cec8bd304c382a62f28ce33659d4158b69-dirty",
+  "inputs": [
+    {
+      "file": "index.json + per-entry SKILL.md",
+      "hf_dataset": "zhang-ziao/SkillFlow-exp-skills"
+    },
+    {
+      "hf_dataset": "zhang-ziao/SkillFlow-Task",
+      "note": "domain-mapping README only, no data files downloaded"
+    },
+    {
+      "github_repo": "Qwen-Applications/Trace2Skill",
+      "path": "released_skills/ + spreadsheet_agent/skills/xlsx/",
+      "ref": "main"
+    }
+  ],
+  "n_rows": 587,
+  "n_skillflow_exp_skills": 582,
+  "n_trace2skill": 5,
+  "n_unmapped_domain": 0,
+  "output": "src_machine_cell.parquet",
+  "output_sha256": "28f022cc7a3406d5413d3df97c8628f732948dd0cd3481f2ec906ef8fcaa4afc",
+  "packages": {
+    "huggingface_hub": "1.19.0",
+    "pyarrow": "24.0.0",
+    "requests": "2.34.2"
+  },
+  "script": "build_machine_cell.py",
+  "seed": 42,
+  "source": "machine_authored",
+  "utc": "2026-07-08T16:29:40.950889+00:00"
+}
