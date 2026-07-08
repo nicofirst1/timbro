@@ -1,0 +1,30 @@
+{
+  "git_commit": "a7ce61f9618107c16b5517214bb4da904477ca3b-dirty",
+  "inputs": [
+    {
+      "fetch_utc": 1783512411.53985,
+      "url": "https://skills.sh/robots.txt"
+    },
+    {
+      "fetch_utc": 1783512411.539854,
+      "url": "https://skills.sh/terms"
+    },
+    {
+      "n_shards": 2,
+      "url": "https://www.skills.sh/sitemap.xml"
+    }
+  ],
+  "n_detail_urls_attempted": 19910,
+  "n_rows": 19906,
+  "output": "skillssh_meta.parquet",
+  "output_sha256": "0e126f4360bdf7489567918a8289c13c39003cb1309197a4789ea5e9960fd86a",
+  "packages": {
+    "pyarrow": "24.0.0",
+    "requests": "2.34.2"
+  },
+  "rate_limit_req_per_sec": 2.0,
+  "script": "build_skillssh.py",
+  "seed": 42,
+  "source": "skillssh_meta",
+  "utc": "2026-07-08T12:06:51.613102+00:00"
+}

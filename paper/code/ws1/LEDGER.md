@@ -13,11 +13,11 @@ Canonical results ledger for WS1 (experiment-discipline §4). Numbers are cited 
 - [x] `build_slop.py` — labeled low-quality stubs. Done.
 - [ ] `dedup.py` — exact + MinHash near-dup collapse (D1). Not yet written.
 - [ ] `merge.py` — corpus.parquet + REPORT.md. Not yet written.
-- [~] `build_skillssh.py` — installs join. **Gate cleared 2026-07-08:** `skills.sh/robots.txt`
-      allows the sitemaps/detail pages (only `/api/*` disallowed), and `/terms` permits
-      "reasonable use, including caching results on your own infrastructure" (read + user
-      sign-off recorded). Crawl **running** (~20K detail pages at ≤2 req/s, resumable via the
-      on-disk HTML cache). Output `skillssh_meta.parquet` pending completion.
+- [x] `build_skillssh.py` — installs join. **Gate cleared + crawl done 2026-07-08** (see
+      RESULTS). `skills.sh/robots.txt` allows the sitemaps/detail pages (only `/api/*`
+      disallowed), `/terms` permits "reasonable use, including caching results on your own
+      infrastructure" (read + user sign-off recorded). 19,906 rows, resumable via the on-disk
+      HTML cache.
 
 ## PRE-REG — WS1 corpus assembly (2026-07-07)
 
@@ -69,6 +69,16 @@ All counts cited from `manifests/*.manifest.json` (never retyped). Newest on top
   `GOS_EXPECTED_SKILLS`.
 - `src_slop.parquet`: **5,147** rows (`src_slop.parquet.manifest.json`) — matches
   `SLOP_EXPECTED_STUBS`.
+
+### 2026-07-08 — skills.sh installs crawl (complete)
+
+- `skillssh_meta.parquet`: **19,906** rows (`skillssh_meta.parquet.manifest.json`, sha256
+  `0e126f43…`), one per `/{owner}/{repo}/{skill}` detail page. **19,610 (98.5%)** carry an
+  installs count (`interactionStatistic.userInteractionCount`); min 6 / median 592 / max
+  2,392,667. `stars`, `first_seen`, `audit_verdict` are all null — not in the page JSON-LD
+  (confirmed pre-crawl). 19,910 detail pages attempted (4 unresolved after retries); ~53
+  `/api/*` sitemap entries filtered up front (robots-disallowed). Crawl ran at ≤2 req/s off
+  the on-disk HTML cache (fully resumable). Join into `corpus.parquet` happens in `merge.py`.
 
 ### 2026-07-08 — skills.sh parser fix (pre-crawl validation)
 

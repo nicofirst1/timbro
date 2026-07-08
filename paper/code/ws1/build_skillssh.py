@@ -365,6 +365,15 @@ def run_crawl(rate: float) -> Path:
 
     # Dedup while preserving determinism.
     detail_urls = sorted(set(detail_urls))
+
+    # skills.sh's skills sitemap includes a handful of /api/* URLs (robots-disallowed;
+    # not skill detail pages). Drop them up front with one summary line instead of a
+    # per-URL WARNING from the polite_get guard, which stays as a backstop.
+    api_urls = [u for u in detail_urls if "/api/" in urlparse(u).path]
+    if api_urls:
+        detail_urls = [u for u in detail_urls if u not in set(api_urls)]
+        print(f"[build_skillssh] filtered {len(api_urls)} /api/* URLs from the sitemap "
+              f"(robots-disallowed, not skill pages)")
     print(f"[build_skillssh] {len(detail_urls)} unique skill detail pages to crawl")
 
     rows: list[dict] = []
