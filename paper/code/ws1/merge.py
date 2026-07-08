@@ -99,16 +99,50 @@ def _skillssh_lookup(skillssh_rows: list[dict]) -> tuple[dict, int]:
     return lookup, n_dupe_keys
 
 
+def _n_revisions_sort_key(row: dict) -> int:
+    """Coerce n_revisions to int for max-comparison; None/unparseable -> -1 (ADR-0010 §3b)."""
+    val = row.get("n_revisions")
+    try:
+        return int(val) if val is not None else -1
+    except (TypeError, ValueError):
+        return -1
+
+
+def _pick_representative(group: list[dict]) -> dict:
+    """Deterministic representative per ADR-0010 §3: canonical, else max n_revisions,
+    else smallest skill_id (also the tie-break within the earlier criteria)."""
+    canonical = [r for r in group if r.get("is_canonical") == "true"]
+    pool = canonical if canonical else group
+    best_n_rev = max(_n_revisions_sort_key(r) for r in pool)
+    tied = [r for r in pool if _n_revisions_sort_key(r) == best_n_rev]
+    return min(tied, key=lambda r: r["skill_id"])
+
+
 def join_installs(corpus_rows: list[dict], skillssh_rows: list[dict]) -> dict:
-    """Mutate corpus_rows[i]['installs'] in place for skill_diffs rows on a loose match.
+    """Label exactly one representative row per matched loose-key group (ADR-0010).
 
     Only rows with source == skill_diffs are candidates (others carry null repo).
-    Returns stats: n_skill_diffs, n_installs_matched, n_dupe_skillssh_keys.
+    Groups matching skill_diffs rows by the loose (owner, repo, name) key, then per
+    matched key assigns `installs` to a single deterministic representative row
+    (canonical, else max n_revisions, else smallest skill_id).
+
+    Returns stats:
+      n_skill_diffs             — total skill_diffs rows considered
+      n_matched_rows            — rows whose key is in the skills.sh lookup (row-level
+                                   diagnostic; the pre-rework over-count numerator)
+      n_entries_matched         — distinct matched keys = rows actually labeled
+                                   (== n_installs_matched, kept for main()/downstream)
+      n_installs_matched        — alias of n_entries_matched
+      n_clusters_matched        — distinct near_dup_cluster_id across matched rows
+                                   (nulls excluded from the set)
+      n_canonical_entries_matched — distinct matched keys whose group contains an
+                                   is_canonical row (the canonical-only-would-recover diagnostic)
+      n_dupe_skillssh_keys      — unchanged, from the skills.sh-side lookup build
     """
     lookup, n_dupe_keys = _skillssh_lookup(skillssh_rows)
 
     n_skill_diffs = 0
-    n_matched = 0
+    groups: dict[tuple[str, str, str], list[dict]] = {}
     for row in corpus_rows:
         if row.get("source") != SOURCE_SKILL_DIFFS:
             continue
@@ -119,14 +153,33 @@ def join_installs(corpus_rows: list[dict], skillssh_rows: list[dict]) -> dict:
         owner, reponame = repo.split("/", 1)
         name = _frontmatter_name(row.get("frontmatter_json"))
         key = (_join_key(owner), _join_key(reponame), _join_key(name))
-        installs = lookup.get(key)
-        if installs is not None:
-            row["installs"] = str(installs)
-            n_matched += 1
+        if key not in lookup:
+            continue
+        groups.setdefault(key, []).append(row)
+
+    n_matched_rows = sum(len(g) for g in groups.values())
+    clusters_matched: set = set()
+    n_canonical_entries_matched = 0
+    for key, group in groups.items():
+        installs = lookup[key]
+        representative = _pick_representative(group)
+        representative["installs"] = str(installs)
+        for r in group:
+            cid = r.get("near_dup_cluster_id")
+            if cid is not None:
+                clusters_matched.add(cid)
+        if any(r.get("is_canonical") == "true" for r in group):
+            n_canonical_entries_matched += 1
+
+    n_entries_matched = len(groups)
 
     return {
         "n_skill_diffs": n_skill_diffs,
-        "n_installs_matched": n_matched,
+        "n_matched_rows": n_matched_rows,
+        "n_entries_matched": n_entries_matched,
+        "n_installs_matched": n_entries_matched,
+        "n_clusters_matched": len(clusters_matched),
+        "n_canonical_entries_matched": n_canonical_entries_matched,
         "n_dupe_skillssh_keys": n_dupe_keys,
     }
 
@@ -163,7 +216,10 @@ def build_holdout(corpus_rows: list[dict], skillssh_rows: list[dict]) -> tuple[l
         ceiling_rows.append(r)
         triple = (pair[0], pair[1], _join_key(r.get("skill")))
         if triple not in matched_triples:
-            holdout.append(project_row(r, HOLDOUT_COLUMNS))
+            hrow = project_row(r, HOLDOUT_COLUMNS)
+            if hrow.get("installs") is not None:
+                hrow["installs"] = str(hrow["installs"])  # all-string like join_installs; string_table needs it
+            holdout.append(hrow)
 
     holdout.sort(key=lambda r: (r["owner"], r["repo"], r["skill"]))
     stats = {
@@ -216,6 +272,12 @@ def render_report(stats: dict) -> str:
     lines.append("")
     lines.append(f"- n_skill_diffs: {ij.get('n_skill_diffs')}")
     lines.append(f"- n_installs_matched: {ij.get('n_installs_matched')}")
+    lines.append(f"- n_matched_rows (row-level, pre-dedup diagnostic): {ij.get('n_matched_rows')}")
+    lines.append(f"- n_entries_matched (distinct keys labeled): {ij.get('n_entries_matched')}")
+    lines.append(f"- n_clusters_matched (distinct near_dup_cluster_id over matched rows): {ij.get('n_clusters_matched')}")
+    lines.append(
+        f"- n_canonical_entries_matched (canonical-only would recover): {ij.get('n_canonical_entries_matched')}"
+    )
     lines.append(f"- install_join_rate_present (vs corpus-present skills): {ij.get('install_join_rate_present')}")
     lines.append(f"- install_join_rate_ceiling (vs repo-overlap ceiling): {ij.get('install_join_rate_ceiling')}")
     lines.append(f"- repo_overlap: {ij.get('repo_overlap')}")
@@ -331,6 +393,10 @@ def main():
             "per_source_counts": per_source_counts,
             "n_canonical": n_canonical,
             "n_installs_matched": n_matched,
+            "n_matched_rows": install_stats["n_matched_rows"],
+            "n_entries_matched": install_stats["n_entries_matched"],
+            "n_clusters_matched": install_stats["n_clusters_matched"],
+            "n_canonical_entries_matched": install_stats["n_canonical_entries_matched"],
             "install_join_rate_present": install_join_rate_present,
             "install_join_rate_ceiling": install_join_rate_ceiling,
             "repo_overlap": holdout_stats["repo_overlap"],
@@ -372,6 +438,10 @@ def main():
         "install_join": {
             "n_skill_diffs": n_skill_diffs,
             "n_installs_matched": n_matched,
+            "n_matched_rows": install_stats["n_matched_rows"],
+            "n_entries_matched": install_stats["n_entries_matched"],
+            "n_clusters_matched": install_stats["n_clusters_matched"],
+            "n_canonical_entries_matched": install_stats["n_canonical_entries_matched"],
             "install_join_rate_present": install_join_rate_present,
             "install_join_rate_ceiling": install_join_rate_ceiling,
             "repo_overlap": holdout_stats["repo_overlap"],

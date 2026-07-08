@@ -19,6 +19,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
 from _schema import CORPUS_COLUMNS  # noqa: E402
 from merge import (  # noqa: E402
+    HOLDOUT_COLUMNS,
     _frontmatter_name,
     _join_key,
     apply_dedup_map,
@@ -26,6 +27,7 @@ from merge import (  # noqa: E402
     join_installs,
     project_row,
     render_report,
+    string_table,
 )
 
 # ---- _join_key ---------------------------------------------------------------
@@ -164,6 +166,8 @@ def test_installs_join_loose_match_populates_installs():
     assert corpus_rows[0]["installs"] == "42"
     assert stats["n_skill_diffs"] == 1
     assert stats["n_installs_matched"] == 1
+    assert stats["n_entries_matched"] == 1
+    assert stats["n_matched_rows"] == 1
 
 
 def test_installs_join_null_repo_rows_never_match():
@@ -222,6 +226,129 @@ def test_installs_join_duplicate_skillssh_keys_keep_max():
     assert stats["n_installs_matched"] == 1
 
 
+# ---- join_installs: ADR-0010 entry-level representative selection --------------
+
+
+def _sd_row(skill_id, *, is_canonical=None, n_revisions=None, near_dup_cluster_id=None):
+    return {
+        "skill_id": skill_id,
+        "source": "skill_diffs",
+        "repo": "owner/repo",
+        "frontmatter_json": "name: anomaly-detection\n",
+        "installs": None,
+        "is_canonical": is_canonical,
+        "n_revisions": n_revisions,
+        "near_dup_cluster_id": near_dup_cluster_id,
+    }
+
+
+_SKILLSSH_ONE_MATCH = [
+    {"owner": "owner", "repo": "repo", "skill": "anomaly-detection", "installs": 42, "url": "https://x"}
+]
+
+
+def test_installs_join_same_key_canonical_row_wins():
+    corpus_rows = [
+        _sd_row("sd:1", is_canonical="false", n_revisions="1", near_dup_cluster_id="ndc:0"),
+        _sd_row("sd:2", is_canonical="true", n_revisions="0", near_dup_cluster_id="ndc:0"),
+    ]
+    stats = join_installs(corpus_rows, _SKILLSSH_ONE_MATCH)
+    by_id = {r["skill_id"]: r for r in corpus_rows}
+    assert by_id["sd:2"]["installs"] == "42"
+    assert by_id["sd:1"]["installs"] is None
+    assert stats["n_matched_rows"] == 2
+    assert stats["n_entries_matched"] == 1
+    assert stats["n_installs_matched"] == 1
+
+
+def test_installs_join_no_canonical_max_n_revisions_wins():
+    corpus_rows = [
+        _sd_row("sd:1", is_canonical="false", n_revisions="2"),
+        _sd_row("sd:2", is_canonical="false", n_revisions="5"),
+        _sd_row("sd:3", is_canonical=None, n_revisions=None),
+    ]
+    stats = join_installs(corpus_rows, _SKILLSSH_ONE_MATCH)
+    by_id = {r["skill_id"]: r for r in corpus_rows}
+    assert by_id["sd:2"]["installs"] == "42"
+    assert by_id["sd:1"]["installs"] is None
+    assert by_id["sd:3"]["installs"] is None
+    assert stats["n_entries_matched"] == 1
+    assert stats["n_canonical_entries_matched"] == 0
+
+
+def test_installs_join_tie_smallest_skill_id_wins():
+    corpus_rows = [
+        _sd_row("sd:2", is_canonical="false", n_revisions="5"),
+        _sd_row("sd:10", is_canonical="false", n_revisions="5"),
+        _sd_row("sd:1", is_canonical="false", n_revisions="5"),
+    ]
+    stats = join_installs(corpus_rows, _SKILLSSH_ONE_MATCH)
+    by_id = {r["skill_id"]: r for r in corpus_rows}
+    assert by_id["sd:1"]["installs"] == "42"
+    assert by_id["sd:2"]["installs"] is None
+    assert by_id["sd:10"]["installs"] is None
+    assert stats["n_entries_matched"] == 1
+
+
+def test_installs_join_string_n_revisions_coerced_to_int():
+    # "10" > "9" numerically but "10" < "9" lexically -> guards the int() coercion.
+    corpus_rows = [
+        _sd_row("sd:1", is_canonical="false", n_revisions="9"),
+        _sd_row("sd:2", is_canonical="false", n_revisions="10"),
+    ]
+    stats = join_installs(corpus_rows, _SKILLSSH_ONE_MATCH)
+    by_id = {r["skill_id"]: r for r in corpus_rows}
+    assert by_id["sd:2"]["installs"] == "42"
+    assert by_id["sd:1"]["installs"] is None
+    assert stats["n_entries_matched"] == 1
+
+
+def test_installs_join_stats_on_small_fixture_with_inflation():
+    # 3 skill_diffs rows / 2 distinct matched keys: entry A has 2 rows (1 canonical),
+    # entry B has 1 row (no canonical); a non-matching row is not counted anywhere.
+    corpus_rows = [
+        _sd_row("sd:1", is_canonical="true", n_revisions="1", near_dup_cluster_id="ndc:0"),
+        _sd_row("sd:2", is_canonical="false", n_revisions="9", near_dup_cluster_id="ndc:0"),
+        {
+            "skill_id": "sd:3",
+            "source": "skill_diffs",
+            "repo": "owner/repo2",
+            "frontmatter_json": "name: other-skill\n",
+            "installs": None,
+            "is_canonical": "false",
+            "n_revisions": "3",
+            "near_dup_cluster_id": "ndc:1",
+        },
+        {
+            "skill_id": "sd:4",
+            "source": "skill_diffs",
+            "repo": "owner/repo3",
+            "frontmatter_json": "name: unmatched-skill\n",
+            "installs": None,
+            "is_canonical": "false",
+            "n_revisions": "1",
+            "near_dup_cluster_id": "ndc:2",
+        },
+    ]
+    skillssh_rows = [
+        {"owner": "owner", "repo": "repo", "skill": "anomaly-detection", "installs": 42, "url": "https://x"},
+        {"owner": "owner", "repo": "repo2", "skill": "other-skill", "installs": 7, "url": "https://y"},
+    ]
+    stats = join_installs(corpus_rows, skillssh_rows)
+    by_id = {r["skill_id"]: r for r in corpus_rows}
+    assert by_id["sd:1"]["installs"] == "42"  # canonical rep of entry A
+    assert by_id["sd:2"]["installs"] is None
+    assert by_id["sd:3"]["installs"] == "7"  # sole rep of entry B
+    assert by_id["sd:4"]["installs"] is None  # never matched a skillssh key
+
+    assert stats["n_skill_diffs"] == 4
+    assert stats["n_matched_rows"] == 3          # sd:1, sd:2, sd:3 — sd:4 excluded
+    assert stats["n_entries_matched"] == 2        # entry A, entry B
+    assert stats["n_installs_matched"] == 2       # alias, used downstream in main()
+    assert stats["n_clusters_matched"] == 2       # ndc:0 (A), ndc:1 (B) — ndc:2 unmatched
+    assert stats["n_canonical_entries_matched"] == 1  # only entry A has a canonical row
+
+
 # ---- build_holdout --------------------------------------------------------------
 
 
@@ -242,6 +369,22 @@ def test_holdout_includes_skillssh_row_in_overlapping_repo_with_no_corpus_match(
     assert len(holdout) == 1
     assert holdout[0]["skill"] == "brand-new-skill"
     assert set(holdout[0].keys()) == {"owner", "repo", "skill", "installs", "url"}
+
+
+def test_holdout_stringifies_int_installs_so_string_table_serializes():
+    # skillssh_meta stores installs as int64; a holdout row must be all-string like every
+    # other WS1 parquet, else string_table (all pa.string()) raises ArrowTypeError on the int.
+    # Regression: the full run crashed at "Writing rq2_holdout_candidates.parquet".
+    corpus_rows = [
+        {"skill_id": "sd:1", "source": "skill_diffs", "repo": "owner/repo",
+         "frontmatter_json": "name: matched-skill\n"},
+    ]
+    skillssh_rows = [
+        {"owner": "owner", "repo": "repo", "skill": "brand-new-skill", "installs": 20, "url": "https://b"},
+    ]
+    holdout, _ = build_holdout(corpus_rows, skillssh_rows)
+    assert holdout[0]["installs"] == "20"       # stringified, matching join_installs' str(installs)
+    string_table(holdout, HOLDOUT_COLUMNS)       # must not raise ArrowTypeError
 
 
 def test_holdout_excludes_skillssh_row_whose_repo_not_in_corpus():
@@ -292,8 +435,12 @@ def test_render_report_contains_handed_numbers_and_does_not_recompute():
         "platform_counts": {"claude": 100, None: 50},
         "license_counts": {"MIT": 200, None: 30},
         "install_join": {
-            "n_installs_matched": 9874,
+            "n_installs_matched": 9686,
             "n_skill_diffs": 9874,
+            "n_matched_rows": 12428,  # sentinel: row-level over-count diagnostic
+            "n_entries_matched": 9686,  # sentinel: == n_installs_matched
+            "n_clusters_matched": 9702,  # sentinel
+            "n_canonical_entries_matched": 5667,  # sentinel: canonical-only-would-recover
             "install_join_rate_present": 0.999,  # sentinel, must appear verbatim
             "install_join_rate_ceiling": 0.853,  # sentinel
             "repo_overlap": 816,
@@ -313,3 +460,8 @@ def test_render_report_contains_handed_numbers_and_does_not_recompute():
     # sentinel rates handed in must appear verbatim -> proves no recomputation
     assert "0.123456" in report
     assert "0.654321" in report
+    # ADR-0010 inflation diagnostics must appear verbatim
+    assert "12428" in report or "12,428" in report
+    assert "9686" in report or "9,686" in report
+    assert "9702" in report or "9,702" in report
+    assert "5667" in report or "5,667" in report
