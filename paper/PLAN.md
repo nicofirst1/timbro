@@ -27,6 +27,19 @@ functionality (WS2) merges to `main`, via normal issue/PR flow.
   etc.) improves skills by outcome but never characterizes WHAT changes in the text; we measure
   exactly that.
 
+- **RQ5 (human baseline — added 2026-07-08, secondary):** How does instruction written *for
+  agents* (SKILL.md) differ linguistically from instruction written *for humans* (README /
+  CONTRIBUTING)? Audience is perfectly collinear with era (human docs pre-date LLMs; skills
+  post-date them), so the design is a three-cell difference-in-differences:
+  (1) human/pre-2023 — README\*/CONTRIBUTING\* from The Stack v1 (`bigcode/the-stack`,
+  collected Nov 2021–Jun 2022, pre-ChatGPT by construction, HF streaming — no full download);
+  (2) human/post-2023 — current GitHub READMEs (LLM-contaminated, and that's fine: it makes
+  the C3−C2 contrast a conservative lower bound); (3) agent/post-2023 — the existing skills
+  corpus. **Design, cells, hypotheses, and kill criteria are FROZEN in
+  [ADR-0008](docs/adr/0008-rq5-preregistration.md) (D10)** — bracketing estimand
+  `[C3−C2, C3−C1]`, not classical DiD. Kill criteria: ~2 days of extraction fight → drop RQ5
+  to a limitations paragraph. Secondary RQ: must not starve RQ1–RQ4.
+
 *(Added 2026-07-07 — domain heterogeneity, RQ1 framing)*: register variation may be
 domain-driven (skills differ by domain — healthcare vs. software dev etc.; hu2026-clawhub
 already shows topic-level clusters). Our claim is *linguistic* dialects, so we must show they
@@ -92,6 +105,18 @@ dedup.py + merge.py written, runs pending; step 8 not yet written (see LEDGER ST
    with `weekly_installs` (8-int list) and `installs_wk_mean` (mean of the series; name
    resolved 2026-07-08, ADR-0007). `installs_wk_mean` is the **primary RQ2 outcome**.
 
+9. `build_human_baseline.py` *(added 2026-07-08 — RQ5, secondary)*: two cells.
+   (a) human/pre-2023: stream `bigcode/the-stack` (HF `streaming=True`, never download the
+   6TB), keep files whose path basename matches `README*` / `CONTRIBUTING*` with `.md`
+   extension; carry repo, license, `first_timestamp`/`last_timestamp` metadata. Sample to a
+   size comparable to the skills corpus (~20k docs), record the sampling seed.
+   (b) human/post-2023: READMEs from currently-active GitHub repos (GH API or a recent HF
+   scrape), same filename filter, `created/updated ≥ 2023`; drop repos containing a SKILL.md
+   (ADR-0008 exclusion). Contamination expected and acceptable. Both cells →
+   `paper/data/human_baseline.parquet` tagged `audience=human, era={pre,post}`; same dedup
+   treatment as step 5, English-only filter applied to all cells identically.
+   **Data rules frozen in ADR-0008; timebox ~2 days, then RQ5 kill criteria applies.**
+
 **Acceptance:** a WS1 `REPORT.md` with per-source counts, dedup stats (exact + near-dup
 removal rates), platform breakdown, license breakdown, install-join rates (both denominators
 per LEDGER 2026-07-08). No data files in git (DVC pointers only).
@@ -129,6 +154,12 @@ analyze time.
    per LEDGER). Includes the ADR-0005 addendum 2 embedding-delta exploratory.
 6. Holdout: characterize `rq2_holdout_candidates.parquet` topic/dialect novelty BEFORE scoring
    it; report degradation as a drift signal (LEDGER open problem, 2026-07-08).
+7. RQ5 human baseline *(added 2026-07-08, secondary — only if WS1 step 9 survived its
+   timebox)*: run `timbro analyze` over `human_baseline.parquet`; analysis ONLY under
+   ADR-0008's frozen rules (D10): confirmatory contrast = C3 vs C2, two-sided, 5-feature
+   family, log-length covariate, BH q=0.10 within family; `C3−C1` and `C2−C1` descriptive
+   (bracket + era shift). ≥5k docs per human cell after dedup or downgrade to descriptive.
+   Genre caveat (README ≠ procedure even for humans) named in the paper per ADR-0008.
 
 **Acceptance:** scripted, re-runnable (`uv run python paper/code/ws3/run_all.py`), figures to
 `paper/figures/`, a findings memo `paper/code/ws3/FINDINGS.md`, deviations in
@@ -201,8 +232,13 @@ needs: anonymized repo, derived-features-only data release, license statement pe
   `installs_wk_mean` later that day, ADR-0007); mandatory
   `log1p(skill_age_days)` covariate; **D9** era-confound rule. WS1 gains step 8 (cache
   re-parse, no re-crawl).
+- **2026-07-08 (later):** RQ5 added (human-baseline, secondary) after a dataset hunt
+  confirmed The Stack v1 gives a pre-ChatGPT human cell by construction; WS1 gains step 9
+  (timeboxed ~2 days), WS3 gains step 7. **Frozen same day as ADR-0008 (D10)** — bracketing
+  design `[C3−C2, C3−C1]` (the naive DiD algebra collapses to C3−C2; contamination makes it
+  a lower bound), two-sided tests on the 5-feature family, ≥5k/cell floor.
 - Still open: NeurIPS workshop list ~Jul 11; `kubectl port-forward` test on NM-BAIOS before
-  pilot runs; WS1 dedup.py + merge.py + step 8.
+  pilot runs; WS1 dedup.py + merge.py + step 8 + step 9 (RQ5).
 
 ## 9. WS4 pilot — full spec (mechanical once WS3 clusters exist)
 
