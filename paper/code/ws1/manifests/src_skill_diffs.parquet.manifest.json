@@ -1,0 +1,76 @@
+{
+  "git_commit": "266ba59a9df715a3d3c64ed559f7edcc772d6282-dirty",
+  "inputs": [
+    {
+      "file": "repos.parquet",
+      "hf_dataset": "shl0ms/skill-diffs",
+      "n_rows": 5891,
+      "sha256": "0a7cbae91211cc3b87b2214b2283ebe64ef93806ddbfcd6b65010912c1a601eb",
+      "size_bytes": 174966
+    },
+    {
+      "columns_projected": [
+        "skill_id",
+        "repo",
+        "skill_path",
+        "platform",
+        "after_sha",
+        "after_content",
+        "commit_date",
+        "intent_class",
+        "intent_confidence",
+        "quality_score",
+        "skill_cluster_id",
+        "is_canonical"
+      ],
+      "file": "skills_initial.parquet",
+      "hf_dataset": "shl0ms/skill-diffs",
+      "n_rows": 664872,
+      "size_bytes": 1700288485
+    },
+    {
+      "columns_projected": [
+        "skill_id",
+        "repo",
+        "skill_path",
+        "platform",
+        "after_sha",
+        "after_content",
+        "commit_date",
+        "intent_class",
+        "intent_confidence",
+        "quality_score",
+        "skill_cluster_id",
+        "is_canonical",
+        "before_sha"
+      ],
+      "file": "diffs_clean.parquet",
+      "hf_dataset": "shl0ms/skill-diffs",
+      "n_rows": 130631,
+      "size_bytes": 405027618
+    },
+    {
+      "columns_projected": [
+        "skill_id",
+        "bundled_count",
+        "bundled_files.list.element.path"
+      ],
+      "file": "bundled.parquet",
+      "hf_dataset": "shl0ms/skill-diffs",
+      "n_rows": 630119,
+      "size_bytes": 3375032487
+    }
+  ],
+  "n_distinct_skills": 664875,
+  "n_rows": 664875,
+  "output": "src_skill_diffs.parquet",
+  "output_sha256": "d4824fea11237e4686cbd8a7982a93dd9fecc0661094c674e4eeff1b5f6bf288",
+  "packages": {
+    "huggingface_hub": "1.19.0",
+    "pyarrow": "24.0.0"
+  },
+  "script": "build_skill_diffs.py",
+  "seed": 42,
+  "source": "skill_diffs",
+  "utc": "2026-07-07T16:50:31.758064+00:00"
+}

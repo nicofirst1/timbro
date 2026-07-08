@@ -1,0 +1,7 @@
+# WS1 corpus-assembly deps — kept out of the main timbro package (corpus-side only).
+# Run builders with:  uv run --with-requirements paper/code/ws1/requirements.txt python paper/code/ws1/<script>.py
+# Exact resolved versions are recorded per-run in each manifest.json.
+pyarrow>=16
+huggingface_hub>=0.24
+datasketch>=1.6
+requests>=2.31

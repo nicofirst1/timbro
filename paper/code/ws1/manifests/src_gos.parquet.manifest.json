@@ -1,0 +1,20 @@
+{
+  "git_commit": "266ba59a9df715a3d3c64ed559f7edcc772d6282-dirty",
+  "inputs": [
+    {
+      "file": "skills_2000.tar.gz",
+      "hf_dataset": "davidliuk/graph-of-skills-data"
+    }
+  ],
+  "n_rows": 2000,
+  "output": "src_gos.parquet",
+  "output_sha256": "e505150f123b0a2f8c42e9a89d713d4bb0af6c7d2fda2a96107c8a8bb9eeb60e",
+  "packages": {
+    "huggingface_hub": "1.19.0",
+    "pyarrow": "24.0.0"
+  },
+  "script": "build_gos.py",
+  "seed": 42,
+  "source": "graph_of_skills",
+  "utc": "2026-07-07T13:40:21.068058+00:00"
+}

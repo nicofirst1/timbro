@@ -1,0 +1,19 @@
+{
+  "git_commit": "266ba59a9df715a3d3c64ed559f7edcc772d6282-dirty",
+  "inputs": [
+    {
+      "hf_dataset": "amoghacloud/clawskills-intelligence-corpus"
+    }
+  ],
+  "n_rows": 5147,
+  "output": "src_slop.parquet",
+  "output_sha256": "6cbf5d6953c83f6b5a9149a6c35f8f73f86659d82a282f962a6bc47a59382ae7",
+  "packages": {
+    "huggingface_hub": "1.19.0",
+    "pyarrow": "24.0.0"
+  },
+  "script": "build_slop.py",
+  "seed": 42,
+  "source": "slop_stub",
+  "utc": "2026-07-08T07:43:20.166357+00:00"
+}
