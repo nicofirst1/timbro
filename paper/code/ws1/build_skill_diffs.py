@@ -20,7 +20,6 @@ paper/README.md §4 WS1 step 1 and §8b + addendum for the frozen chain mechanic
 from __future__ import annotations
 
 import argparse
-import re
 import sys
 from collections import defaultdict
 from datetime import datetime
@@ -32,6 +31,7 @@ from huggingface_hub import HfApi, HfFileSystem, hf_hub_download
 
 from _manifest import data_dir, sha256_file, write_manifest
 from _schema import CORPUS_COLUMNS, SKILL_DIFFS_EXPECTED, SOURCE_SKILL_DIFFS
+from _text import extract_frontmatter
 
 REPO_ID = "shl0ms/skill-diffs"
 REPO_TYPE = "dataset"
@@ -51,30 +51,8 @@ SIBLING_COLUMNS = [
     "has_readme_in_folder",
 ]
 
-FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n(.*)$", re.DOTALL)
-
-
 def _hf_path(filename: str) -> str:
     return f"datasets/{REPO_ID}/{filename}"
-
-
-def extract_frontmatter(text: str | None) -> tuple[str, str | None]:
-    """Split a SKILL.md body into (text_without_frontmatter, raw_frontmatter_or_None).
-
-    Mirrors build_gos.py's helper for cross-builder consistency.
-    """
-    if not text:
-        return text or "", None
-    m = FRONTMATTER_RE.match(text)
-    if m:
-        return m.group(2), m.group(1)
-    return text, None
-
-
-def _parse_dt(s: str) -> datetime:
-    # commit_date is ISO 8601 with an explicit UTC offset, e.g.
-    # "2026-02-05T02:43:22-08:00" -- fromisoformat handles this natively (py>=3.7).
-    return datetime.fromisoformat(s)
 
 
 # --------------------------------------------------------------------------- #
@@ -275,7 +253,9 @@ def build_states_by_skill(initial_rows: list[dict], clean_rows: list[dict]) -> d
             }
         )
     for rows in states.values():
-        rows.sort(key=lambda x: _parse_dt(x["commit_date"]))
+        # commit_date is ISO 8601 with an explicit UTC offset, e.g.
+        # "2026-02-05T02:43:22-08:00" -- fromisoformat handles this natively (py>=3.7).
+        rows.sort(key=lambda x: datetime.fromisoformat(x["commit_date"]))
     return states
 
 

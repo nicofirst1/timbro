@@ -7,30 +7,14 @@ frontmatter_json, license_spdx, and nulls for other columns.
 Deterministic (sorted by skill_id). Manifest records provenance.
 """
 
-import re
 from pathlib import Path
 
-import pyarrow as pa
 import pyarrow.parquet as pq
 from huggingface_hub import snapshot_download
 
-from _manifest import SEED, data_dir, write_manifest
+from _manifest import data_dir, write_manifest
 from _schema import CORPUS_COLUMNS, SLOP_EXPECTED_STUBS, SOURCE_SLOP
-
-
-def extract_frontmatter(text: str) -> tuple[str, str | None]:
-    """Extract frontmatter block (---...---) and return (body, frontmatter_str).
-
-    Returns:
-        (body_without_frontmatter, frontmatter_raw_string_or_none)
-    """
-    # Match frontmatter: --- at start, then content, then --- on its own line
-    match = re.match(r'^---\n(.*?)\n---\n(.*)$', text, re.DOTALL)
-    if match:
-        frontmatter_block = match.group(1)
-        body = match.group(2)
-        return body, frontmatter_block
-    return text, None
+from _text import extract_frontmatter, string_table
 
 
 def build_slop():
@@ -55,7 +39,7 @@ def build_slop():
 
     # Print sample paths to understand structure
     if skill_files:
-        print(f"[build_slop] Sample SKILL.md paths:")
+        print("[build_slop] Sample SKILL.md paths:")
         for f in skill_files[:5]:
             print(f"  - {f.relative_to(dataset_path)}")
 
@@ -106,8 +90,7 @@ def build_slop():
     n_rows = len(rows)
     print(f"[build_slop] Extracted {n_rows} skills")
 
-    # Step 4: Check count against expected
-    tolerance = 0.05 * SLOP_EXPECTED_STUBS  # ±5%
+    # Step 4: Check count against expected (±5%)
     lower_bound = SLOP_EXPECTED_STUBS * (1 - 0.05)
     upper_bound = SLOP_EXPECTED_STUBS * (1 + 0.05)
 
@@ -120,27 +103,12 @@ def build_slop():
     print("[build_slop] Sorting rows by skill_id...")
     rows.sort(key=lambda r: r["skill_id"])
 
-    # Step 6: Convert to PyArrow table with correct schema
-    print("[build_slop] Converting to PyArrow table...")
-    # Build schema with all columns as string or null
-    schema = pa.schema([
-        (col, pa.string()) for col in CORPUS_COLUMNS
-    ])
-
-    # Convert rows to PyArrow format
-    arrays = []
-    for col in CORPUS_COLUMNS:
-        col_values = [row.get(col) for row in rows]
-        arrays.append(pa.array(col_values, type=pa.string()))
-
-    table = pa.table({col: arr for col, arr in zip(CORPUS_COLUMNS, arrays)}, schema=schema)
-
-    # Step 7: Write parquet
+    # Step 6: Write parquet (all CORPUS_COLUMNS as string)
     out_path = data_dir() / "src_slop.parquet"
     print(f"[build_slop] Writing to {out_path}...")
-    pq.write_table(table, str(out_path))
+    pq.write_table(string_table(rows, CORPUS_COLUMNS), str(out_path))
 
-    # Step 8: Write manifest
+    # Step 7: Write manifest
     print("[build_slop] Writing manifest...")
     write_manifest(
         out_path,
