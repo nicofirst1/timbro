@@ -1,0 +1,150 @@
+{
+  "excluded_per_island": {
+    "0": 3100,
+    "1": 3374,
+    "2": 943,
+    "3": 2455,
+    "4": 891,
+    "5": 7349,
+    "6": 1283,
+    "7": 2609,
+    "8": 35413,
+    "9": 1707
+  },
+  "excluded_top_repos": {
+    "BetterPromptme/skills": 740,
+    "ECNU-ICALK/AutoSkill": 390,
+    "Engineer1999/A-Curated-List-of-Awesome-Claude-Skills": 612,
+    "LJT-520/openClaw-backup": 1711,
+    "NeuralBlitz/Agent-Gateway": 3100,
+    "PranavNagrecha/AwesomeSalesforceSkills": 696,
+    "Sandeeprdy1729/skill_galaxy": 7805,
+    "diegosouzapw/awesome-omni-skill": 1249,
+    "gabrielmoreira/agent-skills-mirror": 741,
+    "membranedev/application-skills": 2595,
+    "panlm/awesome-skills-deepdive": 616,
+    "pjt222/agent-almanac": 473,
+    "tools-only/X-Skills": 410,
+    "vamseeachanta/workspace-hub": 672,
+    "zwright8/OpenClaw-Code": 8239
+  },
+  "figure": "paper/figures/ws3_step3_robustness_pca_scatter.png",
+  "git_commit": "46b63de745a3c45ab9e24092fceda5d0618c3d88-dirty",
+  "inputs": [
+    {
+      "file": "features.parquet",
+      "sha256": "b999c8e99df4349c432c118446c8250b7ad295b58971a4bdaee23b8de13f7b2e"
+    },
+    {
+      "file": "corpus.parquet",
+      "sha256": "5b7f02f07961c86b57ee6e3b6da299e09b80566ed9f7896d1306f66e203c9011"
+    }
+  ],
+  "n_excluded": 59124,
+  "n_excluded_floor_discovery_members": 6846,
+  "n_organic_total": 222256,
+  "n_remainder": 163132,
+  "n_rows": 163132,
+  "note": "step-3 robustness cut: exclude the 10 template-farm islands, recluster remainder",
+  "output": "step3_robustness_assignments.parquet",
+  "output_sha256": "000c0b918ea4afc057f87dc019a8dfed396e1d28857aa1841bfa84f69e053e00",
+  "packages": {
+    "matplotlib": "3.11.0",
+    "numpy": "2.4.6",
+    "pandas": "3.0.3",
+    "pyarrow": "24.0.0",
+    "scikit-learn": "1.9.0",
+    "scipy": "1.17.1"
+  },
+  "reading": "SUPPORTS-DIMENSIONAL",
+  "reading_thresholds": {
+    "noise_support": 0.5,
+    "silhouette_structure": 0.25
+  },
+  "recluster_cluster_sizes": {
+    "0": 28029,
+    "1": 4,
+    "2": 63719,
+    "3": 71380
+  },
+  "recluster_confound_gates": {
+    "d4_platform": {
+      "cramers_v": 0.038911807355874406,
+      "fired": false
+    },
+    "d8_domain": {
+      "cramers_v": 0.2003527758888726,
+      "fired": false
+    },
+    "d9_era": {
+      "cramers_v": 0.07859445170121798,
+      "fired": false,
+      "n_era_null": 30
+    }
+  },
+  "recluster_d2_fired": true,
+  "recluster_dropped_zero_variance": [],
+  "recluster_hdbscan_params": {
+    "metric": "euclidean",
+    "min_cluster_size": 200,
+    "min_samples": null
+  },
+  "recluster_hdbscan_prefallback": {
+    "n_clusters": 2,
+    "noise_fraction": 0.90364,
+    "silhouette": 0.35334374651560774,
+    "trigger_fired": true
+  },
+  "recluster_kmeans_best_k": 4,
+  "recluster_kmeans_silhouette_per_k": {
+    "4": 0.093,
+    "5": 0.0697,
+    "6": 0.0699,
+    "7": 0.0683,
+    "8": 0.0583,
+    "9": 0.0662,
+    "10": 0.0569,
+    "11": 0.0527,
+    "12": 0.0671
+  },
+  "recluster_method": "kmeans",
+  "recluster_no_discrete_dialects": true,
+  "recluster_noise_fraction": 0.0,
+  "recluster_pca_cum_variance": 0.903934423682185,
+  "recluster_pca_n_components": 64,
+  "recluster_silhouette": 0.09297644476231583,
+  "remainder_platform_split": {
+    "__null__": 30,
+    "claude_skill": 109775,
+    "hermes_skill": 8601,
+    "openclaw_skill": 20597,
+    "opencode_skill": 24129
+  },
+  "remainder_source_split": {
+    "graph_of_skills": 30,
+    "skill_diffs": 163102
+  },
+  "reproduction_verified": true,
+  "script": "step3_robustness.py",
+  "seed": 42,
+  "source": "ws3_step3_robustness_farm_excluded_recluster",
+  "step3_kmeans_silhouette_per_k": {
+    "10": 0.0628,
+    "11": 0.0764,
+    "12": 0.0687,
+    "4": 0.1117,
+    "5": 0.1129,
+    "6": 0.0764,
+    "7": 0.0779,
+    "8": 0.0781,
+    "9": 0.0624
+  },
+  "top5_pca_axis_names": [
+    "POS/dependency mix",
+    "readability vs syntactic complexity",
+    "structure/formatting vs length/size",
+    "structure/formatting vs length/size",
+    "structure/formatting vs length/size"
+  ],
+  "utc": "2026-07-09T13:13:31.877519+00:00"
+}

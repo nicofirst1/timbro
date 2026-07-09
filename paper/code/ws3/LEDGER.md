@@ -508,7 +508,211 @@ Analysis rules are pre-registered in ADR-0004/0005 (D1–D9) and bind over this 
   pins        scikit-learn / pandas / numpy / scipy / pyarrow recorded in the manifest
   ```
 
+## PRE-REG — WS3 step-3 robustness cut: farm-excluded recluster (2026-07-09 14:55)
+
+- **Goal / hypothesis (RQ1 robustness):** Step 3 found weak, non-crisp k-means structure
+  (k=5, silhouette 0.1129) and 10 tight HDBSCAN islands that the island-dedup + machine-
+  projection probes characterized as **template farms** (8/10 single-repo scaffold families,
+  bulk within-repo forking invisible to lexical MinHash). The pre-registered reframe is:
+  **"skill style is dimensional/continuous; the only categorical clusters are template
+  farms."** This robustness cut **tests that reframe head-on**: remove the industrial
+  template output (the island members), then re-cluster the *remaining* organic corpus with
+  the identical step-3 pipeline. If no categorical structure survives, the reframe is
+  supported (the farms WERE the only clusters). If clear structure emerges once the farms
+  are gone, that is a **real new finding** (hidden dialect structure the farms masked) and
+  is reported straight. Exploratory / descriptive structure-discovery, same as step 3:
+  **Observed**-level claims only (§3), no inferential statistic, no "significant"/"validated".
+- **Reproduction gate (STOP on any mismatch):** rebuild the frozen step-3 geometry by
+  IMPORTING `step3_machine_projection._reproduce_step3` (which imports `clustering.py`
+  seams; no reimplementation). It already asserts against
+  `rq1_cluster_assignments.parquet.manifest.json`: organic canonical error-dropped
+  population **222,256**; median-impute + z-score fit on all 222,256; PCA fit on the seed-42
+  platform-stratified **50K** discovery sample → **62 comps / 0.9027** cum var; HDBSCAN
+  (min_cluster_size=200) on the 50K → **10 islands, noise 0.86308, silhouette 0.6638**;
+  k-means fallback best k=**5**, full sizes **{0:108698,1:4,2:30342,3:218,4:82994}**. Any
+  deviation → STOP, do not exclude/recluster.
+- **Exclusion rule (fixed BEFORE running — the projection probe's island-assignment rule,
+  LEDGER 2026-07-09 13:17, applied to ALL 222,256 organic docs):** project every organic
+  canonical doc into the frozen 62-component step-3 PCA space (organic-fit imputer + scaler
+  + PCA, no refit). For each of the 10 HDBSCAN islands, centroid *c_i* = mean PCA coords of
+  island *i*'s discovery-sample members; radius *r_i* = the **90th percentile** of island-*i*
+  members' Euclidean distance to *c_i* (each island's own member radius; ties → lowest island
+  id). A doc is **excluded** iff its nearest island centroid is within that island's *r_i*
+  (i.e. it falls in ANY island's 90th-pct acceptance ball). This is the exact `_assign_islands`
+  rule the machine-projection probe used, now run over the full organic population instead of
+  the 587 machine docs. **n_excluded expected ≳ 6,846** (the 6,846 discovery-sample island
+  members from the dedup probe are a subset — most will re-land in their own island's ball —
+  plus out-of-sample docs from the other ~172K that fall in an island radius). The exact
+  n_excluded + its per-island and per-repo breakdown are recorded (not pre-known; the
+  discovery-sample 6,846 is the floor, not the answer). Note: an island member sits at its
+  centroid, so by construction ≈all 6,846 discovery members land within their 90th-pct ball;
+  the out-of-sample tail is what makes n_excluded exceed 6,846.
+- **Re-cluster population:** the **remainder = 222,256 − n_excluded** organic canonical docs
+  (every doc NOT assigned to any island). Recorded: remainder N, source split, platform split.
+- **Re-cluster pipeline (SAME pre-registered step-3 D-rules, applied to the reduced
+  population — nothing re-decided):** via `clustering.py` seams —
+  1. **Fresh** median-impute + z-score **fit on the remainder** (the frozen step-3 transforms
+     are used ONLY for the exclusion projection; the recluster gets its own standardize fit on
+     the reduced population, exactly as step 3 fit on its own population). Zero-variance columns
+     appearing after subsetting are dropped before PCA (recorded).
+  2. **PCA ≥ 0.90 variance** (D3) fit on the discovery basis (see D2 below); record comp count.
+  3. **D2 (corpus > 100K):** remainder is ≳ 215K > 100K, so D2 fires — draw a **platform-
+     stratified 50K discovery sample, seed 42** (`stratified_sample_idx`), fit PCA + run HDBSCAN
+     on it, assign the remainder by nearest cluster centroid. (If the remainder ever came out
+     ≤ 100K, D2 would not fire and PCA+HDBSCAN would run on the full remainder — but ≳215K
+     means D2 fires; recorded either way.)
+  4. **HDBSCAN(min_cluster_size=200)**, min_samples default (D3, same params as step 3).
+  5. **k-means fallback** if noise > 0.50 OR non-noise clusters < 3 (D3); k ∈ {4..12} by best
+     silhouette, seed 42. If best silhouette < 0.10 → declare "no discrete dialects" (D3).
+  6. Report the **k-means silhouette-per-k table** side by side with step 3's.
+  7. Confound gates D4/D8/D9 (Cramér's V, trigger > 0.6) on the reduced assigned set, for
+     parity with step 3 (not the headline here, but recorded).
+- **Confirms-if / reading rules (FIXED IN ADVANCE — do not massage either way):**
+  - **SUPPORTS the dimensional reading** if the recluster again yields **HDBSCAN noise > 0.50
+    AND/OR k-means best silhouette < 0.25**. Reading: "no hidden categorical structure behind
+    the farms — once the template output is removed, the residual organic corpus is dimensional/
+    continuous, not clustered." (0.25 is the pre-registered decision threshold for "clear
+    structure" here, set above step 3's bare 0.10 floor: 0.10 is the D3 *no-dialects* floor;
+    a robustness cut claiming the reframe needs the residual to be *at least as* unstructured,
+    so anything short of a materially better silhouette — < 0.25 — does not overturn it.)
+  - **REAL NEW FINDING** if **HDBSCAN noise < 0.50 with substantive (non-degenerate,
+    size ≥ 200) clusters, OR k-means best silhouette ≥ 0.25.** Then hidden dialect structure
+    emerged once the farms were removed; report it straight (name the clusters by deviant
+    features, run the confound gates, do NOT explain it away).
+  - The silhouette-per-k table and the HDBSCAN noise/silhouette are reported regardless; the
+    reading follows the rule above mechanically.
+- **Bonus deliverable (descriptive, cheap):** the **top-5 PCA components of the reduced
+  population** — per component the **8 highest-|loading| features + a one-phrase axis name**
+  (e.g. "imperative density vs narrative"). This is the dimensional-structure table the
+  reframe needs; it is descriptive (loadings, no test), reported whichever way the reading goes.
+- **Confirms if (descriptive goal met):** reproduction gate passes at N=222,256; the exclusion
+  rule runs and yields a finite n_excluded ≥ 6,846 (floor); the recluster pipeline runs end to
+  end on the remainder and produces a comp count, an HDBSCAN outcome, a k-means fallback (or the
+  D3 no-dialects declaration), the silhouette-per-k table, the three confound Cramér's V, and
+  the top-5 PCA axis table. The reframe's status (SUPPORTED vs REAL-NEW-FINDING) is read off the
+  fixed rule above — whatever the numbers say.
+- **Would NOT confirm / STOP if:** the reproduction gate mismatches (organic pop ≠ 222,256, PCA
+  ≠ 62/0.9027, islands ≠ 10, noise ≠ 0.86308, k-means sizes ≠ the frozen set) → STOP, do not
+  proceed; OR n_excluded < 6,846 (would mean the discovery-sample members did not re-land in
+  their own islands — a geometry/rule bug) → STOP, record, consult. High recluster noise, low
+  silhouette, or a fired confound gate are the pre-registered FINDINGS, never stop conditions.
+- **Robustness (§2) plan:** (a) degenerate slice — the whole point is to remove the degenerate
+  template farms; watch the remainder for a residual short-doc/code-only micro-cluster and name
+  it honestly (island 2 was code-only, not a scaffold family — check whether a code-only slice
+  survives). (b) missing data — median impute on the remainder, no rows dropped, N stated.
+  (c) confound/leakage — the exclusion uses the FROZEN step-3 geometry (no refit on the
+  remainder for the *exclusion*); the recluster then gets its own standardize+PCA fit on the
+  reduced population (no cross-contamination); D4/D8/D9 battery reported. (d) inferential test —
+  N/A (unsupervised descriptive; silhouette/noise/Cramér's V as cohesion/association
+  descriptives). (e) n/subset — 222,256 → exclude n_excluded → remainder N, all stated; D2 50K
+  discovery sample stated. (f) pilot vs full — full organic canonical remainder via the
+  D2-mandated 50K discovery sample.
+- **BLAS/thread cap (concurrency constraint):** background stack rerun (PID 97545) +
+  possible chain-extraction job — leave 4 of 10 cores free. Cap
+  `OMP_NUM_THREADS=OPENBLAS_NUM_THREADS=MKL_NUM_THREADS=VECLIB_MAXIMUM_THREADS=
+  NUMEXPR_NUM_THREADS=4` and KMeans/HDBSCAN parallelism accordingly (sklearn respects the
+  BLAS caps; k-means n_init loop is the main multi-core user). Deterministic; the caps do not
+  change results, only core usage.
+- **Repro pins (fixed before the run):**
+  ```
+  git commit  <paper branch, -dirty: adds step3_robustness.py + step3_robustness.md + test>
+  input       features.parquet  sha256 b999c8e99df4349c432c118446c8250b7ad295b58971a4bdaee23b8de13f7b2e
+  input       corpus.parquet    sha256 5b7f02f07961c86b57ee6e3b6da299e09b80566ed9f7896d1306f66e203c9011  (D8 text + D9 created_at + repo breakdown, join by skill_id)
+  seed        42 (step-3 50K draw for the frozen geometry + the recluster's own 50K draw, TF-IDF k-means, k-means fallback; all reused via clustering.py)
+  env         OMP/BLAS threads capped to 4; uv run --with-requirements paper/code/ws3/requirements.txt python paper/code/ws3/step3_robustness.py
+  pins        scikit-learn / pandas / numpy / scipy / matplotlib / pyarrow recorded in the manifest
+  ```
+
 ## RESULTS
+
+### Step-3 robustness cut — farm-excluded recluster (2026-07-09 15:14)
+
+- **Reproduction gate PASSED:** the frozen step-3 geometry was rebuilt by importing
+  `step3_machine_projection._reproduce_step3` and asserted against
+  `rq1_cluster_assignments.parquet.manifest.json`: organic pop **222,256**; PCA **62 comps /
+  0.9027**; HDBSCAN **10 islands, noise 0.86308, silhouette 0.6638**; k-means best k=**5**,
+  full sizes **{0:108698,1:4,2:30342,3:218,4:82994}** — all matched.
+- **Exclusion (Observed):** the machine-projection probe's island-assignment rule (nearest
+  island centroid within that island's 90th-pct member radius, frozen 62-comp PCA space)
+  applied to all 222,256 organic docs excluded **n_excluded = 59,124** (26.6% of the corpus;
+  well above the 6,846 discovery-member floor). Per-island counts (island: n): 0:3,100 ·
+  1:3,374 · 2:943 · 3:2,455 · 4:891 · 5:7,349 · 6:1,283 · 7:2,609 · **8:35,413** · 9:1,707.
+  Top excluded repos: `zwright8/OpenClaw-Code` 8,239 · `Sandeeprdy1729/skill_galaxy` 7,805 ·
+  `NeuralBlitz/Agent-Gateway` 3,100 · `membranedev/application-skills` 2,595 ·
+  `LJT-520/openClaw-backup` 1,711 (the template-farm repos the dedup probe named, plus their
+  out-of-sample scaffold siblings).
+- **CAVEAT (honest, load-bearing for interpretation):** **59.9% of the excluded set (35,413
+  docs) fell into island 8's ball** — and island 8 is the ONE island the prior probes
+  characterized as the *diffuse, genuinely-diverse, hand-written-looking* island (90th-pct
+  radius **6.37**, ~3–12x the tight farm islands 0–7 whose radii are 0.53–2.45). So the
+  literal pre-registered rule did **not** excise only template farms: the 8 tight farm islands
+  contributed ~22,300 exclusions (clean template removal), but island 8's huge acceptance ball
+  swept in ~35K *diverse* organic docs that are not template output. The exclusion is therefore
+  a **conservative-to-aggressive** cut (removes the farms AND a large diverse slice), not a
+  surgical farm-only removal. This makes the recluster's null result **stronger, not weaker**:
+  even after removing the tight farms plus 35K of the most-diverse docs, no hidden categorical
+  structure appears in what remains.
+- **Recluster (Observed, remainder N = 163,132; source skill_diffs 163,102 + graph_of_skills
+  30; platforms claude 109,775 / opencode 24,129 / openclaw 20,597 / hermes 8,601):** fresh
+  standardize + PCA on the reduced population retained **64 comps for 0.9039** cum var; D2
+  fired (remainder > 100K) → seed-42 50K stratified discovery sample; **HDBSCAN
+  (min_cluster_size=200) gave 2 clusters, noise 0.90364** (> step 3's 0.863), so the D3
+  fallback fired; **k-means best k=4 at silhouette 0.09298** — **below the D3 0.10 floor, so
+  the pipeline emitted the D3 "NO DISCRETE DIALECTS" declaration** (step 3's 0.1129 was just
+  above it). Assigned cluster sizes {0:28,029, 1:4, 2:63,719, 3:71,380} — cluster **1 (n=4)**
+  is the same degenerate `struct_line_count`/`struct_heading_count` structural-outlier
+  micro-cluster step 3 produced (its deviant medians are +162/+160 SD), so effectively **3
+  substantive groupings**, less separated than step 3's. Confound gates on the reduced set:
+  **D4 platform V 0.039, D8 domain 0.200, D9 era 0.079 — none fired** (> 0.6).
+- **k-means silhouette per k (vs step 3):** k=4 **0.093** (5 0.070, 6 0.070, 7 0.068, 8 0.058,
+  9 0.066, 10 0.057, 11 0.053, 12 0.067). Every k is *lower* than step 3's (step 3 k=4 0.1117,
+  k=5 0.1129) — the farm-excluded remainder is **less** clusterable than the full organic
+  corpus at every k.
+- **Reading (FIXED-IN-ADVANCE rule, read off mechanically — not massaged):** recluster HDBSCAN
+  noise > 0.50 AND/OR k-means silhouette < 0.25 → SUPPORTS the dimensional reframe. Here noise
+  **0.904 > 0.50** AND silhouette **0.093 < 0.25** (and < the 0.10 D3 floor). **VERDICT:
+  SUPPORTS-DIMENSIONAL.**
+- **Claim (Observed level only, exploratory):** removing the categorical template-farm structure
+  (and, per the caveat, a large diverse slice with it) leaves an organic residual that is **even
+  less clustered** than the full corpus — HDBSCAN noise rose (0.863→0.904), k-means silhouette
+  fell below the D3 no-dialects floor (0.1129→0.093), and no confound gate fired. This **supports
+  the pre-registered reframe**: *skill style is dimensional/continuous; the only categorical
+  clusters in the corpus were the template farms* — no hidden dialect structure emerges once the
+  farms are excluded. Not "distinct dialects"; no "validated"/"significant" language; no
+  inferential test (unsupervised descriptive). The top-5 PCA axes of the reduced population are
+  continuous register dimensions — **PC1 POS/dependency mix; PC2 readability vs syntactic
+  complexity; PC3–PC5 structure/formatting vs length/size** (8 loadings each in
+  `step3_robustness.md`), the dimensional-structure table the reframe rests on.
+- **Robustness (§2):** (a) degenerate slice — the n=4 structural-outlier micro-cluster is named
+  honestly (same as step 3); the diverse-island-8 over-inclusion is surfaced as the load-bearing
+  caveat above, not hidden. (b) missing data — median impute on the remainder, no rows dropped,
+  N=163,132 stated. (c) confound/leakage — exclusion uses the FROZEN step-3 transforms (no refit
+  for the cut); the recluster gets its OWN standardize+PCA fit on the reduced population (no
+  cross-contamination); D4/D8/D9 battery reported, none fired. (d) inferential test — N/A
+  (unsupervised descriptive; noise/silhouette/Cramér's V as cohesion/association descriptives).
+  (e) n/subset — 222,256 → exclude 59,124 → remainder 163,132, all stated; D2 50K discovery
+  sample stated. (f) pilot vs full — full organic remainder via the D2 50K discovery sample.
+  Determinism: `recluster_population` seam unit-tested (2 tests), all ws3 tests pass; the
+  reproduction gate asserts the frozen geometry. All numbers above are cited from
+  `step3_robustness.md` / the manifest, not retyped from the run log.
+- **Artifact:** table `paper/data/step3_robustness_assignments.parquet` (gitignored);
+  summary `paper/code/ws3/step3_robustness.md`; figure
+  `paper/figures/ws3_step3_robustness_pca_scatter.png`; manifest
+  `../ws1/manifests/step3_robustness_assignments.parquet.manifest.json`
+  (`output_sha256` `000c0b91…`, `n_excluded` 59124, `n_remainder` 163132, `reading`
+  SUPPORTS-DIMENSIONAL, `recluster_no_discrete_dialects` true, `recluster_silhouette`
+  0.09298, `recluster_hdbscan_prefallback.noise_fraction` 0.90364).
+- **Repro:**
+  ```
+  git commit  <paper branch, -dirty: adds step3_robustness.py + step3_robustness.md + test>
+  input       features.parquet  sha256 b999c8e99df4349c432c118446c8250b7ad295b58971a4bdaee23b8de13f7b2e
+  input       corpus.parquet    sha256 5b7f02f07961c86b57ee6e3b6da299e09b80566ed9f7896d1306f66e203c9011
+  output      step3_robustness_assignments.parquet  sha256 000c0b918ea4afc057f87dc019a8dfed396e1d28857aa1841bfa84f69e053e00
+  seed        42 (frozen step-3 50K draw + recluster's own 50K draw + TF-IDF k-means + k-means fallback; reused via clustering.py)
+  pins        scikit-learn 1.9.0 · pandas 3.0.3 · numpy 2.4.6 · scipy 1.17.1 · matplotlib 3.11.0 · pyarrow 24.0.0
+  env         OMP/BLAS threads capped to 4
+  uv run --with-requirements paper/code/ws3/requirements.txt python paper/code/ws3/step3_robustness.py
+  ```
 
 ### Island dedup-linkage probe (2026-07-09 13:39) [EXPLORATORY follow-up]
 
@@ -790,3 +994,61 @@ Analysis rules are pre-registered in ADR-0004/0005 (D1–D9) and bind over this 
   ```
 
 _Earlier steps (descriptives → holdout) follow once run._
+
+## PRE-REG — WS3 step 5 prep: RQ4 chain feature extraction (2026-07-09 14:54)
+
+- **Goal:** produce one deterministic feature vector per RQ4-eligible version-row
+  (temporal evolution analysis, ADR-0005) so step 5 can run mixed-effects models over
+  linguistic-feature trajectories across a skill's revisions. **Not a hypothesis test** —
+  the "results" are counts, coverage, and failure rates (a corpus-construction step, like
+  step 1/machine-cell extraction). No claim ladder rung at stake; the §2 gate is
+  drift + failure-rate + column-coverage.
+- **Data:** `paper/data/skill_diffs_chains.parquet`
+  (`../ws1/manifests/skill_diffs_chains.parquet.manifest.json`, `output_sha256`
+  `9d92df6337ab05215837c206bb14c929558356c3e2bf284c56f10b0b8aa0d5c8`, **289,145
+  version-rows across 218,626 chains**, schema: `skill_id, version_index, commit_date,
+  after_sha, text, intent_class, intent_confidence, quality_score, n_versions,
+  skill_cluster_id, is_canonical, repo`).
+- **Scope rule (pre-registered, derived from the chains table itself, not invented):**
+  the table already carries a per-chain `n_versions` column. Verified empirically
+  pre-run: `n_versions` is **constant within every `skill_id`** and equals that chain's
+  row count (0 mismatches across all 218,626 chains) — so it is exactly the ADR-0005
+  chain-length count, safe to filter on directly (no need to recompute a groupby-count).
+  RQ4-eligible = **`n_versions >= 3`** (ADR-0005 §8b: "chains require ≥3 versions").
+  Derived, verified pre-run: **eligible chains = 14,388** (matches the WS1 LEDGER's
+  14,388 RQ4-eligible figure exactly) → **eligible version-rows = 67,164**. This is
+  the pre-registered, asserted N for this run — the script asserts both numbers and
+  aborts on drift.
+- **Rationale for scoping (not extracting all 289,145):** extracting features over
+  every version-row would waste ~4x compute (289,145 / 67,164 ≈ 4.3x) on chains RQ4
+  can never use (chain length < 3 is excluded from RQ4 by ADR-0005's frozen eligibility
+  rule). Scope is derived directly from that frozen rule, not a new invented filter.
+- **Feature source:** `timbro.analyze.analyze_text` (repo `src/timbro/analyze.py`) —
+  same deterministic pipeline as step 1, reused via import (no logic duplication) from
+  `extract_features.py`'s `_analyze_one` / `_worker_init` / `_feature_keys` seams.
+- **Output:** `paper/data/features_chains.parquet` — carry columns `skill_id,
+  version_index, commit_date, after_sha, n_versions, skill_cluster_id, is_canonical,
+  repo` (the chain/version identifiers present in `skill_diffs_chains.parquet`'s own
+  schema) + all 132 `analyze_text` feature keys (flat) + `analyze_error` (`pa.string()`,
+  null normally). Resumable parts under `paper/data/features_chains_parts/`. Manifest
+  via WS1 `write_manifest`.
+- **Confirms if:** eligible-chain count == **14,388** and eligible version-row count ==
+  **67,164** (asserted against the derivation above before the run; the script aborts on
+  mismatch); analyze failures **< 1%** of 67,164; all feature columns present on **> 99%**
+  of rows.
+- **Would NOT confirm / STOP if:** eligible-chain count ≠ 14,388 or eligible-row count ≠
+  67,164 (chains-table drift under us — the script asserts and aborts; record + consult
+  user); analyze failures **≥ 1%** — stop, record the failing docs' error messages,
+  consult user.
+- **Pool size:** `max(1, cpu_count()-5)` — two other heavy jobs run concurrently
+  (the background stack rerun, PID 97545, plus a second concurrent job), so 5 cores are
+  left free on this 10-core machine (pool size 5).
+- **Repro pins (fixed before the run):**
+  ```
+  git commit  cb7fa64 (paper branch, -dirty: adds extract_features_chains.py + test)
+  input       skill_diffs_chains.parquet  sha256 9d92df6337ab05215837c206bb14c929558356c3e2bf284c56f10b0b8aa0d5c8
+  spacy 3.8.14 · en_core_web_sm 3.8.0 · pyarrow 24.0.0 · textdescriptives 2.8.2
+  deterministic pipeline, no seed
+  uv run --with-requirements paper/code/ws1/requirements.txt \
+      python paper/code/ws3/extract_features_chains.py
+  ```
