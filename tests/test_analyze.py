@@ -62,6 +62,21 @@ class AnalyzeStructTests(unittest.TestCase):
         self.assertEqual(self.features["struct_frontmatter_field_count"], 2)
         self.assertIn('"title": "Test Skill"', self.features["frontmatter_json"])
 
+    def test_frontmatter_date_scalars_do_not_crash(self):
+        fixture = (
+            "---\n"
+            "title: Test Skill\n"
+            "created: 2025-03-01\n"
+            "updated: 2025-03-01 12:00:00\n"
+            "---\n"
+            "\n"
+            "Some prose sentence here.\n"
+        )
+        features = analyze_text(fixture)
+        frontmatter = json.loads(features["frontmatter_json"])
+        self.assertEqual(frontmatter["created"], "2025-03-01")
+        self.assertEqual(frontmatter["updated"], "2025-03-01 12:00:00")
+
     def test_desc_and_read_present_and_sane(self):
         self.assertGreater(self.features["desc_tokens"], 0)
         self.assertGreater(self.features["desc_sentences"], 0)
