@@ -33,23 +33,23 @@ not the evidence.
 
 | ID | What it tests | STATUS | One-line result |
 |---|---|---|---|
-| WS3-0-PREREG | Umbrella pre-registration: RQ1/RQ2/RQ4 under frozen ADR-0004/0005 rules | PRE-REG | Scope/binding-rules doc; no result of its own — see child experiments below |
-| WS3-1-EXTRACT | Step 1: deterministic feature vectors for canonical + RQ2-labeled docs | RUN✓ | 231,426 rows (227,407 canonical + 4,019 labeled-only), 4 failures (0.0017%) — `LEDGER_LOG.md#WS3-1-EXTRACT` |
-| WS3-2-DESC | Step 2: per-source/platform descriptives + organic-vs-slop separability probe | RUN✓ | FULL CV AUC 1.000 — corpus-provenance separation, not a linguistic-dialect finding (D5 ablation fired, stays 1.000) — `LEDGER_LOG.md#WS3-2-DESC` |
-| WS3-3-CLUSTER | Step 3 / RQ1: PCA → HDBSCAN → k-means fallback clustering, D4/D8/D9 confound gates | RUN✓ | Weak structure only: k-means k=5, silhouette 0.1129 (just above the 0.10 no-dialects floor); no confound gate fired — `LEDGER_LOG.md#WS3-3-CLUSTER` |
-| WS3-3-PROJ | ADR-0009 exploratory: project 587 known-machine docs into the frozen step-3 geometry | RUN✓ | 80% land blob/noise, 20% in diffuse island 8, 0 in any tight template island — leans toward a refinement of hyp. (b) — `LEDGER_LOG.md#WS3-3-PROJ` |
-| WS3-3-DEDUP | Exploratory follow-up: island membership vs. corpus dedup structure | RUN✓ | 0 duplicate `near_dup_cluster_id` in-population; 8/10 islands are 100%/99% single-repo template farms; 6,846 canonical heads = 12,595 corpus footprint — `LEDGER_LOG.md#WS3-3-DEDUP` |
-| WS3-3-ROBUST | Robustness cut: recluster after excluding ALL 10 HDBSCAN islands | RUN✓ | Remainder N=163,132; noise 0.904, silhouette 0.093 (below D3 floor) — SUPPORTS-DIMENSIONAL, but 59.9% of exclusions fell in diverse island 8 (caveat) — `LEDGER_LOG.md#WS3-3-ROBUST` |
-| WS3-3-ROBUST-SURG | Surgical robustness cut: exclude only the 9 tight template-farm islands, retain diverse island 8 | RUN✓ | Remainder N=198,545; noise 0.990, silhouette 0.0935 (below D3 floor) — SUPPORTS-DIMENSIONAL, cleanly (diversity not removed) — `LEDGER_LOG.md#WS3-3-ROBUST-SURG` |
-| WS3-M-MACHINE | ADR-0009 exploratory prep: feature extraction over the 587-row machine-authored cell | RUN✓ | 587/587 rows, 0 failures, 132 feature keys — `LEDGER_LOG.md#WS3-M-MACHINE` |
-| WS3-4-RQ2 | Step 4 / RQ2 (CONFIRMATORY): does linguistic style predict adoption, controlling for length/age/platform? | RUN✓ | 1/5 confirmatory features survives BH: `dict_imperative_ratio` +0.107 [+0.069, +0.145], durable across total-installs + canonical-only; other 4 null — `LEDGER_LOG.md#WS3-4-RQ2` |
-| WS3-5-CHAINS | Step 5 prep: feature extraction over RQ4-eligible (≥3 version) chains | RUN✓ | 67,164/67,164 eligible version-rows, 18 failures (0.0268%, surrogate-char, not the date-frontmatter bug) — `LEDGER_LOG.md#WS3-5-CHAINS` |
-| WS3-5-RQ4 | Step 5 / RQ4: temporal evolution modeling over chain features (ADR-0005) | PRE-REG | Not yet run — depends on WS3-5-CHAINS (done) |
-| WS3-6-HOLDOUT | Step 6: `rq2_holdout_candidates.parquet` drift characterization | PRE-REG | Not started |
-| WS3-7-HUMAN | Step 7 prep: feature extraction over the RQ5 human-baseline corpus (C1+C2 cells) | RUN✓ | 20,137/20,137 rows, 0 failures, 132 feature keys — `LEDGER_LOG.md#WS3-7-HUMAN` |
-| WS3-7-RQ5 | Step 7 / RQ5: confirmatory OLS + BH battery vs. human baseline (ADR-0008 D10) | PRE-REG | Not yet run — depends on WS3-7-HUMAN (done) |
-| WS3-8-MACHINE-ANALYSIS | Confirmatory/promotable analysis of the machine cell beyond ADR-0009 exploratory probes | PRE-REG | Not started |
-| WS3-9-RUNALL | `run_all.py` re-runnable driver + generated `FINDINGS.md` (acceptance) | PRE-REG | Not started |
+| WS3-0-PREREG | Umbrella pre-registration for the RQ1/RQ2/RQ4 questions below, scope and rules fixed in advance | PRE-REG | Scope/binding-rules doc; no result of its own — see child experiments below |
+| WS3-1-EXTRACT | Prep: turn every skill file into a numeric writing-style fingerprint | RUN✓ | Built fingerprints for 231,426 files (227,407 canonical + 4,019 labeled-only), 4 failed (0.0017%) — `LEDGER_LOG.md#WS3-1-EXTRACT` |
+| WS3-2-DESC | Can we tell where a skill file came from (which source/platform) just from its writing style? | RUN✓ | Yes, almost perfectly (AUC 1.000) - but that means it's detecting which platform published it, not a genuine writing-style "dialect" — `LEDGER_LOG.md#WS3-2-DESC` |
+| WS3-3-CLUSTER | Do skill files fall into distinct writing styles (dialects)? | RUN✓ | Only weak, borderline evidence of separate styles - not a clean split into dialects — `LEDGER_LOG.md#WS3-3-CLUSTER` |
+| WS3-3-PROJ | Do known AI-written skill files land inside the same tight clusters as the suspected template farms? | RUN✓ | Mostly no - 80% land in the general blob/noise, 20% in one diffuse group, none in the tight template clusters — `LEDGER_LOG.md#WS3-3-PROJ` |
+| WS3-3-DEDUP | Are the style-cluster islands copies the dedup missed, or a different kind of duplication? | RUN✓ | A different kind - no missed exact duplicates; most tight islands are single-repo template farms (boilerplate reuse, not copy-paste dupes) — `LEDGER_LOG.md#WS3-3-DEDUP` |
+| WS3-3-ROBUST | If we remove every tight style-cluster island, does the "weak dialect" signal survive? | RUN✓ | Yes, it survives (structure stays weak even after removal) - but most of what got removed came from one diverse group, so treat with caution — `LEDGER_LOG.md#WS3-3-ROBUST` |
+| WS3-3-ROBUST-SURG | Same check, but keeping the one diverse island and removing only the pure template-farm islands | RUN✓ | Confirms it cleanly - the weak-dialect result holds without discarding genuine diversity — `LEDGER_LOG.md#WS3-3-ROBUST-SURG` |
+| WS3-M-MACHINE | Prep: writing-style fingerprints for the known AI-authored skill files | RUN✓ | Built fingerprints for all 587 files, 0 failures — `LEDGER_LOG.md#WS3-M-MACHINE` |
+| WS3-4-RQ2 | Does writing style predict how often a skill gets installed? | RUN✓ | Mostly no - out of 5 style features tested, only "how command-like/imperative the writing is" shows a real, durable link to more installs; the rest show nothing — `LEDGER_LOG.md#WS3-4-RQ2` |
+| WS3-5-CHAINS | Prep: style fingerprints for every version of skills with ≥3 revisions | RUN✓ | Built fingerprints for all 67,164 eligible versions, 18 failed (0.0268%, unrelated to a known bug) — `LEDGER_LOG.md#WS3-5-CHAINS` |
+| WS3-5-RQ4 | Does a skill's writing style drift over its revision history? | PRE-REG | Not yet run — waiting on WS3-5-CHAINS (done) |
+| WS3-6-HOLDOUT | How different is the held-out RQ2 candidate set from the main corpus? | PRE-REG | Not started |
+| WS3-7-HUMAN | Prep: writing-style fingerprints for the human-baseline comparison corpus | RUN✓ | Built fingerprints for all 20,137 files, 0 failures — `LEDGER_LOG.md#WS3-7-HUMAN` |
+| WS3-7-RQ5 | Do people write differently for agents than for humans? | PRE-REG | Not yet run — waiting on WS3-7-HUMAN (done) |
+| WS3-8-MACHINE-ANALYSIS | Deeper look at the AI-authored skill files, beyond the initial exploratory checks | PRE-REG | Not started |
+| WS3-9-RUNALL | Final acceptance: one-command re-run that regenerates all WS3 findings | PRE-REG | Not started |
 
 ## Graveyard (superseded)
 
