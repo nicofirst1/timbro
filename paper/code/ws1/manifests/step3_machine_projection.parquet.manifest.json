@@ -1,0 +1,78 @@
+{
+  "adr": "0009",
+  "exploratory": true,
+  "git_commit": "0c6d78899d9344a5f6ea7216a09baee986338978-dirty",
+  "inputs": [
+    {
+      "file": "features.parquet",
+      "sha256": "b999c8e99df4349c432c118446c8250b7ad295b58971a4bdaee23b8de13f7b2e"
+    },
+    {
+      "file": "features_machine.parquet",
+      "sha256": "7d463b3539358188277cf4e039ca4eeea036e34630423f953e2dc0f5e1fad668"
+    },
+    {
+      "file": "corpus.parquet",
+      "sha256": "5b7f02f07961c86b57ee6e3b6da299e09b80566ed9f7896d1306f66e203c9011"
+    }
+  ],
+  "island_assignment_distribution": {
+    "8": 118,
+    "blob/noise": 469
+  },
+  "island_dist_skillflow_blobnoise": 464,
+  "island_radii_90pct": {
+    "0": 2.358,
+    "1": 1.057,
+    "2": 1.943,
+    "3": 0.529,
+    "4": 1.877,
+    "5": 2.161,
+    "6": 2.454,
+    "7": 2.152,
+    "8": 6.375,
+    "9": 4.101
+  },
+  "island_radius_percentile": 90,
+  "island_sizes_discovery_sample": {
+    "0": 726,
+    "1": 824,
+    "2": 238,
+    "3": 583,
+    "4": 244,
+    "5": 1864,
+    "6": 348,
+    "7": 671,
+    "8": 913,
+    "9": 435
+  },
+  "kmeans_assignment_distribution": {
+    "0": 400,
+    "2": 3,
+    "4": 184
+  },
+  "kmeans_dist_skillflow": {
+    "0": 397,
+    "2": 3,
+    "4": 182
+  },
+  "n_machine_docs": 587,
+  "n_rows": 587,
+  "n_skillflow": 582,
+  "n_trace2skill": 5,
+  "note": "descriptive locator only \u2014 no hypothesis test, never a headline claim",
+  "output": "step3_machine_projection.parquet",
+  "output_sha256": "1e4029c57599db2f43c32e11d681a96e478413f67753c893f74b7695e6ded61b",
+  "packages": {
+    "numpy": "2.4.6",
+    "pandas": "3.0.3",
+    "pyarrow": "24.0.0",
+    "scikit-learn": "1.9.0",
+    "scipy": "1.17.1"
+  },
+  "reproduction_verified": true,
+  "script": "step3_machine_projection.py",
+  "seed": 42,
+  "source": "ws3_machine_projection_probe_adr0009_exploratory",
+  "utc": "2026-07-09T11:43:50.470985+00:00"
+}

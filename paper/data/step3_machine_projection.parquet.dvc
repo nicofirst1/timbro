@@ -1,0 +1,5 @@
+outs:
+- md5: 6eb3eaa8eb399b8f069643fc71347845
+  size: 29661
+  hash: md5
+  path: step3_machine_projection.parquet
