@@ -283,6 +283,12 @@ def render_report(stats: dict) -> str:
         f"{ij.get('install_labeled_share_skill_diffs')}"
     )
     lines.append(f"- install_join_rate_ceiling (vs repo-overlap ceiling): {ij.get('install_join_rate_ceiling')}")
+    lines.append(
+        "- install_join_rate_corpus_present (vs corpus-present skills): "
+        f"{ij.get('install_join_rate_corpus_present')} "
+        f"(denominator excludes the {ij.get('holdout_n')} temporal-skew triples — skills.sh "
+        "skills absent from the corpus snapshot)"
+    )
     lines.append(f"- repo_overlap: {ij.get('repo_overlap')}")
     lines.append(f"- holdout_n (rq2_holdout_candidates.parquet): {ij.get('holdout_n')}")
     lines.append("")
@@ -359,6 +365,10 @@ def main():
     ceiling = holdout_stats["ceiling"]
     install_labeled_share_skill_diffs = (n_matched / n_skill_diffs) if n_skill_diffs else 0.0
     install_join_rate_ceiling = (n_matched / ceiling) if ceiling else 0.0
+    n_overlap_triples = ceiling
+    holdout_n = len(holdout_rows)
+    corpus_present_denom = n_overlap_triples - holdout_n
+    install_join_rate_corpus_present = (n_matched / corpus_present_denom) if corpus_present_denom else 0.0
 
     pooled.sort(key=lambda r: r["skill_id"])
 
@@ -381,9 +391,10 @@ def main():
 
     n_canonical = sum(1 for r in pooled if r.get("is_canonical") == "true")
     per_source_counts = {s: len(rows) for s, rows in per_source_rows.items()}
-    per_source_canonical_counts = {
-        s: sum(1 for r in rows if r.get("is_canonical") == "true") for s, rows in per_source_rows.items()
-    }
+    per_source_canonical_counts = {s: 0 for s in per_source_rows}
+    for r in pooled:
+        if r.get("is_canonical") == "true":
+            per_source_canonical_counts[r["source"]] = per_source_canonical_counts.get(r["source"], 0) + 1
 
     print("[merge] Writing corpus manifest...")
     write_manifest(
@@ -402,6 +413,7 @@ def main():
             "n_canonical_entries_matched": install_stats["n_canonical_entries_matched"],
             "install_labeled_share_skill_diffs": install_labeled_share_skill_diffs,
             "install_join_rate_ceiling": install_join_rate_ceiling,
+            "install_join_rate_corpus_present": install_join_rate_corpus_present,
             "repo_overlap": holdout_stats["repo_overlap"],
             "holdout_n": len(holdout_rows),
             "dedup_map_missing_n": dedup_map_missing_n,
@@ -447,6 +459,7 @@ def main():
             "n_canonical_entries_matched": install_stats["n_canonical_entries_matched"],
             "install_labeled_share_skill_diffs": install_labeled_share_skill_diffs,
             "install_join_rate_ceiling": install_join_rate_ceiling,
+            "install_join_rate_corpus_present": install_join_rate_corpus_present,
             "repo_overlap": holdout_stats["repo_overlap"],
             "holdout_n": len(holdout_rows),
         },

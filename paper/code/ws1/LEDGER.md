@@ -76,6 +76,14 @@ Canonical results ledger for WS1 (experiment-discipline §4). Numbers are cited 
 
 All counts cited from `manifests/*.manifest.json` (never retyped). Newest on top.
 
+### 2026-07-09 — footgun: `is_canonical` is a STRING column, not bool
+
+`is_canonical` in `corpus.parquet` is a **string** column with values `"true"`/`"false"`
+(`dedup.py` writes strings; `merge.py`'s `string_table` keeps them as strings). Any WS3
+filter must compare `== "true"` or explicitly cast to bool at load time — naive truthiness
+(e.g. `if row["is_canonical"]`) keeps **all 672,022 rows**, since non-empty strings are
+always truthy.
+
 ### 2026-07-08 — RQ5 human baseline: post-2023 cell built (5,161 rows); pre-2023 cell blocked on HF gate
 
 Ran `build_human_baseline.py --skip-stack --github-sample 6000` (WS1 step 9, ADR-0008).

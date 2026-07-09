@@ -4,9 +4,9 @@
 
 | source | rows | canonical |
 |---|---:|---:|
-| skill_diffs | 664875 | 0 |
-| graph_of_skills | 2000 | 0 |
-| slop_stub | 5147 | 0 |
+| skill_diffs | 664875 | 222220 |
+| graph_of_skills | 2000 | 40 |
+| slop_stub | 5147 | 5147 |
 
 ## Dedup (cited from dedup_map.parquet.manifest.json, not recomputed)
 
@@ -59,6 +59,7 @@
 - n_canonical_entries_matched (canonical-only would recover): 5667
 - install_labeled_share_skill_diffs (labeled entries / all skill_diffs rows): 0.01456815190825343
 - install_join_rate_ceiling (vs repo-overlap ceiling): 0.8365866298151667
+- install_join_rate_corpus_present (vs corpus-present skills): 0.9809600972250354 (denominator excludes the 1704 temporal-skew triples — skills.sh skills absent from the corpus snapshot)
 - repo_overlap: 816
 - holdout_n (rq2_holdout_candidates.parquet): 1704
 

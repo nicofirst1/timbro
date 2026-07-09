@@ -1,6 +1,6 @@
 {
   "dedup_map_missing_n": 0,
-  "git_commit": "e73139cec8bd304c382a62f28ce33659d4158b69-dirty",
+  "git_commit": "35575582a118a757a9cc76273b7d539ab05ccf24-dirty",
   "holdout_n": 1704,
   "inputs": [
     {
@@ -25,6 +25,7 @@
     }
   ],
   "install_join_rate_ceiling": 0.8365866298151667,
+  "install_join_rate_corpus_present": 0.9809600972250354,
   "install_labeled_share_skill_diffs": 0.01456815190825343,
   "n_canonical": 227407,
   "n_canonical_entries_matched": 5667,
@@ -47,5 +48,5 @@
   "script": "merge.py",
   "seed": 42,
   "source": "corpus",
-  "utc": "2026-07-08T16:31:38.217551+00:00"
+  "utc": "2026-07-09T07:43:56.456419+00:00"
 }

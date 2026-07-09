@@ -1,6 +1,6 @@
 {
   "ceiling": 11578,
-  "git_commit": "e73139cec8bd304c382a62f28ce33659d4158b69-dirty",
+  "git_commit": "35575582a118a757a9cc76273b7d539ab05ccf24-dirty",
   "inputs": [
     {
       "file": "skillssh_meta.parquet",
@@ -17,5 +17,5 @@
   "script": "merge.py",
   "seed": 42,
   "source": "rq2_holdout_candidates",
-  "utc": "2026-07-08T16:31:39.883147+00:00"
+  "utc": "2026-07-09T07:43:58.208487+00:00"
 }

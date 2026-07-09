@@ -115,8 +115,8 @@ def test_project_row_missing_keys_become_null():
 
 def test_apply_dedup_map_overwrites_source_nulls():
     pooled = [
-        {"skill_id": "sd:1", "near_dup_cluster_id": None, "is_canonical": None},
-        {"skill_id": "sd:2", "near_dup_cluster_id": None, "is_canonical": None},
+        {"skill_id": "sd:1", "source": "skill_diffs", "near_dup_cluster_id": None, "is_canonical": None},
+        {"skill_id": "sd:2", "source": "skill_diffs", "near_dup_cluster_id": None, "is_canonical": None},
     ]
     dedup_map = [
         {"skill_id": "sd:1", "near_dup_cluster_id": "ndc:000000", "cluster_size": "2", "is_canonical": "true"},
@@ -128,6 +128,15 @@ def test_apply_dedup_map_overwrites_source_nulls():
     assert by_id["sd:1"]["is_canonical"] == "true"
     assert by_id["sd:2"]["is_canonical"] == "false"
     assert n_missing == 0
+
+    # Lock merge.py main()'s per-source canonical count: it must be computed from the
+    # post-overlay `out` rows (which carry the overlaid is_canonical), not from the
+    # pre-overlay per-source projections (which are always null before apply_dedup_map).
+    per_source_canonical_counts: dict = {}
+    for r in out:
+        if r.get("is_canonical") == "true":
+            per_source_canonical_counts[r["source"]] = per_source_canonical_counts.get(r["source"], 0) + 1
+    assert per_source_canonical_counts.get("skill_diffs", 0) > 0
 
 
 def test_apply_dedup_map_detects_missing_skill_id():
