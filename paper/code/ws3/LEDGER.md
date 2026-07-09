@@ -706,6 +706,94 @@ Analysis rules are pre-registered in ADR-0004/0005 (D1–D9) and bind over this 
 
 ## RESULTS
 
+### Step-3 SURGICAL farm-only recluster — island 8 retained (2026-07-09 15:49)
+
+- **Reproduction gate PASSED:** frozen step-3 geometry rebuilt via
+  `step3_machine_projection._reproduce_step3`, asserted against
+  `rq1_cluster_assignments.parquet.manifest.json`: organic pop **222,256**; PCA **62 comps /
+  0.9027**; HDBSCAN **10 islands, noise 0.86308, silhouette 0.6638**; k-means best k=**5**,
+  full sizes **{0:108698,1:4,2:30342,3:218,4:82994}** — all matched.
+- **Surgical exclusion (Observed):** the SAME island-radius assignment rule as the 15:14
+  all-islands cut (`_assign_islands`, nearest island centroid within its 90th-pct member
+  radius, frozen 62-comp PCA space), but excluding **only the 9 tight template-farm islands
+  {0,1,2,3,4,5,6,7,9}** and **RETAINING island 8** (the diffuse, genuinely-diverse,
+  hand-written-looking island, radius 6.37). **n_excluded = 23,711** of 222,256 (10.7%) —
+  exactly the all-islands 59,124 **minus** island 8's **35,413**-doc ball, which is now kept in
+  the remainder (per-island excluded: 0:3,100 · 1:3,374 · 2:943 · 3:2,455 · 4:891 · 5:7,349 ·
+  6:1,283 · 7:2,609 · **8:0 (RETAINED)** · 9:1,707). Top excluded repos are the template-farm
+  repos only: `zwright8/OpenClaw-Code` 8,239 · `Sandeeprdy1729/skill_galaxy` 7,536 ·
+  `NeuralBlitz/Agent-Gateway` 3,100 · `membranedev/application-skills` 2,591 · no diverse
+  island-8 repos appear (they are retained). **This closes the all-islands cut's honest hole:**
+  the diverse slice is IN the recluster population, so "you removed the most diverse docs" is
+  off the table.
+- **Recluster (Observed, remainder N = 198,545; source skill_diffs 198,505 + graph_of_skills
+  40; platforms claude 132,466 / opencode 29,764 / openclaw 25,997 / hermes 10,278):** fresh
+  standardize + PCA on the reduced population retained **64 comps for 0.9017** cum var
+  (0 zero-variance drops); D2 fired (> 100K) → seed-42 50K stratified discovery sample;
+  **HDBSCAN(min_cluster_size=200) gave 2 clusters, noise 0.99014** (> the all-islands cut's
+  0.90364 and step 3's 0.863 — the residual is the *least* HDBSCAN-clusterable of the three),
+  so the D3 fallback fired; **k-means best k=4 at silhouette 0.09355 — below the D3 0.10 floor,
+  so the pipeline emitted the "NO DISCRETE DIALECTS" declaration.** Assigned sizes
+  {0:95,748, 1:27,946, **2:213**, 3:74,638} — cluster **2 (n=213)** is the same degenerate
+  structural-outlier micro-cluster (deviant `struct_line_count`/`struct_heading_count`) step 3
+  and the all-islands cut produced, so effectively **3 substantive groupings**. Confound gates
+  on the reduced set: **D4 platform V 0.044, D8 domain 0.217, D9 era 0.086 — none fired** (> 0.6).
+- **Three-way k-means silhouette per k (step 3 / all-islands / surgical):** k=4 0.1117 / 0.093 /
+  **0.0935**; k=5 0.1129 / 0.0697 / 0.0672; every k in the surgical cut is at or below the
+  all-islands cut and well below step 3 — the farm-only remainder (island 8 kept) is **no more
+  clusterable** than the aggressive cut, and less than the full corpus.
+- **Reading (FIXED-IN-ADVANCE rule, read off mechanically — same thresholds as the 15:14 cut):**
+  recluster HDBSCAN noise > 0.50 AND/OR k-means silhouette < 0.25 → SUPPORTS the dimensional
+  reframe. Here noise **0.99014 > 0.50** AND silhouette **0.09355 < 0.25** (and < the 0.10 D3
+  floor). **VERDICT: SUPPORTS-DIMENSIONAL** — same verdict as the all-islands cut, now WITHOUT
+  the diversity-removal caveat.
+- **Claim (Observed level only, exploratory):** removing **only** the template-farm structure —
+  and **keeping** the diverse island 8 — leaves an organic residual that is *even less clustered*
+  than the full corpus: HDBSCAN noise rose 0.863→0.990, k-means silhouette fell 0.1129→0.0935
+  (below the D3 no-dialects floor), no confound gate fired. This **supports the pre-registered
+  reframe** — *skill style is dimensional/continuous; the only categorical clusters in the corpus
+  were the template farms* — and does so **more cleanly than the all-islands cut**, because the
+  most-diverse slice (island 8, 35,413 docs) is retained in the reclustered population, so the
+  null result cannot be attributed to having deleted the diversity. Not "distinct dialects"; no
+  "validated"/"significant" language; no inferential test (unsupervised descriptive). Top-5 PCA
+  axes of the surgical remainder are continuous register dimensions — **PC1 POS/dependency mix;
+  PC2 readability vs syntactic complexity; PC3 length/size vs POS/dependency mix; PC4
+  structure/formatting vs frontmatter completeness; PC5 length/size** (8 loadings each in
+  `step3_robustness.md`).
+- **Robustness (§2):** (a) degenerate slice — the surgical cut is the farm-only removal; the
+  n=213 structural-outlier micro-cluster is named honestly (same as step 3 / all-islands), and
+  the diverse island 8 is now KEPT (the whole point). (b) missing data — median impute on the
+  remainder, 0 rows dropped, N=198,545 stated. (c) confound/leakage — exclusion uses the FROZEN
+  step-3 transforms (no refit for the cut); the recluster gets its OWN standardize+PCA fit on the
+  reduced population; D4/D8/D9 battery reported, none fired. (d) inferential test — N/A
+  (unsupervised descriptive; noise/silhouette/Cramér's V as cohesion/association descriptives).
+  (e) n/subset — 222,256 → exclude 23,711 (island 8 retained) → remainder 198,545, all stated;
+  D2 50K discovery sample stated. (f) pilot vs full — full organic remainder via the D2 50K
+  discovery sample. Determinism: the surgical exclusion set + island-8-retention logic
+  unit-tested (2 new tests), `recluster_population` seam unchanged (its tests still pass); all
+  14 ws3 robustness/projection/clustering tests pass. All numbers above cited from
+  `step3_robustness.md` / the surgical manifest, not retyped from the run log.
+- **Artifact:** table `paper/data/step3_robustness_surgical_assignments.parquet` (gitignored);
+  summary `paper/code/ws3/step3_robustness.md` (SURGICAL section appended, three-way side by
+  side); figure `paper/figures/ws3_step3_robustness_surgical_pca_scatter.png`; manifest
+  `../ws1/manifests/step3_robustness_surgical_assignments.parquet.manifest.json`
+  (`output_sha256` `3f190afb…`, `variant` surgical_tight_only, `excluded_island_set`
+  [0-7,9], `retained_diverse_island` 8, `n_island8_ball_retained_in_remainder` 35413,
+  `n_excluded` 23711, `n_remainder` 198545, `reading` SUPPORTS-DIMENSIONAL,
+  `recluster_no_discrete_dialects` true, `recluster_silhouette` 0.09355,
+  `recluster_hdbscan_prefallback.noise_fraction` 0.99014).
+- **Repro:**
+  ```
+  git commit  <paper branch, -dirty: extends step3_robustness.py (--tight-only) + step3_robustness.md + test>
+  input       features.parquet  sha256 b999c8e99df4349c432c118446c8250b7ad295b58971a4bdaee23b8de13f7b2e
+  input       corpus.parquet    sha256 5b7f02f07961c86b57ee6e3b6da299e09b80566ed9f7896d1306f66e203c9011
+  output      step3_robustness_surgical_assignments.parquet  sha256 3f190afbebdd491c03d2961f0e8eae20279f7278910154691a05880a8b970072
+  seed        42 (frozen step-3 50K draw + recluster's own 50K draw + TF-IDF k-means + k-means fallback; reused via clustering.py)
+  pins        scikit-learn 1.9.0 · pandas 3.0.3 · numpy 2.4.6 · scipy 1.17.1 · matplotlib 3.11.0 · pyarrow 24.0.0
+  env         OMP/BLAS threads capped to 4
+  uv run --with-requirements paper/code/ws3/requirements.txt python paper/code/ws3/step3_robustness.py --tight-only
+  ```
+
 ### Step-3 robustness cut — farm-excluded recluster (2026-07-09 15:14)
 
 - **Reproduction gate PASSED:** the frozen step-3 geometry was rebuilt by importing

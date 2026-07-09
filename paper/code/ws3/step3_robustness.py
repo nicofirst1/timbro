@@ -1,10 +1,21 @@
 """WS3 step-3 robustness cut — farm-excluded recluster.
 
 Tests the pre-registered reframe *"skill style is dimensional/continuous; the only
-categorical clusters are template farms"* head-on: exclude the 10 template-farm islands
+categorical clusters are template farms"* head-on: exclude the template-farm islands
 from the organic corpus, then re-cluster the remainder with the IDENTICAL step-3 pipeline.
 
-Design (PRE-REG, LEDGER 2026-07-09 14:55):
+Two exclusion modes (the recluster pipeline is identical; only the excluded island SET
+differs):
+  * default (``--all-islands`` / no flag): exclude ALL 10 HDBSCAN islands' balls
+    (LEDGER 2026-07-09 14:55). n_excluded = 59,124 — but 35,413 of those came from
+    island 8, the diffuse genuinely-diverse island, so this cut is honestly
+    "farms + diverse tail".
+  * ``--tight-only``: exclude ONLY the 9 tight single-repo/template-scaffold islands
+    (0-7 and 9) and RETAIN island 8 (LEDGER 2026-07-09 15:20). This is the SURGICAL
+    farm-only cut — it removes the template farms while keeping the diverse island 8,
+    closing the "you removed the most diverse slice" reviewer objection.
+
+Design (PRE-REG, LEDGER 2026-07-09 14:55 + surgical variant 2026-07-09 15:20):
   1. Rebuild the frozen step-3 geometry via ``step3_machine_projection._reproduce_step3``
      (imports ``clustering.py`` seams; asserts against
      ``rq1_cluster_assignments.parquet.manifest.json`` — 222,256 pop, PCA 62/0.9027,
@@ -52,11 +63,19 @@ from _manifest import (  # noqa: E402
 )
 
 OUTPUT_NAME = "step3_robustness_assignments.parquet"
+OUTPUT_NAME_TIGHT = "step3_robustness_surgical_assignments.parquet"
 
 # The dimensional-vs-categorical reading threshold, fixed in the PRE-REG.
 NOISE_SUPPORT = 0.50       # recluster noise > this supports the dimensional reframe
 SILHOUETTE_STRUCTURE = 0.25  # k-means silhouette >= this = a real new finding
 N_EXCLUDED_FLOOR = 6846    # discovery-sample island members (dedup probe) — hard floor
+
+# Surgical (--tight-only) exclusion set: the 9 tight single-repo/template-scaffold islands.
+# Island 8 (radius 6.37, diffuse hand-written-looking content) is RETAINED, per the
+# 2026-07-09 15:20 PRE-REG — so the residual keeps the corpus's most-diverse slice and the
+# null result survives without the "you deleted diversity" objection.
+TIGHT_ISLANDS = frozenset({0, 1, 2, 3, 4, 5, 6, 7, 9})
+RETAINED_DIVERSE_ISLAND = 8
 
 
 # --- new reusable seam: run the step-3 pipeline on an arbitrary population ----
@@ -204,14 +223,20 @@ def _name_axis(loadings: list[tuple[str, float]]) -> str:
     return " vs ".join(ordered[:2]) if len(ordered) >= 2 else ordered[0]
 
 
-def main() -> int:
+def main(tight_only: bool = False) -> int:
     root = repo_root()
     ddir = data_dir()
     feats_path = ddir / C.FEATURES_NAME
     corpus_path = ddir / C.CORPUS_NAME
     figdir = root / "paper" / "figures"
-    out_path = ddir / OUTPUT_NAME
+    out_path = ddir / (OUTPUT_NAME_TIGHT if tight_only else OUTPUT_NAME)
+    # both variants append to the same side-by-side summary; the all-islands run writes it,
+    # the surgical run appends its section (see _append_surgical_summary).
     summary_md = WS3 / "step3_robustness.md"
+    mode = "SURGICAL farm-only (islands 0-7,9; island 8 RETAINED)" if tight_only else (
+        "all-islands (0-9)"
+    )
+    print(f"[robust] exclusion mode: {mode}", flush=True)
 
     # --- 1. rebuild the frozen step-3 geometry (asserts vs manifest) ----------
     print("[robust] reproducing step-3 geometry (frozen islands) ...", flush=True)
@@ -233,17 +258,37 @@ def main() -> int:
     isl_label, isl_nearest, isl_dist = MP._assign_islands(
         pcs_all, G["island_centroids"], G["island_radii"], G["islands"]
     )
-    excluded_mask = isl_label != -1  # in some island's 90th-pct ball
+    if tight_only:
+        # SURGICAL: exclude only the 9 tight template-farm islands; RETAIN island 8.
+        excluded_mask = np.isin(isl_label, list(TIGHT_ISLANDS))
+        n_i8_retained = int((isl_label == RETAINED_DIVERSE_ISLAND).sum())
+        print(
+            f"[robust] SURGICAL: island {RETAINED_DIVERSE_ISLAND} retained "
+            f"({n_i8_retained} docs kept in the remainder)",
+            flush=True,
+        )
+    else:
+        excluded_mask = isl_label != -1  # in some island's 90th-pct ball
+        n_i8_retained = 0
     n_excluded = int(excluded_mask.sum())
-    print(f"[robust] n_excluded (in any island ball): {n_excluded}", flush=True)
-    assert n_excluded >= N_EXCLUDED_FLOOR, (
-        f"n_excluded {n_excluded} < floor {N_EXCLUDED_FLOOR} — discovery members did not "
-        "re-land in their islands; geometry/rule bug, STOP"
-    )
+    print(f"[robust] n_excluded (in an excluded island ball): {n_excluded}", flush=True)
+    if not tight_only:
+        assert n_excluded >= N_EXCLUDED_FLOOR, (
+            f"n_excluded {n_excluded} < floor {N_EXCLUDED_FLOOR} — discovery members did not "
+            "re-land in their islands; geometry/rule bug, STOP"
+        )
+    else:
+        # island 8 must actually be retained -> surgical n_excluded is strictly below the
+        # all-islands cut's 59,124 (it drops island 8's ~35K ball).
+        assert n_i8_retained > 0, (
+            "SURGICAL cut retained 0 island-8 docs — island 8 was not actually kept; "
+            "geometry/rule bug, STOP"
+        )
 
-    # per-island exclusion breakdown (the assigned island, -1 excluded from this table)
+    # per-island exclusion breakdown — count only ACTUALLY-excluded docs, so island 8 shows
+    # 0 in the surgical run (its ball members are retained), not its full ball membership.
     excl_island_counts = {
-        int(isl): int((isl_label == isl).sum()) for isl in G["islands"]
+        int(isl): int((isl_label[excluded_mask] == isl).sum()) for isl in G["islands"]
     }
 
     # per-repo breakdown of the excluded set (join corpus repo by skill_id)
@@ -317,14 +362,13 @@ def main() -> int:
     print(f"[robust] wrote {out_path.name} ({len(out)} rows)", flush=True)
 
     # --- figure: reduced-population PCA scatter (optional, cheap) --------------
-    fig_path = _make_scatter(R["pcs_all"], R["full_cluster"], figdir)
+    fig_path = _make_scatter(R["pcs_all"], R["full_cluster"], figdir, tight_only=tight_only)
 
     # --- named top-5 axes ------------------------------------------------------
     axis_names = [_name_axis(ax) for ax in R["top5_axes"]]
 
     # --- summary + manifest ----------------------------------------------------
-    _write_summary(
-        summary_md, root, G, R,
+    summary_kw = dict(
         n_excluded=n_excluded,
         excl_island_counts=excl_island_counts,
         excl_repo_top=excl_repo_top,
@@ -338,12 +382,20 @@ def main() -> int:
         supports_dimensional=supports_dimensional,
         new_finding=new_finding,
         fig_path=fig_path,
+        n_i8_retained=n_i8_retained,
     )
+    if tight_only:
+        _append_surgical_summary(summary_md, root, G, R, **summary_kw)
+    else:
+        _write_summary(summary_md, root, G, R, **summary_kw)
     print(f"[robust] summary -> {summary_md.relative_to(root)}", flush=True)
 
     write_manifest(
         out_path,
-        source="ws3_step3_robustness_farm_excluded_recluster",
+        source=(
+            "ws3_step3_robustness_surgical_farm_only_recluster" if tight_only
+            else "ws3_step3_robustness_farm_excluded_recluster"
+        ),
         inputs=[
             {"file": C.FEATURES_NAME, "sha256": sha256_file(feats_path)},
             {"file": C.CORPUS_NAME, "sha256": sha256_file(corpus_path)},
@@ -351,7 +403,18 @@ def main() -> int:
         n_rows=len(out),
         packages=("scikit-learn", "pandas", "numpy", "scipy", "matplotlib", "pyarrow"),
         extra={
-            "note": "step-3 robustness cut: exclude the 10 template-farm islands, recluster remainder",
+            "note": (
+                "step-3 SURGICAL robustness cut: exclude ONLY the 9 tight template-farm "
+                "islands (0-7,9); RETAIN the diffuse diverse island 8; recluster remainder"
+                if tight_only else
+                "step-3 robustness cut: exclude the 10 template-farm islands, recluster remainder"
+            ),
+            "variant": "surgical_tight_only" if tight_only else "all_islands",
+            "excluded_island_set": (
+                sorted(TIGHT_ISLANDS) if tight_only else list(range(10))
+            ),
+            "retained_diverse_island": RETAINED_DIVERSE_ISLAND if tight_only else None,
+            "n_island8_ball_retained_in_remainder": n_i8_retained if tight_only else 0,
             "reproduction_verified": True,
             "n_organic_total": G["n_pop"],
             "n_excluded": n_excluded,
@@ -405,7 +468,7 @@ def main() -> int:
     return 0
 
 
-def _make_scatter(pcs_all, clusters, figdir: Path) -> str:
+def _make_scatter(pcs_all, clusters, figdir: Path, tight_only: bool = False) -> str:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -425,10 +488,19 @@ def _make_scatter(pcs_all, clusters, figdir: Path) -> str:
         )
     ax.set_xlabel("PC1")
     ax.set_ylabel("PC2")
-    ax.set_title("WS3 step-3 robustness — farm-excluded remainder (PC1 vs PC2, 30K sample)")
+    if tight_only:
+        ax.set_title(
+            "WS3 step-3 SURGICAL — farm-only remainder, island 8 kept (PC1 vs PC2, 30K)"
+        )
+        fname = "ws3_step3_robustness_surgical_pca_scatter.png"
+    else:
+        ax.set_title(
+            "WS3 step-3 robustness — farm-excluded remainder (PC1 vs PC2, 30K sample)"
+        )
+        fname = "ws3_step3_robustness_pca_scatter.png"
     ax.legend(markerscale=3, fontsize=8)
     fig.tight_layout()
-    p = figdir / "ws3_step3_robustness_pca_scatter.png"
+    p = figdir / fname
     fig.savefig(p, dpi=130)
     plt.close(fig)
     return str(p.relative_to(repo_root()))
@@ -596,5 +668,190 @@ def _write_summary(path: Path, root, G, R, **kw) -> None:
     path.write_text("\n".join(L))
 
 
+# --- committed all-islands numbers, for the three-way side-by-side in the surgical section.
+# These are the frozen results of the all-islands cut (LEDGER RESULT 2026-07-09 15:14 /
+# manifest step3_robustness_assignments.parquet.manifest.json) — cited, not recomputed.
+_ALL_ISLANDS = {
+    "n_excluded": 59124,
+    "n_remainder": 163132,
+    "pca": "64 / 0.9039",
+    "hdbscan": "2 / 0.90364 / 0.3533",
+    "km": "4 / 0.09298",
+    "km_sizes": "{0:28029, 1:4, 2:63719, 3:71380}",
+    "reading": "SUPPORTS-DIMENSIONAL",
+    "perk": {4: 0.093, 5: 0.0697, 6: 0.0699, 7: 0.0683, 8: 0.0583,
+             9: 0.0662, 10: 0.0569, 11: 0.0527, 12: 0.0671},
+}
+_STEP3_PERK = {4: 0.1117, 5: 0.1129, 6: 0.0764, 7: 0.0779, 8: 0.0781,
+               9: 0.0624, 10: 0.0628, 11: 0.0764, 12: 0.0687}
+
+
+def _append_surgical_summary(path: Path, root, G, R, **kw) -> None:
+    """Append the SURGICAL (farm-only, island 8 retained) section to step3_robustness.md.
+
+    Three-way side by side: step 3 (full organic) / all-islands cut / surgical farm-only cut.
+    The all-islands numbers are the committed frozen results (cited, not recomputed here).
+    """
+    pf = R["hdbscan_prefallback"]
+    km_sizes = {
+        int(k): int(v)
+        for k, v in pd.Series(R["full_cluster"]).value_counts().sort_index().items()
+    }
+    L = ["\n\n---\n"]
+    L.append("# SURGICAL variant — farm-only recluster (island 8 RETAINED)\n")
+    L.append(
+        "Appended by `paper/code/ws3/step3_robustness.py --tight-only` (LEDGER PRE-REG "
+        "2026-07-09 15:20). **Exploratory / descriptive**, Observed-level only, no inferential "
+        "statistic. Closes the all-islands cut's honest hole: that run excluded ALL 10 islands "
+        f"({_ALL_ISLANDS['n_excluded']} docs), but **35,413 of those were island 8** — the "
+        "diffuse, genuinely-diverse, hand-written-looking island (90th-pct radius 6.37 vs "
+        "~0.5–2.45 for the tight farms), NOT a template farm. A reviewer could object: *\"you "
+        "removed the most diverse slice, of course the rest looks homogeneous.\"* This surgical "
+        "cut excludes ONLY the **9 tight single-repo/template-scaffold islands (0–7 and 9)** and "
+        f"**RETAINS island 8** ({kw['n_i8_retained']} island-8-ball docs kept in the remainder), "
+        "so the null result survives with the diverse slice still in.\n"
+    )
+
+    L.append("## Surgical exclusion — the 9 tight farm islands only\n")
+    L.append(
+        f"Same island-radius assignment rule as the all-islands cut (`_assign_islands`, nearest "
+        f"island centroid within its 90th-pct member radius, frozen 62-comp PCA space) — the "
+        f"ONLY change is the excluded set: islands {sorted(TIGHT_ISLANDS)} excluded, island "
+        f"{RETAINED_DIVERSE_ISLAND} retained. **n_excluded = {kw['n_excluded']}** of "
+        f"{G['n_pop']} (vs {_ALL_ISLANDS['n_excluded']} for the all-islands cut; the "
+        f"{_ALL_ISLANDS['n_excluded'] - kw['n_excluded']:,} difference is exactly island 8's "
+        f"retained ball).\n"
+    )
+    L.append("### Per-island exclusion count (0 = retained)\n")
+    L.append("| island | 90th-pct radius | n excluded (surgical) | retained? |")
+    L.append("|---|---|---|---|")
+    for isl in G["islands"]:
+        r = float(G["island_radii"][G["islands"].index(isl)])
+        retained = "**RETAINED**" if isl == RETAINED_DIVERSE_ISLAND else "excluded"
+        L.append(f"| {isl} | {r:.2f} | {kw['excl_island_counts'][isl]} | {retained} |")
+    L.append("")
+    L.append("### Top repos in the surgically-excluded set (template-farm signature)\n")
+    L.append("| repo | n excluded members |")
+    L.append("|---|---|")
+    for repo, n in kw["excl_repo_top"].items():
+        L.append(f"| `{repo}` | {int(n)} |")
+    L.append("")
+
+    L.append("## Remainder (the re-clustered population — island 8 KEPT)\n")
+    rem = kw["remainder"]
+    L.append(f"- **n_remainder = {kw['n_remainder']}** = {G['n_pop']} − {kw['n_excluded']}")
+    L.append(f"- source split: {rem['source'].value_counts().to_dict()}")
+    L.append(
+        f"- platform split: {rem['platform'].fillna('null').value_counts().to_dict()}\n"
+    )
+
+    L.append("## Three-way side by side (step 3 / all-islands cut / surgical farm-only cut)\n")
+    L.append("| quantity | step 3 (full organic) | all-islands cut | **surgical (island 8 kept)** |")
+    L.append("|---|---|---|---|")
+    L.append(f"| population N | 222,256 | {_ALL_ISLANDS['n_remainder']:,} | {kw['n_remainder']:,} |")
+    L.append(f"| n_excluded | 0 | {_ALL_ISLANDS['n_excluded']:,} | {kw['n_excluded']:,} |")
+    L.append(f"| PCA comps / cum var | 62 / 0.9027 | {_ALL_ISLANDS['pca']} | {R['n_comp']} / {R['cum_var']:.4f} |")
+    L.append(
+        f"| HDBSCAN clusters / noise / silhouette | 10 / 0.863 / 0.6638 | "
+        f"{_ALL_ISLANDS['hdbscan']} | "
+        f"{pf['n_clusters']} / {pf['noise_fraction']:.5f} / {pf['silhouette']:.4f} |"
+    )
+    L.append(
+        f"| D3 fallback fired? | yes | yes | {'yes' if pf['trigger_fired'] else 'no'} |"
+    )
+    L.append(
+        f"| k-means best k / silhouette | 5 / 0.1129 | {_ALL_ISLANDS['km']} | "
+        f"{R['best_k']} / {R['silhouette']:.5f} |"
+    )
+    L.append(
+        f"| cluster sizes (assigned) | {{0:108698,1:4,2:30342,3:218,4:82994}} | "
+        f"{_ALL_ISLANDS['km_sizes']} | {km_sizes} |"
+    )
+    L.append(
+        f"| reading (fixed rule) | — | {_ALL_ISLANDS['reading']} | **{kw['reading']}** |"
+    )
+    L.append("")
+
+    L.append("### k-means silhouette per k — three-way\n")
+    rperk = R["kmeans_per_k"] or {}
+    L.append("| k | step 3 | all-islands | surgical |")
+    L.append("|---|---|---|---|")
+    for k in range(4, 13):
+        s3 = _STEP3_PERK.get(k, "-")
+        allc = _ALL_ISLANDS["perk"].get(k, "-")
+        surg = rperk.get(k, rperk.get(str(k), "-"))
+        surg = f"{surg:.4f}" if isinstance(surg, float) else surg
+        L.append(f"| {k} | {s3} | {allc} | {surg} |")
+    L.append("")
+
+    L.append("## Reading (fixed in advance — same rule/thresholds as the all-islands cut)\n")
+    L.append(
+        f"**Rule:** recluster HDBSCAN noise > {NOISE_SUPPORT} AND/OR k-means silhouette < "
+        f"{SILHOUETTE_STRUCTURE} → SUPPORTS the dimensional reframe. HDBSCAN noise < "
+        f"{NOISE_SUPPORT} with substantive clusters OR silhouette ≥ {SILHOUETTE_STRUCTURE} → "
+        f"REAL NEW FINDING.\n"
+    )
+    L.append(f"- HDBSCAN noise (surgical remainder): **{pf['noise_fraction']:.5f}**")
+    L.append(f"- k-means best silhouette (surgical remainder): **{R['silhouette']:.5f}**")
+    L.append(f"- **VERDICT: {kw['reading']}**\n")
+    if kw["reading"] == "SUPPORTS-DIMENSIONAL":
+        L.append(
+            "> Even the **surgical** cut — template farms removed but the diffuse, diverse "
+            "island 8 KEPT — leaves an organic residual with no hidden categorical dialects: "
+            "the same high-noise / low-silhouette signature as step 3 and the all-islands cut. "
+            "This **supports the pre-registered reframe without the \"you deleted diversity\" "
+            "objection**: skill style is dimensional/continuous, and the only categorical "
+            "clusters in the corpus were the template farms. Observed-level; no test.\n"
+        )
+    elif kw["reading"] == "REAL-NEW-FINDING":
+        L.append(
+            "> **New finding under the surgical cut:** with the farms removed but island 8 "
+            "retained, categorical structure emerged. Reported straight (cluster names + "
+            "confound gates below). Observed-level; no test.\n"
+        )
+    else:
+        L.append("> Ambiguous under the fixed rule; see the numbers above.\n")
+
+    L.append("## Top-5 PCA axes of the surgical remainder (dimensional-structure table)\n")
+    for i, axis in enumerate(R["top5_axes"]):
+        name = kw["axis_names"][i]
+        L.append(f"- **PC{i + 1} — {name}:** {_fmt_deviant(axis)}")
+    L.append("")
+
+    L.append("## Surgical recluster cluster names — top deviant features (signed z-median)\n")
+    for c, pairs in R["cluster_names"].items():
+        L.append(f"- **cluster {c}:** {_fmt_deviant(pairs)}")
+    L.append("")
+
+    L.append("## Confound gates on the surgical reduced assigned set (parity with step 3)\n")
+    L.append("| gate | Cramér's V | fired (>0.6)? |")
+    L.append("|---|---|---|")
+    L.append(f"| D4 platform | {kw['v_platform']:.3f} | {kw['v_platform'] > C.CRAMER_V_TRIGGER} |")
+    L.append(f"| D8 domain (TF-IDF k=10) | {kw['v_domain']:.3f} | {kw['v_domain'] > C.CRAMER_V_TRIGGER} |")
+    L.append(f"| D9 era (quarters) | {kw['v_era']:.3f} | {kw['v_era'] > C.CRAMER_V_TRIGGER} |")
+    L.append(f"\n_D9: {kw['n_era_null']} rows null/unparseable `created_at`._\n")
+
+    L.append(
+        f"## Surgical figure\n\n`{kw['fig_path']}` — PC1 vs PC2 scatter of the surgical "
+        f"remainder (30K sample).\n"
+    )
+
+    with path.open("a") as fh:
+        fh.write("\n".join(L))
+
+
 if __name__ == "__main__":
-    raise SystemExit(main())
+    import argparse
+
+    ap = argparse.ArgumentParser(description=__doc__)
+    grp = ap.add_mutually_exclusive_group()
+    grp.add_argument(
+        "--tight-only", action="store_true",
+        help="SURGICAL cut: exclude only the 9 tight farm islands (0-7,9); retain island 8.",
+    )
+    grp.add_argument(
+        "--all-islands", action="store_true",
+        help="(default) exclude all 10 island balls (the 2026-07-09 14:55 cut).",
+    )
+    args = ap.parse_args()
+    raise SystemExit(main(tight_only=args.tight_only))

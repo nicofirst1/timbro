@@ -1,0 +1,164 @@
+{
+  "excluded_island_set": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    9
+  ],
+  "excluded_per_island": {
+    "0": 3100,
+    "1": 3374,
+    "2": 943,
+    "3": 2455,
+    "4": 891,
+    "5": 7349,
+    "6": 1283,
+    "7": 2609,
+    "8": 0,
+    "9": 1707
+  },
+  "excluded_top_repos": {
+    "ComposioHQ/awesome-claude-skills": 38,
+    "EmaBilibili/My-Portfolio": 40,
+    "Engineer1999/A-Curated-List-of-Awesome-Claude-Skills": 610,
+    "KunanonJ/claude-skills-hub": 40,
+    "NeuralBlitz/Agent-Gateway": 3100,
+    "Sandeeprdy1729/skill_galaxy": 7536,
+    "boisenoise/skills-collections": 46,
+    "christophacham/agent-skills-library": 37,
+    "diegosouzapw/awesome-omni-skill": 46,
+    "jpimasreiser11-gif/youtubeclon": 41,
+    "membranedev/application-skills": 2591,
+    "ranbot-ai/awesome-skills": 37,
+    "tools-only/X-Skills": 116,
+    "vamseeachanta/workspace-hub": 581,
+    "zwright8/OpenClaw-Code": 8239
+  },
+  "figure": "paper/figures/ws3_step3_robustness_surgical_pca_scatter.png",
+  "git_commit": "ec6cf56cf2728d6ad57b99925523dfd59d63a5d0-dirty",
+  "inputs": [
+    {
+      "file": "features.parquet",
+      "sha256": "b999c8e99df4349c432c118446c8250b7ad295b58971a4bdaee23b8de13f7b2e"
+    },
+    {
+      "file": "corpus.parquet",
+      "sha256": "5b7f02f07961c86b57ee6e3b6da299e09b80566ed9f7896d1306f66e203c9011"
+    }
+  ],
+  "n_excluded": 23711,
+  "n_excluded_floor_discovery_members": 6846,
+  "n_island8_ball_retained_in_remainder": 35413,
+  "n_organic_total": 222256,
+  "n_remainder": 198545,
+  "n_rows": 198545,
+  "note": "step-3 SURGICAL robustness cut: exclude ONLY the 9 tight template-farm islands (0-7,9); RETAIN the diffuse diverse island 8; recluster remainder",
+  "output": "step3_robustness_surgical_assignments.parquet",
+  "output_sha256": "3f190afbebdd491c03d2961f0e8eae20279f7278910154691a05880a8b970072",
+  "packages": {
+    "matplotlib": "3.11.0",
+    "numpy": "2.4.6",
+    "pandas": "3.0.3",
+    "pyarrow": "24.0.0",
+    "scikit-learn": "1.9.0",
+    "scipy": "1.17.1"
+  },
+  "reading": "SUPPORTS-DIMENSIONAL",
+  "reading_thresholds": {
+    "noise_support": 0.5,
+    "silhouette_structure": 0.25
+  },
+  "recluster_cluster_sizes": {
+    "0": 95748,
+    "1": 27946,
+    "2": 213,
+    "3": 74638
+  },
+  "recluster_confound_gates": {
+    "d4_platform": {
+      "cramers_v": 0.04360735535180927,
+      "fired": false
+    },
+    "d8_domain": {
+      "cramers_v": 0.2172936309495963,
+      "fired": false
+    },
+    "d9_era": {
+      "cramers_v": 0.08605106192298453,
+      "fired": false,
+      "n_era_null": 40
+    }
+  },
+  "recluster_d2_fired": true,
+  "recluster_dropped_zero_variance": [],
+  "recluster_hdbscan_params": {
+    "metric": "euclidean",
+    "min_cluster_size": 200,
+    "min_samples": null
+  },
+  "recluster_hdbscan_prefallback": {
+    "n_clusters": 2,
+    "noise_fraction": 0.99014,
+    "silhouette": 0.44163321934846445,
+    "trigger_fired": true
+  },
+  "recluster_kmeans_best_k": 4,
+  "recluster_kmeans_silhouette_per_k": {
+    "4": 0.0935,
+    "5": 0.0672,
+    "6": 0.0689,
+    "7": 0.0697,
+    "8": 0.055,
+    "9": 0.0559,
+    "10": 0.0569,
+    "11": 0.0415,
+    "12": 0.0451
+  },
+  "recluster_method": "kmeans",
+  "recluster_no_discrete_dialects": true,
+  "recluster_noise_fraction": 0.0,
+  "recluster_pca_cum_variance": 0.9017060662364503,
+  "recluster_pca_n_components": 64,
+  "recluster_silhouette": 0.0935460786417617,
+  "remainder_platform_split": {
+    "__null__": 40,
+    "claude_skill": 132466,
+    "hermes_skill": 10278,
+    "openclaw_skill": 25997,
+    "opencode_skill": 29764
+  },
+  "remainder_source_split": {
+    "graph_of_skills": 40,
+    "skill_diffs": 198505
+  },
+  "reproduction_verified": true,
+  "retained_diverse_island": 8,
+  "script": "step3_robustness.py",
+  "seed": 42,
+  "source": "ws3_step3_robustness_surgical_farm_only_recluster",
+  "step3_kmeans_silhouette_per_k": {
+    "10": 0.0628,
+    "11": 0.0764,
+    "12": 0.0687,
+    "4": 0.1117,
+    "5": 0.1129,
+    "6": 0.0764,
+    "7": 0.0779,
+    "8": 0.0781,
+    "9": 0.0624
+  },
+  "top5_pca_axis_names": [
+    "POS/dependency mix",
+    "readability vs syntactic complexity",
+    "length/size vs POS/dependency mix",
+    "structure/formatting vs frontmatter completeness",
+    "length/size"
+  ],
+  "utc": "2026-07-09T13:47:12.790779+00:00",
+  "variant": "surgical_tight_only"
+}

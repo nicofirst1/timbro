@@ -133,3 +133,121 @@ _D9: 30 rows null/unparseable `created_at` (excluded from era gate only)._
 ## Figure
 
 `paper/figures/ws3_step3_robustness_pca_scatter.png` — PC1 vs PC2 scatter of the reduced population (30K sample).
+
+
+---
+
+# SURGICAL variant — farm-only recluster (island 8 RETAINED)
+
+Appended by `paper/code/ws3/step3_robustness.py --tight-only` (LEDGER PRE-REG 2026-07-09 15:20). **Exploratory / descriptive**, Observed-level only, no inferential statistic. Closes the all-islands cut's honest hole: that run excluded ALL 10 islands (59124 docs), but **35,413 of those were island 8** — the diffuse, genuinely-diverse, hand-written-looking island (90th-pct radius 6.37 vs ~0.5–2.45 for the tight farms), NOT a template farm. A reviewer could object: *"you removed the most diverse slice, of course the rest looks homogeneous."* This surgical cut excludes ONLY the **9 tight single-repo/template-scaffold islands (0–7 and 9)** and **RETAINS island 8** (35413 island-8-ball docs kept in the remainder), so the null result survives with the diverse slice still in.
+
+## Surgical exclusion — the 9 tight farm islands only
+
+Same island-radius assignment rule as the all-islands cut (`_assign_islands`, nearest island centroid within its 90th-pct member radius, frozen 62-comp PCA space) — the ONLY change is the excluded set: islands [0, 1, 2, 3, 4, 5, 6, 7, 9] excluded, island 8 retained. **n_excluded = 23711** of 222256 (vs 59124 for the all-islands cut; the 35,413 difference is exactly island 8's retained ball).
+
+### Per-island exclusion count (0 = retained)
+
+| island | 90th-pct radius | n excluded (surgical) | retained? |
+|---|---|---|---|
+| 0 | 2.36 | 3100 | excluded |
+| 1 | 1.06 | 3374 | excluded |
+| 2 | 1.94 | 943 | excluded |
+| 3 | 0.53 | 2455 | excluded |
+| 4 | 1.88 | 891 | excluded |
+| 5 | 2.16 | 7349 | excluded |
+| 6 | 2.45 | 1283 | excluded |
+| 7 | 2.15 | 2609 | excluded |
+| 8 | 6.37 | 0 | **RETAINED** |
+| 9 | 4.10 | 1707 | excluded |
+
+### Top repos in the surgically-excluded set (template-farm signature)
+
+| repo | n excluded members |
+|---|---|
+| `zwright8/OpenClaw-Code` | 8239 |
+| `Sandeeprdy1729/skill_galaxy` | 7536 |
+| `NeuralBlitz/Agent-Gateway` | 3100 |
+| `membranedev/application-skills` | 2591 |
+| `Engineer1999/A-Curated-List-of-Awesome-Claude-Skills` | 610 |
+| `vamseeachanta/workspace-hub` | 581 |
+| `tools-only/X-Skills` | 116 |
+| `diegosouzapw/awesome-omni-skill` | 46 |
+| `boisenoise/skills-collections` | 46 |
+| `jpimasreiser11-gif/youtubeclon` | 41 |
+| `EmaBilibili/My-Portfolio` | 40 |
+| `KunanonJ/claude-skills-hub` | 40 |
+| `ComposioHQ/awesome-claude-skills` | 38 |
+| `ranbot-ai/awesome-skills` | 37 |
+| `christophacham/agent-skills-library` | 37 |
+
+## Remainder (the re-clustered population — island 8 KEPT)
+
+- **n_remainder = 198545** = 222256 − 23711
+- source split: {'skill_diffs': 198505, 'graph_of_skills': 40}
+- platform split: {'claude_skill': 132466, 'opencode_skill': 29764, 'openclaw_skill': 25997, 'hermes_skill': 10278, 'null': 40}
+
+## Three-way side by side (step 3 / all-islands cut / surgical farm-only cut)
+
+| quantity | step 3 (full organic) | all-islands cut | **surgical (island 8 kept)** |
+|---|---|---|---|
+| population N | 222,256 | 163,132 | 198,545 |
+| n_excluded | 0 | 59,124 | 23,711 |
+| PCA comps / cum var | 62 / 0.9027 | 64 / 0.9039 | 64 / 0.9017 |
+| HDBSCAN clusters / noise / silhouette | 10 / 0.863 / 0.6638 | 2 / 0.90364 / 0.3533 | 2 / 0.99014 / 0.4416 |
+| D3 fallback fired? | yes | yes | yes |
+| k-means best k / silhouette | 5 / 0.1129 | 4 / 0.09298 | 4 / 0.09355 |
+| cluster sizes (assigned) | {0:108698,1:4,2:30342,3:218,4:82994} | {0:28029, 1:4, 2:63719, 3:71380} | {0: 95748, 1: 27946, 2: 213, 3: 74638} |
+| reading (fixed rule) | — | SUPPORTS-DIMENSIONAL | **SUPPORTS-DIMENSIONAL** |
+
+### k-means silhouette per k — three-way
+
+| k | step 3 | all-islands | surgical |
+|---|---|---|---|
+| 4 | 0.1117 | 0.093 | 0.0935 |
+| 5 | 0.1129 | 0.0697 | 0.0672 |
+| 6 | 0.0764 | 0.0699 | 0.0689 |
+| 7 | 0.0779 | 0.0683 | 0.0697 |
+| 8 | 0.0781 | 0.0583 | 0.0550 |
+| 9 | 0.0624 | 0.0662 | 0.0559 |
+| 10 | 0.0628 | 0.0569 | 0.0569 |
+| 11 | 0.0764 | 0.0527 | 0.0415 |
+| 12 | 0.0687 | 0.0671 | 0.0451 |
+
+## Reading (fixed in advance — same rule/thresholds as the all-islands cut)
+
+**Rule:** recluster HDBSCAN noise > 0.5 AND/OR k-means silhouette < 0.25 → SUPPORTS the dimensional reframe. HDBSCAN noise < 0.5 with substantive clusters OR silhouette ≥ 0.25 → REAL NEW FINDING.
+
+- HDBSCAN noise (surgical remainder): **0.99014**
+- k-means best silhouette (surgical remainder): **0.09355**
+- **VERDICT: SUPPORTS-DIMENSIONAL**
+
+> Even the **surgical** cut — template farms removed but the diffuse, diverse island 8 KEPT — leaves an organic residual with no hidden categorical dialects: the same high-noise / low-silhouette signature as step 3 and the all-islands cut. This **supports the pre-registered reframe without the "you deleted diversity" objection**: skill style is dimensional/continuous, and the only categorical clusters in the corpus were the template farms. Observed-level; no test.
+
+## Top-5 PCA axes of the surgical remainder (dimensional-structure table)
+
+- **PC1 — POS/dependency mix:** `posdep_pos_DET` +0.17, `posdep_dep_det` +0.17, `posdep_pos_VERB` +0.17, `posdep_dep_appos` -0.17, `posdep_pos_PROPN` -0.17, `lex_zipf_mean` +0.16, `posdep_pos_AUX` +0.16, `posdep_dep_aux` +0.16
+- **PC2 — readability vs syntactic complexity:** `read_flesch_reading_ease` +0.24, `read_flesch_kincaid_grade` -0.22, `read_gunning_fog` -0.22, `syn_clausal_per_sentence` -0.22, `syn_mean_tree_depth` -0.21, `read_rix` -0.21, `read_smog` -0.21, `read_lix` -0.21
+- **PC3 — length/size vs POS/dependency mix:** `desc_syllables_per_token_mean` +0.23, `posdep_pos_NOUN` +0.22, `desc_token_length_median` +0.18, `posdep_pos_CCONJ` +0.18, `posdep_dep_cc` +0.18, `posdep_dep_amod` +0.16, `desc_proportion_unique_tokens` +0.16, `syn_mean_dependency_distance` -0.16
+- **PC4 — structure/formatting vs frontmatter completeness:** `fm_desc_present` +0.44, `struct_name_format_valid` +0.43, `struct_frontmatter_field_count` +0.39, `fm_desc_tokens` +0.38, `fm_desc_when_clause` +0.38, `fm_desc_wildcard_per_token` +0.29, `fm_desc_or_count` +0.28, `desc_characters` +0.05
+- **PC5 — length/size:** `desc_characters` +0.35, `desc_unique_tokens` +0.35, `desc_tokens` +0.35, `desc_sentences` +0.32, `desc_proportion_unique_tokens` -0.23, `lex_hdd` +0.17, `syn_prop_adjacent_dependency_relation_std` +0.16, `struct_max_heading_depth` +0.15
+
+## Surgical recluster cluster names — top deviant features (signed z-median)
+
+- **cluster 0:** `struct_named_section_present` -0.92, `posdep_dep_compound` -0.61, `coh_first_order_coherence` -0.59, `posdep_dep_det` +0.58, `posdep_pos_DET` +0.58, `posdep_pos_PROPN` -0.56, `posdep_pos_AUX` +0.53, `read_lix` -0.52
+- **cluster 1:** `lex_zipf_mean` -2.32, `posdep_pos_PROPN` +1.91, `posdep_pos_VERB` -1.59, `posdep_pos_ADP` -1.51, `posdep_dep_appos` +1.51, `desc_syllables_per_token_mean` -1.38, `posdep_dep_cc` -1.30, `posdep_dep_nmod` +1.30
+- **cluster 2:** `struct_name_format_valid` +31.81, `fm_desc_present` +28.87, `struct_frontmatter_field_count` +25.17, `fm_desc_tokens` +17.46, `struct_named_section_present` -0.92, `posdep_dep_mark` -0.77, `struct_inline_code_char_ratio` -0.75, `posdep_dep_neg` -0.75
+- **cluster 3:** `struct_named_section_present` +1.09, `posdep_dep_mark` -0.77, `posdep_dep_neg` -0.75, `dict_conditional_per_1k` -0.67, `posdep_dep_acomp` -0.67, `dict_hedge_per_1k` -0.64, `posdep_dep_auxpass` -0.63, `struct_inline_code_char_ratio` -0.61
+
+## Confound gates on the surgical reduced assigned set (parity with step 3)
+
+| gate | Cramér's V | fired (>0.6)? |
+|---|---|---|
+| D4 platform | 0.044 | False |
+| D8 domain (TF-IDF k=10) | 0.217 | False |
+| D9 era (quarters) | 0.086 | False |
+
+_D9: 40 rows null/unparseable `created_at`._
+
+## Surgical figure
+
+`paper/figures/ws3_step3_robustness_surgical_pca_scatter.png` — PC1 vs PC2 scatter of the surgical remainder (30K sample).

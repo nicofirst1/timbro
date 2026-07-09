@@ -17,7 +17,12 @@ import numpy as np
 import pandas as pd
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
-from step3_robustness import _name_axis, recluster_population  # noqa: E402
+from step3_robustness import (  # noqa: E402
+    RETAINED_DIVERSE_ISLAND,
+    TIGHT_ISLANDS,
+    _name_axis,
+    recluster_population,
+)
 
 
 def _blob_population(n_per: int = 400, n_feats: int = 12, seed: int = 0) -> pd.DataFrame:
@@ -78,6 +83,26 @@ def test_recluster_population_small_pop_no_d2_and_partitions():
     # top-5 axis table: up to 5 axes, each 8 loadings
     assert 1 <= len(R["top5_axes"]) <= 5
     assert all(len(ax) == 8 for ax in R["top5_axes"])
+
+
+def test_surgical_exclusion_set_keeps_only_island_8():
+    # The SURGICAL (--tight-only) cut excludes the 9 tight farm islands and RETAINS island 8
+    # (the diffuse diverse island). This is the whole point of the variant — verify the set.
+    assert TIGHT_ISLANDS == frozenset({0, 1, 2, 3, 4, 5, 6, 7, 9})
+    assert RETAINED_DIVERSE_ISLAND == 8
+    assert RETAINED_DIVERSE_ISLAND not in TIGHT_ISLANDS
+    assert sorted(TIGHT_ISLANDS | {RETAINED_DIVERSE_ISLAND}) == list(range(10))
+
+
+def test_surgical_mask_excludes_tight_retains_8_and_noise():
+    # _assign_islands returns each doc's island id (-1 = outside every ball). The surgical
+    # mask is np.isin(label, TIGHT_ISLANDS): tight islands excluded, island 8 + noise kept.
+    isl_label = np.array([-1, 0, 4, 8, 8, 9, -1, 2])
+    excluded_mask = np.isin(isl_label, list(TIGHT_ISLANDS))
+    # islands 0,4,9,2 excluded; island 8 (x2) and -1 (x2) retained
+    assert list(excluded_mask) == [False, True, True, False, False, True, False, True]
+    assert int((isl_label[excluded_mask] == 8).sum()) == 0  # island 8 never excluded
+    assert int((isl_label[~excluded_mask] == 8).sum()) == 2  # island 8 all in remainder
 
 
 def test_name_axis_reads_dominant_family():
