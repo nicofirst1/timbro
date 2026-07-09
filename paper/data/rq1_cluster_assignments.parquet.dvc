@@ -1,0 +1,5 @@
+outs:
+- md5: 07a2d0740838d15255c7244eedf56d6d
+  size: 7067407
+  hash: md5
+  path: rq1_cluster_assignments.parquet

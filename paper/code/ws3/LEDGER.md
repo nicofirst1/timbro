@@ -30,7 +30,10 @@ Analysis rules are pre-registered in ADR-0004/0005 (D1–D9) and bind over this 
 - [x] machine-cell feature extraction (ADR-0009 exploratory prep) —
       `extract_features_machine.py`. **Done 2026-07-09 12:14.** 587/587 rows, 0 failures.
       See RESULTS + `../ws1/manifests/features_machine.parquet.manifest.json`.
-- [ ] RQ1 clustering (step 3) — PCA → HDBSCAN; confound gates D4/D8/D9.
+- [x] RQ1 clustering (step 3) — PCA → HDBSCAN; confound gates D4/D8/D9. **Done
+      2026-07-09 13:00.** Weak structure (k-means k=5, silhouette 0.1129) after
+      pre-registered HDBSCAN fallback; D4/D8/D9 gates un-fired. See RESULTS +
+      `../ws1/manifests/rq1_cluster_assignments.parquet.manifest.json`.
 - [ ] RQ2 adoption (step 4) — regressions on `log1p(installs_wk_mean)`; BH per D6.
 - [ ] RQ4 temporal (step 5) — chains ≥3 versions (ADR-0005).
 - [ ] holdout (step 6) — `rq2_holdout_candidates.parquet` drift characterization.
@@ -220,7 +223,178 @@ Analysis rules are pre-registered in ADR-0004/0005 (D1–D9) and bind over this 
       python paper/code/ws3/extract_features_machine.py
   ```
 
+## PRE-REG — WS3 step 3 RQ1 clustering / instruction dialects (2026-07-09 12:14)
+
+- **Goal / hypothesis (RQ1):** do the deterministic linguistic features of *organic* agent
+  skill files cluster into distinct "instruction dialects" (imperative-dense vs.
+  conditional-rich vs. narrative, per the original research-report heuristic table)? This is
+  an **exploratory / descriptive** structure-discovery step (Biber-style
+  standardize→PCA→cluster→name-by-deviant-features; Biber 1988, Biber & Egbert 2018), NOT a
+  confirmatory hypothesis test. It earns at most an **"Observed"** claim (§3): "the corpus
+  does / does not partition into k separable feature clusters." No "significant"/"validated"
+  language; ADR-0004 D3 explicitly says "no discrete dialects" is itself a finding, not a
+  failure, and forbids re-clustering until something appears.
+- **Data / population:** `paper/data/features.parquet` (manifest
+  `../ws1/manifests/features.parquet.manifest.json`, `output_sha256` `b999c8e9…`,
+  231,426 rows × 139 cols). **Analysis population = organic canonical docs:**
+  `is_canonical == "true"` (STRING comparison; ADR-0010 §2 — RQ1/RQ3 filter is_canonical,
+  unit = near-dup cluster via its canonical representative) **AND** `analyze_error` is null
+  **AND** `source != "slop_stub"`.
+  - **Slop-exclusion justification (from ADR text, not silent):** RQ1 (PLAN §1) asks about
+    dialects "across ecosystems (Claude Code, OpenClaw, OpenCode, Hermes)". `slop_stub` is not
+    an ecosystem — it is the **synthetic marketplace-listing corpus that ADR-0004 D5 assigns
+    to the separate organic-vs-stub AUC probe**, not to the dialect clustering population.
+    Step 2 (2026-07-09 11:29) showed slop is a degenerate ~22-token provenance slice
+    (CV AUC 1.000, provenance-driven) that would dominate any distance-based clustering.
+    Including it would answer "does provenance separate?" (already answered by D5), not
+    "do organic dialects exist?" (RQ1). ADR-0010 §2 does not re-add slop to RQ1; D5 owns it.
+    Decision: **EXCLUDE slop_stub from RQ1 clustering.** (The 4,019 RQ2 install-labeled extras
+    are also excluded — non-canonical, ADR-0010 §3 RQ2-only.)
+  - Expected N (verified empirically pre-run against the manifest): canonical = 227,407;
+    minus 4 `analyze_error`; minus 5,147 slop_stub (0 error-dropped) →
+    **222,256 organic canonical error-dropped docs**. Source split at that N:
+    `skill_diffs 222,216 + graph_of_skills 40`. Platform split:
+    `claude_skill 152,806 · opencode_skill 33,007 · openclaw_skill 26,120 ·
+    hermes_skill 10,283 · <null, the 40 graph_of_skills> 40`.
+- **Feature set + preprocessing (pre-registered):** the **130 numeric** `analyze_text`
+  feature columns (all non-carry, non-JSON columns — same 130 as step 2). **Null policy:**
+  34/130 have nulls on short docs (SMOG needs ≥30 sentences, coherence/syntax ≥2). This is
+  **unsupervised** (no folds), so imputation cannot leak: **median-impute (fit on the full
+  organic canonical set) then StandardScaler (z-score, same fit set).** No rows dropped. Any
+  zero-variance column appearing after subsetting is dropped before PCA (record which).
+- **PCA (D3):** `sklearn.decomposition.PCA(random_state=42)` on the standardized matrix;
+  **retain the smallest #components with cumulative explained variance ≥ 0.90** (D3: "PCA
+  components covering 90% variance"). Record component count + top-axis loadings.
+- **Sampling (D2 — MANDATORY, corpus > 100K):** ADR-0004 **D2**: "clustering on a
+  platform-stratified 50K sample if the corpus exceeds 100K docs." 222,256 > 100,000 → **D2
+  fires.** Draw a **platform-stratified sample of 50,000** (stratify on `platform`;
+  proportional per-stratum allocation; the 40 null-platform graph_of_skills rows are their own
+  tiny stratum, retained), **seed 42**. **PCA is fit on this 50K; HDBSCAN clusters the 50K.**
+  The remaining ~172K docs are assigned by **nearest cluster centroid in PCA space**
+  (centroid = mean PCA coords of each non-noise cluster's members; distance recorded so a
+  "far from every centroid" tail is visible). Confound gates (D4/D8/D9) computed on the
+  **full assigned set**; discovery diagnostics (silhouette, noise fraction) reported on the
+  **50K clustered sample** (their pre-registered basis).
+- **HDBSCAN (D3):** `sklearn.cluster.HDBSCAN` (sklearn ≥1.4 — no new dep) with
+  **`min_cluster_size=200`** (D3 verbatim) and **`min_samples=None`** (library default; no
+  per-project override is pre-registered, so take + record the default). Euclidean on the
+  retained PCA components. HDBSCAN is deterministic given input; the 50K draw's seed=42 is the
+  only stochastic pin.
+- **k-means fallback trigger (D3, verbatim):** if **HDBSCAN noise fraction > 0.50 OR non-noise
+  clusters < 3** → `KMeans(random_state=42)` over **k ∈ {4..12}**, pick k by **highest mean
+  silhouette** (on the 50K sample, or a seeded 10K sub-sample of it if silhouette is too slow,
+  stated). **If best silhouette < 0.10 → declare "no discrete dialects" and report the top-5
+  PCA axes as continuous dimensions** (D3 verbatim — a finding, not a failure; do NOT
+  re-cluster).
+- **Cluster naming rule:** for each non-noise cluster, rank features by **|standardized median
+  of the cluster|** (0 = global standardized median by z-scoring) and name by its **top
+  deviant features** (report signed standardized median of the top ~8). Map onto the
+  original-report heuristic table (imperative-dense / conditional-rich / narrative / …) where
+  the deviant signature matches; where it does not, say so — do not force a label.
+- **Confound gates (computed on the full assigned set):**
+  - **D4 platform (verbatim):** cluster ↔ `platform` contingency; **Cramér's V**. **V > 0.6 →
+    re-cluster within each platform, report both views.** "Merely platform-driven" = V > 0.6
+    AND clusters map ~1:1 onto platforms — reported as an ecosystem effect, not a dialect.
+  - **D8 domain (verbatim; ClawHub moot per ADR-0006 → TF-IDF path):** no marketplace category
+    metadata survives (ADR-0006 routes D8 to TF-IDF). **Domain proxy = TF-IDF k-means on
+    content-word lemmas, k=10, seed 42** (D8 verbatim), fit on raw `text` from
+    `corpus.parquet` (join by `skill_id`; text 100% non-null). Content-word lemmas
+    approximated by a deterministic `TfidfVectorizer` (English stop-words, lowercase,
+    alphabetic tokens ≥3 chars, `max_features=20000`, `min_df=5`) — NOT a spaCy re-parse
+    (deterministic, fast, no new dep; the lemma approximation is recorded as a limitation).
+    D8's "hand-labeled ONCE before any outcome analysis and frozen" clause binds **RQ2** (it
+    has an outcome); **RQ1 clustering is unsupervised with no outcome**, so here the k=10
+    assignment is used **unlabeled** only to compute **Cramér's V between register clusters and
+    the 10 domain labels**; top TF-IDF terms per domain reported for interpretability, no
+    frozen taxonomy claimed at this step. **V > 0.6 → re-run register clustering within each of
+    the two largest domains, report domain-stratified as the primary RQ1 finding** (D8
+    verbatim).
+  - **D9 era (verbatim, ADR-0007):** bin `created_at` (from `corpus.parquet`, join by
+    `skill_id`; 99.98% non-null — null/unparseable excluded from the era gate only, count
+    recorded) into **calendar quarters**; **Cramér's V** between register clusters and era
+    bins. **V > 0.6 → re-cluster within each of the two largest eras** (2026Q1 ≈ 154.7K,
+    2026Q2 ≈ 62.0K) **and report era-stratified alongside pooled** (D9 verbatim). Feature-drift
+    -by-quarter is exploratory, not run unless a gate fires.
+- **Seed:** 42 everywhere stochastic (D1): the 50K draw, TF-IDF k-means, any k-means register
+  fallback. HDBSCAN + PCA deterministic given input.
+- **Confirms if (descriptive goal met):** pipeline runs end-to-end on the pre-registered
+  population at N=222,256 (asserted before running — mismatch → STOP), produces a component
+  count for ≥90% variance, a clustering outcome (HDBSCAN clusters, D3 k-means fallback, or the
+  D3 "no discrete dialects" declaration), and the three confound-gate Cramér's V values with
+  triggered/not-triggered decisions. RQ1's answer is **whatever the pipeline reports** —
+  discrete dialects, continuous dimensions, or confound-dominated structure are all valid
+  Observed outcomes.
+- **Would NOT confirm / STOP if:** organic canonical error-dropped N ≠ 222,256, OR slop leaks
+  in, OR source/platform counts mismatch the manifest split (D7-style drift — the script
+  asserts N and aborts; record + consult user). High noise, low silhouette, or a fired
+  confound gate are **NOT** stop conditions — they are the pre-registered findings.
+- **Robustness (§2) plan:** (a) degenerate slice — slop excluded by construction; watch for a
+  residual short-doc cluster and name it honestly. (b) missing data — median impute, no rows
+  dropped, N stated. (c) confound/leakage — this IS the D4/D8/D9 battery. (d) inferential test
+  — N/A (unsupervised descriptive; Cramér's V + silhouette reported as association/cohesion
+  descriptives, no significance claim). (e) n/subset — 50K stratified discovery + full ~222K
+  assignment, both stated. (f) pilot vs full — full organic canonical corpus via the
+  D2-mandated 50K discovery sample.
+- **Subsample deviation note (pre-run, 2026-07-09 12:14):** the 50K discovery sample is **not**
+  a taste choice — it is **ADR-0004 D2 verbatim**. The brief permitted a subsample only if
+  pre-registered; D2 pre-registers exactly this. Nearest-centroid out-of-sample assignment is
+  the added detail (D2 fixes the discovery sample, not the remainder's assignment); logged here
+  and, when it lands, in `DEVIATIONS.md`.
+- **Repro pins (fixed before the run):**
+  ```
+  git commit  <paper branch, -dirty: adds clustering.py + requirements bump + tests>
+  input       features.parquet  sha256 b999c8e99df4349c432c118446c8250b7ad295b58971a4bdaee23b8de13f7b2e
+  input       corpus.parquet     sha256 5b7f02f07961c86b57ee6e3b6da299e09b80566ed9f7896d1306f66e203c9011  (D8 text + D9 created_at, join by skill_id)
+  seed        42 (50K stratified draw; TF-IDF k-means; k-means register fallback; D1)
+  env         uv run --with-requirements paper/code/ws3/requirements.txt python paper/code/ws3/clustering.py
+  pins        scikit-learn / pandas / numpy / matplotlib / pyarrow recorded in the manifest
+  ```
+
 ## RESULTS
+
+### Step 3 — RQ1 clustering / instruction dialects (2026-07-09 13:00)
+
+- **Result (Observed):** On the **222,256**-row organic canonical error-dropped population,
+  PCA retained **62 components** for **0.9027** cumulative variance; the **D2** 50K
+  platform-stratified discovery sample fed **HDBSCAN(min_cluster_size=200)**, which found
+  **10 clusters** with **noise fraction 0.863** and discovery-sample silhouette **0.6638**
+  (now persisted in the manifest's `hdbscan_prefallback` block and `step3_clusters.md`,
+  alongside the post-fallback numbers, so the pre-registered trigger evidence survives the
+  run). Noise **0.863 > 0.50** fired the **pre-registered D3 fallback** to k-means (k ∈
+  {4..12}); best k = **5** at silhouette **0.1129** — **below the D3 "no discrete dialects"
+  floor is 0.10, so 0.1129 clears it, but only barely: WEAK cluster structure**, not crisp
+  dialects. Full assigned-set cluster sizes: **{0: 108,698, 1: 4, 2: 30,342, 3: 218,
+  4: 82,994}** — clusters **1 (n=4)** and **3 (n=218)** are degenerate outlier clusters (their
+  deviant-feature signatures are dominated by extreme structural counts —
+  `struct_line_count`/`struct_heading_count` for cluster 1, `struct_name_format_valid`/
+  `fm_desc_present` for cluster 3), so there are **effectively 3 substantive groupings**
+  (0, 2, 4). Confound gates: **D4 platform Cramér's V 0.056, D8 domain 0.254, D9 era
+  0.066 — none fired** (trigger > 0.6).
+- **Claim (Observed level only):** the organic corpus shows **weak, non-crisp dialect
+  structure** — a k=5 partition with silhouette just above the pre-registered floor, two of
+  the five clusters degenerate on structural metadata rather than dialect, and none of the
+  three confound gates firing. This is **not** "distinct dialects" — no claim of clean,
+  well-separated instruction dialects is made. See `step3_clusters.md`'s top-5 PCA axes for
+  the continuous register dimensions (readability/structure/lexical) that underlie the weak
+  partition.
+- **Robustness (§2):** confound gates D4/D8/D9 computed on the full assigned set (none
+  fired); determinism verified — 8/8 `tests/test_clustering.py` pass, seed 42 throughout
+  (50K draw, TF-IDF k-means, k-means fallback), rerun reproduced a byte-identical output
+  parquet (sha match, see Repro). All numbers above are read from the regenerated manifest
+  and `step3_clusters.md`, not retyped from the run log.
+- **Artifact:** `paper/code/ws1/manifests/rq1_cluster_assignments.parquet.manifest.json`
+  (`output_sha256` `edebcc74…`); summary `paper/code/ws3/step3_clusters.md`; figures
+  `paper/figures/ws3_step3_pca_scatter.png`, `paper/figures/ws3_step3_cluster_platform_heatmap.png`.
+- **Repro:**
+  ```
+  git commit  cb7fa649 (paper branch, -dirty: clustering.py defect fixes)
+  input       features.parquet  sha256 b999c8e99df4349c432c118446c8250b7ad295b58971a4bdaee23b8de13f7b2e
+  input       corpus.parquet    sha256 5b7f02f07961c86b57ee6e3b6da299e09b80566ed9f7896d1306f66e203c9011
+  output      rq1_cluster_assignments.parquet  sha256 edebcc744b38d8d4b68cc46b8b4ce2f43913d17cc2dc7459d235b9a3c11257a7
+  seed        42 (50K stratified draw; TF-IDF k-means; k-means register fallback; D1)
+  pins        scikit-learn 1.9.0 · pandas 3.0.3 · matplotlib 3.11.0 · numpy 2.4.6 · pyarrow 24.0.0 · scipy 1.17.1
+  uv run --with-requirements paper/code/ws3/requirements.txt python paper/code/ws3/clustering.py
+  ```
 
 ### Machine-cell feature extraction (2026-07-09 12:14) [ADR-0009 exploratory]
 

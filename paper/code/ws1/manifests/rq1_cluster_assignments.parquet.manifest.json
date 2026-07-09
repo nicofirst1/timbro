@@ -1,0 +1,91 @@
+{
+  "analysis_population": "organic canonical, error-dropped, slop excluded (RQ1)",
+  "cluster_sizes": {
+    "0": 108698,
+    "1": 4,
+    "2": 30342,
+    "3": 218,
+    "4": 82994
+  },
+  "clustering_method": "kmeans",
+  "confound_gates": {
+    "d4_platform": {
+      "cramers_v": 0.05635498711103059,
+      "fired": false
+    },
+    "d8_domain": {
+      "cramers_v": 0.25396728712628003,
+      "fired": false,
+      "k": 10
+    },
+    "d9_era": {
+      "cramers_v": 0.06644740588211469,
+      "fired": false,
+      "n_era_null": 40
+    }
+  },
+  "d2_sample_size": 50000,
+  "dropped_zero_variance": [],
+  "figures": [
+    "paper/figures/ws3_step3_pca_scatter.png",
+    "paper/figures/ws3_step3_cluster_platform_heatmap.png"
+  ],
+  "git_commit": "cb7fa6492064b7bb3cc4b6ae3272343f1dcd4ec5-dirty",
+  "hdbscan_params": {
+    "metric": "euclidean",
+    "min_cluster_size": 200,
+    "min_samples": null
+  },
+  "hdbscan_prefallback": {
+    "n_clusters": 10,
+    "noise_fraction": 0.86308,
+    "silhouette": 0.6638091411557737,
+    "trigger_fired": true
+  },
+  "inputs": [
+    {
+      "file": "features.parquet",
+      "sha256": "b999c8e99df4349c432c118446c8250b7ad295b58971a4bdaee23b8de13f7b2e"
+    },
+    {
+      "file": "corpus.parquet",
+      "sha256": "5b7f02f07961c86b57ee6e3b6da299e09b80566ed9f7896d1306f66e203c9011"
+    }
+  ],
+  "kmeans_best_k": 5,
+  "kmeans_silhouette_per_k": {
+    "4": 0.1117,
+    "5": 0.1129,
+    "6": 0.0764,
+    "7": 0.0779,
+    "8": 0.0781,
+    "9": 0.0624,
+    "10": 0.0628,
+    "11": 0.0764,
+    "12": 0.0687
+  },
+  "n_clusters": 5,
+  "n_numeric_features": 130,
+  "n_organic_canonical": 222256,
+  "n_rows": 222256,
+  "no_discrete_dialects": false,
+  "noise_fraction": 0.0,
+  "output": "rq1_cluster_assignments.parquet",
+  "output_sha256": "edebcc744b38d8d4b68cc46b8b4ce2f43913d17cc2dc7459d235b9a3c11257a7",
+  "packages": {
+    "matplotlib": "3.11.0",
+    "numpy": "2.4.6",
+    "pandas": "3.0.3",
+    "pyarrow": "24.0.0",
+    "scikit-learn": "1.9.0",
+    "scipy": "1.17.1"
+  },
+  "pca_cum_variance": 0.902738318460033,
+  "pca_n_components": 62,
+  "pca_variance_target": 0.9,
+  "script": "clustering.py",
+  "seed": 42,
+  "silhouette": 0.11288580160478537,
+  "source": "ws3_step3_rq1_clustering",
+  "utc": "2026-07-09T10:59:24.282364+00:00"
+}
