@@ -6,7 +6,7 @@ Analysis rules are pre-registered in ADR-0004/0005 (D1–D9) and bind over this 
 
 ## PENDING
 
-(nothing pending — next up: descriptives, step 2)
+(nothing pending — next up: RQ1 clustering, step 3)
 
 ## STATUS
 
@@ -23,7 +23,10 @@ Analysis rules are pre-registered in ADR-0004/0005 (D1–D9) and bind over this 
       in-memory (`to_pylist()`), non-parallel, non-resumable, and deferred the manifest —
       `extract_features.py` adds all of those + the ADR-0010 install-labeled union scope
       needed for RQ2. Scaffold + its `test_featurize.py` kept as-is (pure-seam reference).
-- [ ] descriptives (step 2) — per-source/platform distributions; organic-vs-slop AUC.
+- [x] descriptives (step 2) — `descriptives.py`. **Done 2026-07-09 11:29.** Per-source/
+      platform median/IQR + organic-vs-slop separability. FULL CV AUC 1.000 — perfect but
+      **corpus-provenance separation, not a linguistic-dialect finding** (D5 ablation fired,
+      stays 1.000). See RESULTS + `../ws1/manifests/step2_descriptives.md.manifest.json`.
 - [ ] RQ1 clustering (step 3) — PCA → HDBSCAN; confound gates D4/D8/D9.
 - [ ] RQ2 adoption (step 4) — regressions on `log1p(installs_wk_mean)`; BH per D6.
 - [ ] RQ4 temporal (step 5) — chains ≥3 versions (ADR-0005).
@@ -97,7 +100,144 @@ Analysis rules are pre-registered in ADR-0004/0005 (D1–D9) and bind over this 
       python paper/code/ws3/extract_features.py
   ```
 
+## PRE-REG — WS3 step 2 descriptives + slop separability (2026-07-09 11:22)
+
+- **Goal / hypothesis:** Two goals. (a) **Descriptive** — how do the 130 numeric
+  `analyze_text` features distribute per source and per platform (median/IQR), and what
+  do a named set of headline features look like across organic vs. slop? (b) **Separability
+  probe (validation, not a confirmatory RQ)** — can a simple logistic model tell organic
+  SKILL.md docs from the `slop_stub` marketplace-listing corpus using the linguistic
+  features? Expectation: some separability (the two corpora were built differently), but the
+  honest question is **how much of it is just length** — slop stubs are short marketplace
+  blurbs, so length features could carry the signal on their own. This step earns at most an
+  **"Observed"** claim (§3); it is not a hypothesis test with an inferential test statistic,
+  so no "significant"/"validated" language.
+- **Data / population:** `paper/data/features.parquet` (manifest
+  `../ws1/manifests/features.parquet.manifest.json`, `output_sha256` `b999c8e9…`,
+  231,426 rows × 139 cols). **Analysis population = canonical rows only**
+  (`is_canonical == "true"` — STRING comparison; the naive truthiness of the literal
+  "false" would keep every row). Canonical = **227,407**. **The 4,019 labeled-only extras
+  are RQ2-specific (ADR-0010 install representatives) and are EXCLUDED here.** Then **drop
+  the rows with non-null `analyze_error`** (log the count; expected 4 in canonical from step
+  1). Classes: positive = `source == "slop_stub"` (5,147 canonical before error-drop);
+  organic = `source ∈ {skill_diffs, graph_of_skills}` (222,220 + 40 = 222,260 before drop).
+  Verified empirically pre-run: canonical source counts = {skill_diffs 222220,
+  graph_of_skills 40, slop_stub 5147}; canonical `analyze_error` non-null = 4.
+- **Feature set for the probe:** the **130 numeric** `analyze_text` feature columns (all
+  non-carry columns; carry/identity columns `skill_id, source, platform,
+  near_dup_cluster_id, is_canonical, installs, analyze_error` and the two JSON string
+  columns `frontmatter_json, dict_plain_replacements_json` are excluded — not features).
+  34 of the 130 have some nulls (undefined metrics on short docs: SMOG needs ≥30 sentences,
+  coherence/syntax need ≥2 sentences). **Null policy (pre-registered): median imputation
+  fitted per-fold inside the CV pipeline** (`SimpleImputer(strategy="median")` →
+  `StandardScaler` → `LogisticRegression`), so no rows are dropped and imputation never
+  leaks across folds. No constant/zero-variance columns exist in the canonical set (checked).
+- **Descriptives (pre-registered):** per-source and per-platform **median + IQR (Q1, Q3)**
+  for every numeric feature, written to the summary table. Distribution figures (organic vs.
+  slop overlaid) for this **named headline set of 10** spanning the feature families
+  (named BEFORE running):
+  1. `dict_imperative_ratio` (imperative)
+  2. `dict_hedge_per_1k` (hedging)
+  3. `dict_conditional_per_1k` (conditional/instructional)
+  4. `dict_second_person_per_1k` (address / directive register)
+  5. `read_flesch_kincaid_grade` (readability)
+  6. `syn_mean_tree_depth` (syntactic complexity)
+  7. `coh_lemma_overlap_adj` (cohesion)
+  8. `lex_mtld` (lexical richness)
+  9. `struct_code_char_ratio` (structure / code density)
+  10. `desc_tokens` (document length)
+- **Separability probe (pre-registered):** scikit-learn `LogisticRegression`
+  (`class_weight="balanced"`, `max_iter=1000`), features standardized (per-fold), evaluated
+  with **5-fold `StratifiedKFold`, seed 42 (D1)**. Primary metric: **ROC-AUC, reported as
+  mean ± sd across the 5 folds**. Three models, all pre-registered:
+  - **FULL** — all 130 numeric features.
+  - **LENGTH-ONLY baseline** — the length family only:
+    `desc_tokens, desc_unique_tokens, desc_characters, desc_sentences, struct_line_count`
+    (raw document-size counts; named here before running).
+  - **FULL − LENGTH** — the 125 features that remain after removing those 5 length columns.
+- **MANDATORY confound guard (§2 + spirit of D5):** report all three AUCs side by side. If
+  **FULL-model AUC ≈ LENGTH-ONLY AUC**, the honest reading is "separability is largely
+  length-driven" and it is written that way, not as "the linguistic features separate the
+  classes". D5's own rule also fires: **if FULL AUC > 0.99, run a drop-one-feature ablation**
+  (template-leakage guard) and report the ablated AUC alongside.
+- **Also report:** the **top-10 most-separating features** = the 10 largest `|coef|` on
+  standardized inputs, from a single FULL logistic fit on the whole canonical set (same
+  pipeline, refit on all rows — reported as a descriptive ranking, distinct from the CV AUC).
+- **Confirms if:** class counts at split time match the manifest-derived expectations
+  (canonical 227,407; slop_stub 5,147 minus any that carried an `analyze_error`; organic the
+  remainder) AND the harness produces three finite AUCs. This "confirms" only the descriptive
+  goal — there is no confirmatory hypothesis on the ladder here.
+- **Would NOT confirm / STOP if:** canonical class counts do NOT match the above (e.g.
+  slop_stub ≠ 5,147, or canonical ≠ 227,407) → **STOP, record, consult user** (D7-style
+  drift under us). Also STOP if `analyze_error`-drop removes more than the expected 4 in
+  canonical (upstream change).
+- **Repro pins (fixed before the run):**
+  ```
+  git commit  <paper branch, -dirty: adds paper/code/ws3/descriptives.py + requirements.txt>
+  input       features.parquet  sha256 b999c8e99df4349c432c118446c8250b7ad295b58971a4bdaee23b8de13f7b2e
+  seed        42 (StratifiedKFold shuffle; D1)
+  env         uv run --with-requirements paper/code/ws3/requirements.txt python paper/code/ws3/descriptives.py
+  pins        scikit-learn / pandas / matplotlib / numpy / pyarrow versions recorded in the manifest
+  ```
+
 ## RESULTS
+
+### Step 2 — descriptives + organic-vs-slop separability (2026-07-09 11:29)
+
+- **Result (Observed):** On the canonical analysis population — **227,403** docs after
+  dropping **4** rows with a non-null `analyze_error` (RQ2 install-labeled extras excluded
+  per PRE-REG), split **slop_stub = 5,147** (positive) vs **organic = 222,256**
+  (`skill_diffs 222,216` after error-drop + `graph_of_skills 40`) — a `class_weight=
+  "balanced"`, standardized, median-imputed logistic (5-fold stratified CV, seed 42) gives:
+  - **FULL (130 numeric features): ROC-AUC 1.0000 ± 0.0000** (exact mean 0.999993, sd 1.4e-5).
+  - **LENGTH-ONLY baseline (5 length counts): ROC-AUC 0.9734 ± 0.0008.**
+  - **FULL − LENGTH (125 features): ROC-AUC 1.0000 ± 0.0000** (exact 0.999992, sd 1.4e-5).
+  - Top-10 most-separating features (|coef| on standardized inputs, FULL fit on all rows):
+    `struct_max_heading_depth` (+3.08 → slop), `struct_prose_ratio` (+1.98 → slop),
+    `posdep_dep_ROOT` (−1.38 → organic), `desc_proportion_unique_tokens` (+1.20 → slop),
+    `struct_bullet_list_ratio` (−1.12 → organic), `coh_lemma_overlap_adj` (−0.99 → organic),
+    `struct_list_item_ratio` (−0.91 → organic), `struct_inline_code_char_ratio` (−0.88 →
+    organic), `struct_code_char_ratio` (−0.86 → organic), `read_long_sentence_ratio`
+    (−0.78 → organic).
+  - Descriptives (median [Q1,Q3]) make the gap concrete: slop `desc_tokens` 22 [20,26] vs
+    organic 252 [120,476]; slop FKG 7.6 vs 11.8; slop `dict_hedge_per_1k` / `dict_conditional_
+    per_1k` / `dict_second_person_per_1k` / `coh_lemma_overlap_adj` all median 0.
+- **Claim (Observed, calibrated):** The linguistic-feature set separates the two **corpora**
+  essentially perfectly — but this is **corpus-provenance separation, NOT evidence of a
+  subtle organic-vs-slop linguistic dialect**. slop_stub is a corpus of ~22-token
+  marketplace blurbs; organic docs are full multi-hundred-token procedures. The classes
+  differ on nearly every structural feature at once, so the AUC is over-determined. This
+  **validates only that the feature extractor discriminates a trivially different corpus**;
+  it does not license any claim about Timbro capturing a nuanced dialect. No
+  "significant"/"validated" language — no inferential test was run (mean±sd across folds only).
+- **Length-confound guard (PRE-REG §2 / D5):** the pre-registered length hypothesis is
+  **refuted, but not exonerating**. Length-only already reaches 0.9734, yet FULL − LENGTH
+  stays 1.0000 (gap FULL − length-only = +0.0266) — so length is *sufficient-ish but not
+  necessary*: separation persists after removing all 5 length counts because the corpora also
+  differ on structure/readability/cohesion. Honest reading: **the separation is not merely
+  length-driven — it is provenance-driven across many correlated structural features.**
+- **Robustness (§2):** (a) **Contamination/degenerate slice** — YES, and this IS the finding:
+  slop is a degenerate ~22-token slice; the perfect AUC is a corpus artifact, flagged in the
+  claim above. (b) **Missing data** — 34/130 features have nulls on short docs (SMOG/coherence
+  undefined); handled by per-fold median imputation, **no rows dropped**, N=227,403 stated.
+  (c) **Leakage/confound** — **D5 ablation FIRED** (FULL CV AUC > 0.99): dropping the top
+  feature `struct_max_heading_depth` leaves AUC **0.99997 ± 3e-5** — separation is
+  over-determined, consistent with provenance leakage, not a single-feature template tell.
+  (d) **Inferential test** — N/A (descriptive/validation step); reported as mean±sd, no
+  significance claimed. (e) **n/subset** — exact, stated. (f) **Pilot vs full** — full corpus.
+- **Artifact:** table `paper/code/ws3/step2_descriptives.md`; full per-feature per-group
+  median/IQR CSVs `step2_source_summary.csv` / `step2_platform_summary.csv`; figure
+  `paper/figures/ws3_step2_headline_distributions.png`; manifest
+  `../ws1/manifests/step2_descriptives.md.manifest.json` (`output_sha256` `4cfc2f60…`).
+  All numbers above are cited from that manifest/table, not retyped from the run log.
+- **Repro:**
+  ```
+  git commit  b1c2ce8 (paper branch, -dirty: adds descriptives.py + requirements.txt + tests)
+  input       features.parquet  sha256 b999c8e99df4349c432c118446c8250b7ad295b58971a4bdaee23b8de13f7b2e
+  seed        42 (StratifiedKFold shuffle; D1)
+  pins        scikit-learn 1.9.0 · pandas 3.0.3 · matplotlib 3.11.0 · numpy 2.4.6 · pyarrow 24.0.0
+  uv run --with-requirements paper/code/ws3/requirements.txt python paper/code/ws3/descriptives.py
+  ```
 
 ### Step 1 — `extract_features.py` production run (2026-07-09)
 

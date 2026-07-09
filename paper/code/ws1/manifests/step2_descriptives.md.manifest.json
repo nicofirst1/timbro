@@ -1,0 +1,130 @@
+{
+  "analysis_population": "canonical only (is_canonical == 'true'), RQ2 extras excluded",
+  "auc_full_folds": [
+    0.9999653047320148,
+    0.9999993447568425,
+    0.9999998034270527,
+    0.9999999562746711,
+    0.9999987975534541
+  ],
+  "auc_full_mean": 0.999992641348807,
+  "auc_full_minus_length_folds": [
+    0.9999650642481157,
+    0.9999991263424567,
+    0.9999998471099298,
+    1.0,
+    0.999995714917764
+  ],
+  "auc_full_minus_length_gap": 0.026579783319655825,
+  "auc_full_minus_length_mean": 0.9999919505236534,
+  "auc_full_minus_length_sd": 1.3532811940477162e-05,
+  "auc_full_sd": 1.367427261527455e-05,
+  "auc_length_only_folds": [
+    0.972670491497495,
+    0.9738708904514252,
+    0.9731155152187868,
+    0.9746998250702628,
+    0.972707567907786
+  ],
+  "auc_length_only_mean": 0.9734128580291512,
+  "auc_length_only_sd": 0.000774988107554643,
+  "class_weight": "balanced",
+  "cv_folds": 5,
+  "cv_seed": 42,
+  "d5_ablation": {
+    "auc_mean": 0.9999653856241217,
+    "auc_sd": 3.0654198935524346e-05,
+    "dropped": "struct_max_heading_depth"
+  },
+  "figures": [
+    "paper/figures/ws3_step2_headline_distributions.png"
+  ],
+  "git_commit": "b1c2ce8a5dd5900e8e56c57a8341211a29f52855-dirty",
+  "headline_features": [
+    "dict_imperative_ratio",
+    "dict_hedge_per_1k",
+    "dict_conditional_per_1k",
+    "dict_second_person_per_1k",
+    "read_flesch_kincaid_grade",
+    "syn_mean_tree_depth",
+    "coh_lemma_overlap_adj",
+    "lex_mtld",
+    "struct_code_char_ratio",
+    "desc_tokens"
+  ],
+  "inputs": [
+    {
+      "file": "features.parquet",
+      "sha256": "b999c8e99df4349c432c118446c8250b7ad295b58971a4bdaee23b8de13f7b2e"
+    }
+  ],
+  "length_features": [
+    "desc_tokens",
+    "desc_unique_tokens",
+    "desc_characters",
+    "desc_sentences",
+    "struct_line_count"
+  ],
+  "n_canonical": 227407,
+  "n_dropped_analyze_error": 4,
+  "n_numeric_features": 130,
+  "n_organic": 222256,
+  "n_rows": 227403,
+  "n_slop_stub": 5147,
+  "null_policy": "median impute per-fold (SimpleImputer) inside the CV pipeline",
+  "output": "step2_descriptives.md",
+  "output_sha256": "4cfc2f6080adf87f1d8aae84b064b5b38cca4d382d97fa0cf37e7c16c55efa57",
+  "packages": {
+    "matplotlib": "3.11.0",
+    "numpy": "2.4.6",
+    "pandas": "3.0.3",
+    "pyarrow": "24.0.0",
+    "scikit-learn": "1.9.0"
+  },
+  "script": "descriptives.py",
+  "seed": 42,
+  "source": "ws3_step2_descriptives",
+  "top_features": [
+    {
+      "coef": 3.0760421828014093,
+      "feature": "struct_max_heading_depth"
+    },
+    {
+      "coef": 1.9804804753746013,
+      "feature": "struct_prose_ratio"
+    },
+    {
+      "coef": -1.3752709058591768,
+      "feature": "posdep_dep_ROOT"
+    },
+    {
+      "coef": 1.203495076725988,
+      "feature": "desc_proportion_unique_tokens"
+    },
+    {
+      "coef": -1.1152657711275225,
+      "feature": "struct_bullet_list_ratio"
+    },
+    {
+      "coef": -0.9853081499789804,
+      "feature": "coh_lemma_overlap_adj"
+    },
+    {
+      "coef": -0.907892045104955,
+      "feature": "struct_list_item_ratio"
+    },
+    {
+      "coef": -0.877548188796624,
+      "feature": "struct_inline_code_char_ratio"
+    },
+    {
+      "coef": -0.8594425287449003,
+      "feature": "struct_code_char_ratio"
+    },
+    {
+      "coef": -0.7833716923176315,
+      "feature": "read_long_sentence_ratio"
+    }
+  ],
+  "utc": "2026-07-09T09:28:24.399686+00:00"
+}

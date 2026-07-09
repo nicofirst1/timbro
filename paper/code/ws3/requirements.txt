@@ -1,0 +1,16 @@
+# WS3 analysis deps — ws1's corpus-side deps + the analysis stack (step 2 onward).
+# Run analysis scripts with:
+#   uv run --with-requirements paper/code/ws3/requirements.txt python paper/code/ws3/<script>.py
+# Exact resolved versions are recorded per-run in each manifest.json.
+#
+# ws1 deps (feature extraction / parquet / provenance helpers under paper/code/ws1/):
+pyarrow>=16
+huggingface_hub>=0.24
+datasets>=2.19
+datasketch>=1.6
+requests>=2.31
+# ws3 analysis (step 2 descriptives + separability probe):
+scikit-learn>=1.4
+pandas>=2.2
+matplotlib>=3.8
+numpy>=1.26
