@@ -56,6 +56,9 @@ Analysis rules are pre-registered in ADR-0004/0005 (D1–D9) and bind over this 
       2026-07-09 16:21.** 67,164/67,164 eligible version-rows, 18 failures (0.0268%,
       all `UnicodeEncodeError` surrogate-char, not the date-frontmatter bug). See RESULTS +
       `../ws1/manifests/features_chains.parquet.manifest.json`.
+- [x] RQ5 human-baseline feature extraction (step 7 prep) — `extract_features_human.py`.
+      **Done 2026-07-09 16:46.** 20,137/20,137 rows, 0 failures. See RESULT + PRE-REG below +
+      `../ws1/manifests/features_human.parquet.manifest.json`.
 - [ ] RQ4 temporal (step 5) — chains ≥3 versions (ADR-0005), modeling over the features above.
 - [ ] holdout (step 6) — `rq2_holdout_candidates.parquet` drift characterization.
 - [ ] `run_all.py` — re-runnable driver + generated `FINDINGS.md` (acceptance).
@@ -1485,4 +1488,89 @@ _Earlier steps (descriptives → holdout) follow once run._
   pins        statsmodels 0.14.6 · scikit-learn 1.9.0 · pandas 3.0.3 · numpy 2.4.6 · scipy 1.17.1 · matplotlib 3.11.0 · pyarrow 24.0.0
   env         OMP/BLAS threads capped to 4
   uv run --with-requirements paper/code/ws3/requirements.txt python paper/code/ws3/adoption.py
+  ```
+
+## PRE-REG — WS3 step 7 prep: RQ5 human-baseline feature extraction (2026-07-09 16:39)
+
+- **Goal:** NOT a hypothesis test. Extraction-only prep for WS3 step 7 (RQ5 analysis,
+  ADR-0008). Produce the same 132 `analyze_text` feature vectors for the RQ5 human-baseline
+  corpus (`paper/data/human_baseline.parquet`, C1+C2 human cells) that `extract_features.py`
+  produces for the main skills corpus, so step 7 can run the confirmatory OLS + BH battery
+  (ADR-0008 D10) against a feature-complete table. **Extraction scope = ALL rows** — the
+  ADR-0008-mandated dedup treatment (exact SHA256 + MinHash 0.9/5-gram, "same dedup treatment
+  as D1") happens in step 7's ANALYSIS, not here; this script does not dedup, filter by
+  language again (already applied upstream by `build_human_baseline.py`), or drop rows. No
+  claim ladder rung is at stake; the §2 gate here is row-count + failure-rate + column-
+  coverage only, same shape as `extract_features_machine.py` / `extract_features_chains.py`.
+- **Data:** `paper/data/human_baseline.parquet`
+  (`../ws1/manifests/human_baseline.parquet.manifest.json`, `output_sha256` prefix
+  `b2875fd6…`, **20,137 rows**, columns `doc_id, audience, era, text, repo, license_spdx,
+  first_timestamp, last_timestamp, source_detail`). Verified empirically pre-run: table has
+  20,137 rows; `n_by_era` = {pre: 14,866, post: 5,271}; seed 42; committed at 3542153.
+- **Scope rule:** ALL 20,137 rows — the human-baseline table is standalone (not merged into
+  `corpus.parquet`), so the step-1 `is_canonical`/`installs` union scope rule does not apply.
+- **Feature source:** `timbro.analyze.analyze_text` (repo `src/timbro/analyze.py`) — same
+  deterministic pipeline as steps 1/machine/chains, reused via import (no logic duplication)
+  from `extract_features.py`'s `_analyze_one` / `_feature_keys` / `_worker_init` seams
+  (the `extract_features_machine.py` pattern).
+- **Output:** `paper/data/features_human.parquet` — carry columns `doc_id, audience, era,
+  repo, source_detail` + all 132 `analyze_text` feature keys (flat) + `analyze_error`
+  (`pa.string()`, null normally; per-doc exception message otherwise — one bad doc never
+  crashes the run). Manifest via WS1 `write_manifest`. Pool `max(1, cpu_count() - 3)`.
+- **Known edge case (named before running, not a stop condition):** README text may contain
+  unpaired Unicode surrogates. The chains corpus (step 5 prep) hit 18/67,164 (0.0268%)
+  `UnicodeEncodeError` on this exact pattern, captured per-doc in `analyze_error` — expected
+  behavior of the existing `_analyze_one` try/except seam, not a bug to fix here.
+- **Confirms if:** output row count == **20,137** (assert against the manifest's `n_rows`
+  before running); analyze failures **< 1%** of 20,137; all feature columns present on
+  **> 99%** of rows.
+- **Would NOT confirm / STOP if:** row count read from `human_baseline.parquet` ≠ 20,137
+  (upstream drift — stop, record, consult user); analyze failures **≥ 1%** — stop, record
+  the failing docs' error messages, consult user.
+- **Repro pins (fixed before the run):**
+  ```
+  git commit  3542153 (paper branch, -dirty: adds extract_features_human.py + test)
+  input       human_baseline.parquet  sha256 b2875fd6eed52a2d202d65f045e5f0cec509507864740f10a4e316cda57b30d7
+  spacy 3.8.14 · en_core_web_sm 3.8.0 · pyarrow 24.0.0 · textdescriptives 2.8.2
+  deterministic pipeline, no seed
+  uv run --with-requirements paper/code/ws1/requirements.txt \
+      python paper/code/ws3/extract_features_human.py
+  ```
+
+### RQ5 human-baseline features (step 7 prep) 2026-07-09 16:46
+
+- Result:     20,137/20,137 rows extracted (assert against manifest N passed), **0 analyze
+              failures (0.0000%)**, 132 feature keys, output 138 cols (5 carry +
+              132 features + `analyze_error`). Gate (row count exact + failures < 1%)
+              cleared with margin. 5 columns below 99% coverage: `read_smog` (79.3%),
+              `read_second_order_coherence`/`coh_second_order_coherence` (79.3%),
+              `coh_first_order_coherence`/`coh_lemma_overlap_adj` (87.3%), and
+              `analyze_error` (0.0%, expected — null on success). These are the same
+              short-doc-undefined metrics named in the step-2 pre-reg (SMOG needs
+              ≥30 sentences, coherence needs ≥2) — not a defect, not a stop condition
+              (this run's confirms-if only required row count + failure-rate, both passed;
+              per-column coverage on these 4 metrics is a known population property, carried
+              forward for step 7 to handle the same way step 2/3 did — median imputation
+              inside whatever pipeline uses them).
+- Claim:      Observed-level only — this is a corpus-construction/extraction step (WS3
+              pre-reg framing), not a hypothesis test. No claim ladder rung at stake.
+- Robustness: (a) degenerate slice — N/A, whole standalone table, no subgroup filter.
+              (b) missing data — 0 rows dropped; the 4 coherence/SMOG columns' partial
+              coverage is a known short-doc property, not silently dropped rows; deferred
+              to step 7's imputation choice. (c) confound/leakage — N/A, extraction only,
+              no model fit. (d) inferential test — N/A, extraction-only step. (e) n/subset —
+              20,137 exact, matches manifest. (f) pilot vs full — full human-baseline corpus,
+              no sampling.
+- Artifact:   `paper/data/features_human.parquet` (DVC-tracked);
+              `../ws1/manifests/features_human.parquet.manifest.json`
+              (`output_sha256` `27e04ad9e66817e300e142434b1ede4a18e9a8a6306959d2141e8fa8c6ed5123`,
+              `n_analyze_failures` 0, `n_feature_keys` 132).
+- Repro:
+  ```
+  git commit  3542153 (paper branch, -dirty: adds extract_features_human.py + test)
+  input       human_baseline.parquet    sha256 b2875fd6eed52a2d202d65f045e5f0cec509507864740f10a4e316cda57b30d7
+  output      features_human.parquet    sha256 27e04ad9e66817e300e142434b1ede4a18e9a8a6306959d2141e8fa8c6ed5123
+  spacy 3.8.14 · en_core_web_sm 3.8.0 · pyarrow 24.0.0 · textdescriptives 2.8.2
+  deterministic pipeline, no seed
+  uv run --with-requirements paper/code/ws1/requirements.txt python paper/code/ws3/extract_features_human.py
   ```

@@ -1,0 +1,26 @@
+{
+  "analyze_failure_rate": 0.0,
+  "git_commit": "3542153669d0f3c3cbda74709391c477e189fcbe-dirty",
+  "inputs": [
+    {
+      "file": "human_baseline.parquet",
+      "sha256": "b2875fd6eed52a2d202d65f045e5f0cec509507864740f10a4e316cda57b30d7"
+    }
+  ],
+  "n_analyze_failures": 0,
+  "n_feature_keys": 132,
+  "n_rows": 20137,
+  "output": "features_human.parquet",
+  "output_sha256": "27e04ad9e66817e300e142434b1ede4a18e9a8a6306959d2141e8fa8c6ed5123",
+  "packages": {
+    "en_core_web_sm": "3.8.0",
+    "pyarrow": "24.0.0",
+    "spacy": "3.8.14",
+    "textdescriptives": "2.8.2"
+  },
+  "scope_rule": "ALL rows (standalone table, ADR-0008 \u2014 no canonical filter; dedup deferred to WS3 step 7 analysis)",
+  "script": "extract_features_human.py",
+  "seed": 42,
+  "source": "features_human",
+  "utc": "2026-07-09T14:45:42.304666+00:00"
+}
