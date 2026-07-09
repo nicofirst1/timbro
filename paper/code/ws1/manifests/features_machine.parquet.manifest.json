@@ -1,0 +1,26 @@
+{
+  "analyze_failure_rate": 0.0,
+  "git_commit": "1afa1d2f56e37627453cb2b5e535c7f517d5bf89-dirty",
+  "inputs": [
+    {
+      "file": "src_machine_cell.parquet",
+      "sha256": "28f022cc7a3406d5413d3df97c8628f732948dd0cd3481f2ec906ef8fcaa4afc"
+    }
+  ],
+  "n_analyze_failures": 0,
+  "n_feature_keys": 132,
+  "n_rows": 587,
+  "output": "features_machine.parquet",
+  "output_sha256": "7d463b3539358188277cf4e039ca4eeea036e34630423f953e2dc0f5e1fad668",
+  "packages": {
+    "en_core_web_sm": "3.8.0",
+    "pyarrow": "24.0.0",
+    "spacy": "3.8.14",
+    "textdescriptives": "2.8.2"
+  },
+  "scope_rule": "ALL rows (standalone table, ADR-0009 \u2014 no canonical filter)",
+  "script": "extract_features_machine.py",
+  "seed": 42,
+  "source": "features_machine",
+  "utc": "2026-07-09T10:14:15.944286+00:00"
+}

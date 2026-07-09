@@ -27,6 +27,9 @@ Analysis rules are pre-registered in ADR-0004/0005 (D1–D9) and bind over this 
       platform median/IQR + organic-vs-slop separability. FULL CV AUC 1.000 — perfect but
       **corpus-provenance separation, not a linguistic-dialect finding** (D5 ablation fired,
       stays 1.000). See RESULTS + `../ws1/manifests/step2_descriptives.md.manifest.json`.
+- [x] machine-cell feature extraction (ADR-0009 exploratory prep) —
+      `extract_features_machine.py`. **Done 2026-07-09 12:14.** 587/587 rows, 0 failures.
+      See RESULTS + `../ws1/manifests/features_machine.parquet.manifest.json`.
 - [ ] RQ1 clustering (step 3) — PCA → HDBSCAN; confound gates D4/D8/D9.
 - [ ] RQ2 adoption (step 4) — regressions on `log1p(installs_wk_mean)`; BH per D6.
 - [ ] RQ4 temporal (step 5) — chains ≥3 versions (ADR-0005).
@@ -180,7 +183,73 @@ Analysis rules are pre-registered in ADR-0004/0005 (D1–D9) and bind over this 
   pins        scikit-learn / pandas / matplotlib / numpy / pyarrow versions recorded in the manifest
   ```
 
+## PRE-REG — WS3 machine-cell feature extraction (2026-07-09 12:12) [ADR-0009 exploratory]
+
+- **Goal:** NOT a hypothesis test. `paper/data/src_machine_cell.parquet` is a separate,
+  standalone table (machine-authored SKILL.md cell, ADR-0009) — it is never merged into
+  `corpus.parquet` and carries its own manifest. This step produces the same 132
+  `analyze_text` feature vectors for it that `extract_features.py` produces for the main
+  corpus, purely as descriptive prep for later exploratory comparison. No claim ladder rung
+  is at stake here; the gate is row-count + failure-rate + column-coverage only, same as
+  WS3 step 1.
+- **Data:** `paper/data/src_machine_cell.parquet` (`../ws1/manifests/src_machine_cell.parquet.manifest.json`,
+  `output_sha256` `28f022cc…`, **587 rows**, 18 cols = the corpus carry columns +
+  `generator_model, domain, task_family`). Verified empirically pre-run: table has 587 rows.
+- **Scope rule:** ALL 587 rows — no canonical filter. The cell is standalone (not merged
+  into corpus.parquet), so `is_canonical`/`installs` scope logic from step 1 does not apply.
+- **Feature source:** `timbro.analyze.analyze_text` (repo `src/timbro/analyze.py`) — same
+  deterministic pipeline as step 1, reused via import (no logic duplication) from
+  `extract_features.py`'s `_analyze_one` / `_rows_to_table` / `_feature_keys` /
+  `_worker_init` seams.
+- **Output:** `paper/data/features_machine.parquet` — carry columns `skill_id, source,
+  generator_model, domain, task_family` + all 132 `analyze_text` feature keys (flat) +
+  `analyze_error` (`pa.string()`, null normally). Manifest via WS1 `write_manifest`.
+- **Confirms if:** output row count == **587** (assert against the machine-cell manifest's
+  `n_rows`); analyze failures **< 1%** of 587; all feature columns present on **> 99%** of
+  rows.
+- **Would NOT confirm / STOP if:** row count read from `src_machine_cell.parquet` ≠ 587
+  (upstream drift on a table this step does not own — stop, record, consult user); analyze
+  failures **≥ 1%** — stop, record the failing docs' error messages, consult user.
+- **Repro pins (fixed before the run):**
+  ```
+  git commit  <paper branch, -dirty: adds paper/code/ws3/extract_features_machine.py>
+  input       src_machine_cell.parquet  sha256 28f022cc3406d5413d3df97c8628f732948dd0cd3481f2ec906ef8fcaa4afc
+  spacy 3.8.14 · en_core_web_sm 3.8.0 · pyarrow 24.0.0 · textdescriptives 2.8.2
+  deterministic pipeline, no seed
+  uv run --with-requirements paper/code/ws1/requirements.txt \
+      python paper/code/ws3/extract_features_machine.py
+  ```
+
 ## RESULTS
+
+### Machine-cell feature extraction (2026-07-09 12:14) [ADR-0009 exploratory]
+
+- **Result:** `features_machine.parquet` — **587 / 587 rows** (matches the machine-cell
+  manifest's `n_rows`), **138 columns** (5 carry columns `skill_id, source,
+  generator_model, domain, task_family` + 132 `analyze_text` feature keys +
+  `analyze_error`). `analyze_error` non-null on **0 / 587 rows (0.0000%)** — well under the
+  < 1% gate. Two feature columns (`read_smog`, `coh_second_order_coherence`) sit at 98.5%
+  coverage (9/587 short docs undefined, same expected pattern noted in step 2's PRE-REG —
+  SMOG needs ≥30 sentences); every other feature column is ≥99% covered.
+- **Claim:** Descriptive prep only — no hypothesis, no claim ladder rung. This just confirms
+  the extraction ran clean over the standalone machine-cell table.
+- **Robustness (§2):** (a) contamination — N/A, whole-table run, no subgroup filter.
+  (b) missing data — 2 columns below 99% on short docs, consistent with step 1/2's known
+  null pattern (undefined SMOG/coherence on short docs), not a new failure mode.
+  (c) confound/leakage — N/A, no model fit here. (d) inferential test — N/A (descriptive).
+  (e) n/subset — exact, 587/587 stated. (f) pilot vs full — full table (587 is the whole
+  machine cell).
+- **Artifact:** `paper/data/features_machine.parquet` (gitignored);
+  `../ws1/manifests/features_machine.parquet.manifest.json` (`output_sha256` `7d463b35…`).
+- **Repro:**
+  ```
+  git commit  1afa1d2 (paper branch, -dirty: adds extract_features_machine.py)
+  input       src_machine_cell.parquet  sha256 28f022cc7a3406d5413d3df97c8628f732948dd0cd3481f2ec906ef8fcaa4afc
+  spacy 3.8.14 · en_core_web_sm 3.8.0 · pyarrow 24.0.0 · textdescriptives 2.8.2
+  deterministic pipeline, no seed
+  uv run --with-requirements paper/code/ws1/requirements.txt \
+      python paper/code/ws3/extract_features_machine.py
+  ```
 
 ### Step 2 — descriptives + organic-vs-slop separability (2026-07-09 11:29)
 
