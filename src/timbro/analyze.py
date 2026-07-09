@@ -293,7 +293,7 @@ def _struct_features(raw: str) -> tuple[dict, str]:
         "struct_name_format_valid": 1 if isinstance(name, str) and _NAME_FORMAT.fullmatch(name) else 0,
         "struct_long_paragraph_ratio": long_paragraphs / len(paragraphs) if paragraphs else 0.0,
         **fm_desc,
-        "frontmatter_json": json.dumps(frontmatter),
+        "frontmatter_json": json.dumps(frontmatter, default=str),
     }
     return struct, prose
 
