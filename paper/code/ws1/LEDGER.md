@@ -41,11 +41,11 @@ Canonical results ledger for WS1 (experiment-discipline §4). Numbers are cited 
       (standalone cell, NOT folded into corpus.parquet).
 - [~] `build_human_baseline.py` — RQ5 human cells (ADR-0008, WS1 step 9). **Written +
       unit-tested + run 2026-07-08** (sonnet-implemented; see RESULTS). Post-2023 GitHub
-      cell DONE: 5,161 rows ≥ the 5k floor. **Pre-2023 the-stack cell BLOCKED** — HF gated
-      dataset, no local token (`DatasetNotFoundError` … "must be authenticated"). Code
-      ready + resumable: accept the `bigcode/the-stack` gate, set `HF_TOKEN`, rerun without
-      flags (GH cell resumes from cache). Blocks the C3−C1 descriptive bracket only, NOT
-      the confirmatory C3 vs C2 contrast (ADR-0008).
+      cell DONE: 5,161 rows ≥ the 5k floor. HF gate later cleared; **full the-stack stream
+      RAN 2026-07-09 (floors passed pre=14,866/post=5,271) but LOST to a write-time
+      ArrowTypeError** (list-typed license) — type-safe write + post-stream reservoir
+      checkpoint added, **rerun IN FLIGHT** (see RESULTS 2026-07-09). Blocks the C3−C1
+      descriptive bracket only, NOT the confirmatory C3 vs C2 contrast (ADR-0008).
 - [x] `build_skillssh.py` — installs join. **Gate cleared + crawl done 2026-07-08** (see
       RESULTS). `skills.sh/robots.txt` allows the sitemaps/detail pages (only `/api/*`
       disallowed), `/terms` permits "reasonable use, including caching results on your own
@@ -75,6 +75,37 @@ Canonical results ledger for WS1 (experiment-discipline §4). Numbers are cited 
 ## RESULTS
 
 All counts cited from `manifests/*.manifest.json` (never retyped). Newest on top.
+
+### 2026-07-09 13:03 — the-stack full stream LOST to a write-time bug; type-safe write + checkpoint added, rerun launched
+
+Ran `build_human_baseline.py --github-sample 6000` with HF access now granted (the earlier
+gate cleared). The ~3h45m the-stack stream + English filter **completed and passed both
+ADR-0008 5k floors** — but the run crashed at write time and the in-memory reservoir was
+**not persisted** (no manifest; counts below are read from the crash log, not a manifest):
+`/private/tmp/claude-12875/-Users-nbrandizzi-repos-personal-timbro/b87feaa0-208d-4df8-ab94-251c77aab12b/scratchpad/stack_full_run.log`.
+
+- **Stream completed:** scanned 40,751,875 / matched 12,612,580 / sampled 20,000 (cell a);
+  GH cell 6,000 docs from 2,251 repos. Pooled 26,000 → English filter kept 20,137.
+  **Post-filter floors PASSED: era=pre n=14,866 [OK], era=post n=5,271 [OK]** (both ≥ the
+  ADR-0008 5,000/cell floor).
+- **Write-time crash (lost the run):** `write_output` did `pa.array(..., type=pa.string())`
+  over rows where `license_spdx` is a **list** — the-stack's `max_stars_repo_licenses` is a
+  `list<string>` (the GH cell's license is a plain string) → `ArrowTypeError: Expected bytes,
+  got a 'list' object`. 4h of stream discarded because the reservoir lived only in memory.
+- **Fix (this commit):** (1) type-safe write — `coerce_cell` JSON-encodes list/dict, `str()`s
+  everything else (e.g. datetime `last_timestamp`), None passes through; applied at the stack
+  row (`license_spdx`, `last_timestamp`) AND belt-and-braces in `write_output` so no schema
+  surprise can crash the write again. Coercion audit: only `license_spdx` (list) was the live
+  crash; `last_timestamp` guarded defensively; all other cells + the whole GH cell are already
+  str/None. (2) Post-stream **reservoir checkpoint** (`stack_reservoir_checkpoint.pkl`, temp
+  state — no DVC/manifest): dumped the moment `build_stack_cell` returns, loaded-and-skips the
+  stream on restart, so every step after the 4h stream is now retryable for free. (3) Unit
+  tests for `coerce_cell` / `write_output` (list license + datetime → valid all-string table)
+  and the checkpoint roundtrip; ws1 suite 111 passed. ruff clean.
+- **Rerun LAUNCHED** detached (`--github-sample 6000`), streaming from scratch (checkpoint
+  only helps a post-stream retry, and the pre-crash reservoir was never persisted); GH cell
+  resumes from `human_baseline_gh_cache/`. `human_baseline.parquet` will be overwritten at the
+  END of the rerun (expected). Manifest/final counts pending completion.
 
 ### 2026-07-09 — footgun: `is_canonical` is a STRING column, not bool
 

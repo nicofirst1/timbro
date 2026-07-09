@@ -6,17 +6,25 @@ Seams under test (no network, no HF/gh calls):
   - is_english_heuristic: ASCII+stopword English filter (langdetect substitute)
   - repo_has_skill_md: SKILL.md-repo exclusion (ADR-0008)
   - make_doc_id: deterministic id construction
+  - coerce_cell / write_output: type-safe all-string parquet write (the-stack
+    ships list-typed licenses + datetime timestamps that crashed the write)
 """
+import datetime
 import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
+import build_human_baseline as bhb  # noqa: E402
+import pyarrow.parquet as pq  # noqa: E402
 from build_human_baseline import (  # noqa: E402
+    AUDIENCE_HUMAN,
     ERA_POST,
     ERA_PRE,
+    OUTPUT_COLUMNS,
     GhCache,
     assign_era,
+    coerce_cell,
     is_english_heuristic,
     is_readme_or_contributing_basename,
     make_doc_id,
@@ -221,3 +229,94 @@ def test_cache_miss_is_none_and_not_excluded(tmp_path):
     cache = GhCache(tmp_path)
     assert cache.read("owner/never-seen") is None
     assert cache.is_excluded("owner/never-seen") is False
+
+
+# ---- coerce_cell: type-safe cell -> str|None --------------------------------------
+
+def test_coerce_cell_passes_none_through():
+    assert coerce_cell(None) is None
+
+
+def test_coerce_cell_passes_str_through_unchanged():
+    assert coerce_cell("MIT") == "MIT"
+
+
+def test_coerce_cell_json_encodes_list():
+    # the-stack's max_stars_repo_licenses is a list<string> — the field that crashed
+    # the write with ArrowTypeError "Expected bytes, got a 'list' object".
+    assert coerce_cell(["mit", "apache-2.0"]) == '["mit", "apache-2.0"]'
+
+
+def test_coerce_cell_json_encodes_dict():
+    assert coerce_cell({"spdx_id": "MIT"}) == '{"spdx_id": "MIT"}'
+
+
+def test_coerce_cell_strs_datetime():
+    dt = datetime.datetime(2022, 6, 1, 12, 0, 0)
+    assert coerce_cell(dt) == "2022-06-01 12:00:00"
+
+
+# ---- write_output: real-cell shapes produce an all-string table --------------------
+
+def test_write_output_handles_list_license_and_datetime(tmp_path, monkeypatch):
+    # data_dir() is where write_output lands the parquet; redirect it to tmp_path.
+    monkeypatch.setattr(bhb, "data_dir", lambda: tmp_path)
+
+    stack_row = {
+        "doc_id": "stack:aaaa",
+        "audience": AUDIENCE_HUMAN,
+        "era": ERA_PRE,
+        "text": "# README\nThis is a tool you can use.",
+        "repo": "owner/stack-repo",
+        # non-string cells straight off the-stack schema:
+        "license_spdx": ["mit", "apache-2.0"],          # list<string>
+        "first_timestamp": None,
+        "last_timestamp": datetime.datetime(2022, 6, 1),  # datetime object
+        "source_detail": "the_stack_v1",
+    }
+    gh_row = {
+        "doc_id": "github:bbbb",
+        "audience": AUDIENCE_HUMAN,
+        "era": ERA_POST,
+        "text": "# README\nAnother tool you can install.",
+        "repo": "owner/gh-repo",
+        "license_spdx": "MIT",   # GH cell licenses are plain strings
+        "first_timestamp": "2024-01-01T00:00:00Z",
+        "last_timestamp": "2024-06-01T00:00:00Z",
+        "source_detail": "github_active",
+    }
+
+    out_path = bhb.write_output([stack_row, gh_row])
+    table = pq.read_table(str(out_path))
+
+    # Every output column is string-typed and the write did not crash.
+    for col in OUTPUT_COLUMNS:
+        assert table.schema.field(col).type == bhb.pa.string()
+
+    d = table.to_pydict()
+    # Rows are sorted by doc_id: "github:bbbb" < "stack:aaaa".
+    assert d["doc_id"] == ["github:bbbb", "stack:aaaa"]
+    # List license JSON-encoded; plain-string license untouched.
+    assert d["license_spdx"] == ["MIT", '["mit", "apache-2.0"]']
+    # Datetime stringified; None (stack first_timestamp) preserved as null.
+    assert d["last_timestamp"] == ["2024-06-01T00:00:00Z", "2022-06-01 00:00:00"]
+    assert d["first_timestamp"] == ["2024-01-01T00:00:00Z", None]
+
+
+# ---- stream checkpoint roundtrip (disk-only, tmp_path — no network) ----------------
+
+def test_stack_checkpoint_roundtrip_and_skip(tmp_path, monkeypatch):
+    monkeypatch.setattr(bhb, "data_dir", lambda: tmp_path)
+
+    # No checkpoint yet -> load returns None (caller streams).
+    assert bhb.load_stack_checkpoint() is None
+
+    rows = [{"doc_id": "stack:x", "text": "hi"}]
+    info = {"n_scanned": 100, "n_matched": 3, "blocked": False}
+    bhb.save_stack_checkpoint(rows, info)
+
+    loaded = bhb.load_stack_checkpoint()
+    assert loaded is not None
+    loaded_rows, loaded_info = loaded
+    assert loaded_rows == rows
+    assert loaded_info == info

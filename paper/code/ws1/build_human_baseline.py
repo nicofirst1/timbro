@@ -34,6 +34,7 @@ import argparse
 import base64
 import hashlib
 import json
+import pickle
 import random
 import re
 import subprocess
@@ -58,6 +59,8 @@ ERA_POST = "post"
 POST_ERA_CUTOFF = "2023-01-01"  # ADR-0008: post-2023 = created/updated >= this date
 STACK_SAMPLE_TARGET = 20_000  # ADR-0008: ~20k docs for cell (a)
 STACK_DATASET_ID = "bigcode/the-stack"
+
+STACK_CHECKPOINT_NAME = "stack_reservoir_checkpoint.pkl"  # temp stream state, NOT a corpus artifact
 
 GH_SAMPLE_TARGET = 20_000  # comparable size for cell (b) (PLAN step 9 "~20k")
 GH_MIN_STARS = 5  # cheap floor to avoid near-empty/abandoned repos flooding the sample
@@ -149,6 +152,55 @@ def make_doc_id(source_detail: str, repo: str | None, path: str) -> str:
     return f"{source_detail}:{digest}"
 
 
+def coerce_cell(value: object) -> str | None:
+    """Coerce any row cell to a string (or None) for the all-string output schema.
+
+    The output parquet is all-`pa.string()` (OUTPUT_COLUMNS). Most cells arrive as
+    str/None already, but the-stack's schema carries non-string types at some columns:
+    `max_stars_repo_licenses` is a `list<string>` (crashed the write here 2026-07-08,
+    ArrowTypeError "Expected bytes, got a 'list' object"), and
+    `max_stars_repo_stars_event_max_datetime` can surface as a datetime. Belt-and-braces:
+    None passes through; list/dict are JSON-encoded (stable, order-preserving); anything
+    else is `str()`-ed. So a future schema surprise can never crash the write again.
+    """
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return value
+    if isinstance(value, (list, dict)):
+        return json.dumps(value)
+    return str(value)
+
+
+# --------------------------------------------------------------------------- stream checkpoint
+
+def stack_checkpoint_path() -> Path:
+    """Path to the post-stream reservoir checkpoint (temp state, no DVC/manifest)."""
+    return data_dir() / STACK_CHECKPOINT_NAME
+
+
+def save_stack_checkpoint(rows: list[dict], info: dict) -> Path:
+    """Persist the raw reservoir immediately after the ~4h stream, so every step after
+    it (English filter / merge / write) is retryable for free without re-streaming.
+    """
+    path = stack_checkpoint_path()
+    with path.open("wb") as fh:
+        pickle.dump({"rows": rows, "info": info}, fh)
+    return path
+
+
+def load_stack_checkpoint() -> tuple[list[dict], dict] | None:
+    """Load the reservoir checkpoint if present (else None). When present the caller
+    SKIPS the stream entirely — the 4h stream is the expensive, flaky part.
+    """
+    path = stack_checkpoint_path()
+    if not path.exists():
+        return None
+    with path.open("rb") as fh:
+        payload = pickle.load(fh)
+    return payload["rows"], payload["info"]
+
+
 # --------------------------------------------------------------------------- cell (a) — The Stack
 
 def build_stack_cell(sample_target: int = STACK_SAMPLE_TARGET, seed: int = SEED) -> tuple[list[dict], dict]:
@@ -203,9 +255,13 @@ def build_stack_cell(sample_target: int = STACK_SAMPLE_TARGET, seed: int = SEED)
                 "era": ERA_PRE,  # The Stack v1 collected Nov 2021-Jun 2022, pre-ChatGPT by construction
                 "text": example.get("content"),
                 "repo": example.get("max_stars_repo_name"),
-                "license_spdx": example.get("max_stars_repo_licenses"),
+                # `max_stars_repo_licenses` is a list<string> in the-stack schema (the GH
+                # cell's license is a plain string); JSON-encode the list so the cell is a
+                # string at construction (write_output also coerces, belt-and-braces).
+                "license_spdx": coerce_cell(example.get("max_stars_repo_licenses")),
                 "first_timestamp": None,  # not carried in the-stack schema at file granularity
-                "last_timestamp": example.get("max_stars_repo_stars_event_max_datetime"),
+                # datetime-typed in some the-stack rows -> coerce to string here too.
+                "last_timestamp": coerce_cell(example.get("max_stars_repo_stars_event_max_datetime")),
                 "source_detail": "the_stack_v1",
             }
             if len(reservoir) < sample_target:
@@ -468,7 +524,13 @@ def apply_english_filter(rows: list[dict]) -> tuple[list[dict], int]:
 def write_output(rows: list[dict]) -> Path:
     rows_sorted = sorted(rows, key=lambda r: r["doc_id"])
     schema = pa.schema([(c, pa.string()) for c in OUTPUT_COLUMNS])
-    arrays = [pa.array([r.get(c) for r in rows_sorted], type=pa.string()) for c in OUTPUT_COLUMNS]
+    # Belt-and-braces: coerce every cell to str|None so a non-string value from any
+    # source (e.g. the-stack's list-typed licenses / datetime timestamps) can never
+    # crash the all-string write again — see coerce_cell.
+    arrays = [
+        pa.array([coerce_cell(r.get(c)) for r in rows_sorted], type=pa.string())
+        for c in OUTPUT_COLUMNS
+    ]
     table = pa.table({c: a for c, a in zip(OUTPUT_COLUMNS, arrays)}, schema=schema)
     out_path = data_dir() / "human_baseline.parquet"
     pq.write_table(table, str(out_path))
@@ -489,8 +551,25 @@ def main(argv: list[str] | None = None) -> int:
     cell_reports: dict = {}
 
     if not args.skip_stack:
-        print(f"[build_human_baseline] Cell (a): streaming {STACK_DATASET_ID} (seed={SEED})...")
-        stack_rows, stack_info = build_stack_cell(sample_target=args.stack_sample, seed=SEED)
+        checkpoint = load_stack_checkpoint()
+        if checkpoint is not None:
+            stack_rows, stack_info = checkpoint
+            print("=" * 78)
+            print(f"[build_human_baseline] Cell (a): LOADED reservoir checkpoint from "
+                  f"{stack_checkpoint_path()} — SKIPPING the ~4h stream.")
+            print(f"  n_scanned={stack_info.get('n_scanned')} "
+                  f"n_matched={stack_info.get('n_matched')} rows={len(stack_rows)}. "
+                  f"Delete the checkpoint to force a fresh stream.")
+            print("=" * 78)
+        else:
+            print(f"[build_human_baseline] Cell (a): streaming {STACK_DATASET_ID} (seed={SEED})...")
+            stack_rows, stack_info = build_stack_cell(sample_target=args.stack_sample, seed=SEED)
+            if not stack_info["blocked"]:
+                # Persist the raw reservoir the moment the stream returns, BEFORE the
+                # English filter / merge / write — those steps become retryable for free.
+                ckpt = save_stack_checkpoint(stack_rows, stack_info)
+                print(f"[build_human_baseline] Cell (a): checkpointed {len(stack_rows)} "
+                      f"reservoir rows to {ckpt} (stream now retryable without re-running).")
         if stack_info["blocked"]:
             print("=" * 78)
             print("[build_human_baseline] *** BLOCKER: cell (a) — bigcode/the-stack ***")
