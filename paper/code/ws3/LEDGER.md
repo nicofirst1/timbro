@@ -6,14 +6,13 @@ Analysis rules are pre-registered in ADR-0004/0005 (D1–D9) and bind over this 
 
 ## PENDING
 
-- [~] `extract_features.py` — **step 1 (production run), supersedes the `featurize.py`
+- [x] `extract_features.py` — **step 1 (production run), supersedes the `featurize.py`
       scaffold below.** Deterministic linguistic feature vectors over the WS1 corpus
-      (canonical UNION install-labeled scope). **Running (delegated to a detached background
-      job)** 2026-07-09. Parallel (multiprocessing Pool, per-worker spaCy load), resumable
-      via `paper/data/features_parts/part-*.parquet`, per-doc `analyze_error` (never crashes
-      the run on one doc), writes `features.parquet` + manifest via ws1 `write_manifest`.
-      Result lands in RESULTS + `features.parquet.manifest.json` once the §2 gate clears.
-      See the WS3.1 PRE-REG block below.
+      (canonical UNION install-labeled scope). **Done** 2026-07-09. Parallel (multiprocessing
+      Pool, per-worker spaCy load), resumable via `paper/data/features_parts/part-*.parquet`,
+      per-doc `analyze_error` (never crashes the run on one doc), writes `features.parquet` +
+      manifest via ws1 `write_manifest`. Result lands in RESULTS +
+      `features.parquet.manifest.json`. See the WS3.1 PRE-REG block below.
 
 ## STATUS
 
@@ -100,7 +99,34 @@ Analysis rules are pre-registered in ADR-0004/0005 (D1–D9) and bind over this 
 
 ## RESULTS
 
-_Step-1 extraction RESULT lands here (with n, failure rate, column coverage) once the
-detached run finishes and clears the §2 gate above, cited from
-`../ws1/manifests/features.parquet.manifest.json`. Earlier steps (descriptives → holdout)
-follow._
+### Step 1 — `extract_features.py` production run (2026-07-09)
+
+- **Result:** `features.parquet` — 231,426 rows (227,407 canonical + 4,019 labeled-only,
+  9,686 labeled total; arithmetic reconciles: 227,407 + 4,019 = 231,426), 139 columns
+  (5 carry columns + 132 `analyze_text` feature keys + `analyze_error`).
+  `analyze_error` non-null on **4 / 231,426 rows (0.0017%)** — well under the < 1% §2 gate.
+  All 4 are `TypeError: Object of type date is not JSON serializable` (a
+  `textdescriptives`/serialization edge case on 4 specific docs, not a scope or corpus
+  problem): `skill_id` = `sd:0da1512055387f63`, `sd:55c24539c6a3200e`, `sd:5797f69a8872d2b5`,
+  `sd:b1136098fb8e9148`.
+  `lex_mtld` non-null on 99.998% of rows (> 99% spot-check gate).
+- **Incident + fix:** the initial run crashed at the final `pa.concat_tables(tables)` step —
+  parts where every doc succeeded had `analyze_error` inferred as pyarrow **null** type
+  (all-`None` column), while parts with ≥1 failure had it inferred as **string** type;
+  pyarrow refused to concat mismatched types for the same column name. Fixed by (a)
+  explicitly casting `analyze_error` to `pa.string()` when each per-part table is built
+  (`_rows_to_table`), so future parts are typed consistently, and (b) concatenating with
+  `pa.concat_tables(tables, promote_options="permissive")` to unify null→string across the
+  116 **existing** on-disk parts (reused as-is, not regenerated).
+- **Artifact:** `paper/code/ws1/manifests/features.parquet.manifest.json`
+  (`output_sha256` `b999c8e9…`).
+- **Repro:**
+  ```
+  git commit  c1da527 (paper branch, -dirty: concat/dtype fix on extract_features.py)
+  corpus sha  5b7f02f07961c86b57ee6e3b6da299e09b80566ed9f7896d1306f66e203c9011
+  spacy 3.8.14 · en_core_web_sm 3.8.0 · pyarrow 24.0.0 · textdescriptives 2.8.2
+  uv run --with-requirements paper/code/ws1/requirements.txt \
+      python paper/code/ws3/extract_features.py
+  ```
+
+_Earlier steps (descriptives → holdout) follow once run._

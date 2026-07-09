@@ -134,7 +134,9 @@ def _rows_to_table(results, feature_keys) -> pa.Table:
         cols["analyze_error"].append(err)
 
     order = CARRY_COLUMNS + feature_keys + ["analyze_error"]
-    return pa.table({c: cols[c] for c in order})
+    arrays = {c: cols[c] for c in order}
+    arrays["analyze_error"] = pa.array(arrays["analyze_error"], type=pa.string())
+    return pa.table(arrays)
 
 
 def main() -> int:
@@ -232,7 +234,7 @@ def main() -> int:
     print(f"[ws3:extract] concatenating {n_parts} parts -> {out_path}", flush=True)
     part_files = sorted(parts_dir.glob("part-*.parquet"))
     tables = [pq.read_table(p) for p in part_files]
-    features = pa.concat_tables(tables)
+    features = pa.concat_tables(tables, promote_options="permissive")
     pq.write_table(features, out_path)
 
     n_out = features.num_rows
