@@ -1,0 +1,32 @@
+{
+  "analyze_failure_rate": 1.728414266331354e-05,
+  "chunk_size": 2000,
+  "git_commit": "c1da527a8cefdbef9fc14f322829245eb0b6419f-dirty",
+  "inputs": [
+    {
+      "file": "corpus.parquet",
+      "sha256": "5b7f02f07961c86b57ee6e3b6da299e09b80566ed9f7896d1306f66e203c9011"
+    }
+  ],
+  "n_analyze_failures": 4,
+  "n_canonical": 227407,
+  "n_feature_keys": 132,
+  "n_labeled": 9686,
+  "n_labeled_only": 4019,
+  "n_rows": 231426,
+  "n_selected": 231426,
+  "n_union": 231426,
+  "output": "features.parquet",
+  "output_sha256": "b999c8e99df4349c432c118446c8250b7ad295b58971a4bdaee23b8de13f7b2e",
+  "packages": {
+    "en_core_web_sm": "3.8.0",
+    "pyarrow": "24.0.0",
+    "spacy": "3.8.14",
+    "textdescriptives": "2.8.2"
+  },
+  "scope_rule": "is_canonical == \"true\"  (STRING column, compared to the literal \"true\")  UNION  installs non-null/non-empty (ADR-0010 entry-level RQ2 representatives)",
+  "script": "extract_features.py",
+  "seed": 42,
+  "source": "features",
+  "utc": "2026-07-09T09:01:49.385238+00:00"
+}
