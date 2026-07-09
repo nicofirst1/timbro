@@ -3,5 +3,6 @@
 # Exact resolved versions are recorded per-run in each manifest.json.
 pyarrow>=16
 huggingface_hub>=0.24
+datasets>=2.19
 datasketch>=1.6
 requests>=2.31

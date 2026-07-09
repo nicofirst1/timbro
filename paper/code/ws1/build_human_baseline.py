@@ -170,7 +170,11 @@ def build_stack_cell(sample_target: int = STACK_SAMPLE_TARGET, seed: int = SEED)
         return [], info
 
     try:
-        ds = load_dataset(STACK_DATASET_ID, split="train", streaming=True)
+        # Restrict to the markdown partition: the-stack partitions by extension-mapped
+        # language, and every file the README*/CONTRIBUTING* .md filter can accept has a
+        # .md extension — so `data_dir='data/markdown'` is LOSSLESS for this filter while
+        # avoiding streaming all ~6TB of languages.
+        ds = load_dataset(STACK_DATASET_ID, data_dir="data/markdown", split="train", streaming=True)
     except Exception as exc:  # noqa: BLE001 - report any load failure as a blocker, not a crash
         info["blocked"] = True
         info["error"] = f"{type(exc).__name__}: {exc}"
@@ -184,7 +188,9 @@ def build_stack_cell(sample_target: int = STACK_SAMPLE_TARGET, seed: int = SEED)
     try:
         for example in ds:
             n_scanned += 1
-            path = example.get("path") or ""
+            # the-stack schema has no "path" column; the file path lives in
+            # "max_stars_repo_path" (matching the other max_stars_repo_* columns used below).
+            path = example.get("max_stars_repo_path") or ""
             basename = Path(path).name
             if not is_readme_or_contributing_basename(basename):
                 if n_scanned % 500_000 == 0:
