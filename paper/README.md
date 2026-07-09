@@ -13,6 +13,9 @@ Where things live:
   ADRs win over PLAN.md on any conflict.
 - **[code/ws1/LEDGER.md](code/ws1/LEDGER.md)** — WS1 results ledger (manifest-backed counts,
   build status).
+- **[code/ws3/LEDGER.md](code/ws3/LEDGER.md)** — WS3 corpus-analysis ledger INDEX (status
+  matrix, scan-first); full PRE-REG/RESULT detail in
+  **[code/ws3/LEDGER_LOG.md](code/ws3/LEDGER_LOG.md)**, joined by stable experiment ID.
 - **[literature/literature.md](literature/literature.md)** — verified-source registry
   (authoritative for citations).
 - `data/` — corpus artifacts, DVC-tracked, never committed raw.
