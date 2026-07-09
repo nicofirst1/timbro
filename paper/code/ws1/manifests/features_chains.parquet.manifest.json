@@ -1,0 +1,31 @@
+{
+  "analyze_failure_rate": 0.00026800071466857243,
+  "chunk_size": 2000,
+  "git_commit": "6e20acd3b66fb45238840c8d08bc80d8446ec8f2-dirty",
+  "inputs": [
+    {
+      "file": "skill_diffs_chains.parquet",
+      "sha256": "9d92df6337ab05215837c206bb14c929558356c3e2bf284c56f10b0b8aa0d5c8"
+    }
+  ],
+  "n_analyze_failures": 18,
+  "n_eligible_chains": 14388,
+  "n_feature_keys": 132,
+  "n_rows": 67164,
+  "n_selected": 67164,
+  "n_total_chains": 218626,
+  "n_total_rows": 289145,
+  "output": "features_chains.parquet",
+  "output_sha256": "d424157089fe914cdf1096c3d59f8788e3ff30c68b5ab71e2c6f494b35846bc4",
+  "packages": {
+    "en_core_web_sm": "3.8.0",
+    "pyarrow": "24.0.0",
+    "spacy": "3.8.14",
+    "textdescriptives": "2.8.2"
+  },
+  "scope_rule": "n_versions >= 3 (ADR-0005 frozen chain-eligibility rule); n_versions is precomputed per-chain in skill_diffs_chains.parquet and verified constant per skill_id and equal to that chain's row count before this run",
+  "script": "extract_features_chains.py",
+  "seed": 42,
+  "source": "features_chains",
+  "utc": "2026-07-09T14:18:35.671186+00:00"
+}

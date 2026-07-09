@@ -33,7 +33,7 @@ Analysis rules are pre-registered in ADR-0004/0005 (D1–D9) and bind over this 
 - [x] descriptives (step 2) — `descriptives.py`. **Done 2026-07-09 11:29.** Per-source/
       platform median/IQR + organic-vs-slop separability. FULL CV AUC 1.000 — perfect but
       **corpus-provenance separation, not a linguistic-dialect finding** (D5 ablation fired,
-      stays 1.000). See RESULTS + `../ws1/manifests/step2_descriptives.md.manifest.json`.
+      stay s 1.000). See RESULTS + `../ws1/manifests/step2_descriptives.md.manifest.json`.
 - [x] machine-cell feature extraction (ADR-0009 exploratory prep) —
       `extract_features_machine.py`. **Done 2026-07-09 12:14.** 587/587 rows, 0 failures.
       See RESULTS + `../ws1/manifests/features_machine.parquet.manifest.json`.
@@ -52,7 +52,11 @@ Analysis rules are pre-registered in ADR-0004/0005 (D1–D9) and bind over this 
       2026-07-09 15:32.** 9,686/9,686 weekly-join coverage; 1/5 confirmatory survives BH
       (`dict_imperative_ratio` +0.107 [+0.069, +0.145], durable across total-installs +
       canonical-only), other 4 null. See RESULTS + `../ws1/manifests/rq2_adoption_rows.parquet.manifest.json`.
-- [ ] RQ4 temporal (step 5) — chains ≥3 versions (ADR-0005).
+- [x] RQ4 chain feature extraction (step 5 prep) — `extract_features_chains.py`. **Done
+      2026-07-09 16:21.** 67,164/67,164 eligible version-rows, 18 failures (0.0268%,
+      all `UnicodeEncodeError` surrogate-char, not the date-frontmatter bug). See RESULTS +
+      `../ws1/manifests/features_chains.parquet.manifest.json`.
+- [ ] RQ4 temporal (step 5) — chains ≥3 versions (ADR-0005), modeling over the features above.
 - [ ] holdout (step 6) — `rq2_holdout_candidates.parquet` drift characterization.
 - [ ] `run_all.py` — re-runnable driver + generated `FINDINGS.md` (acceptance).
 
@@ -1217,6 +1221,39 @@ _Earlier steps (descriptives → holdout) follow once run._
   git commit  cb7fa64 (paper branch, -dirty: adds extract_features_chains.py + test)
   input       skill_diffs_chains.parquet  sha256 9d92df6337ab05215837c206bb14c929558356c3e2bf284c56f10b0b8aa0d5c8
   spacy 3.8.14 · en_core_web_sm 3.8.0 · pyarrow 24.0.0 · textdescriptives 2.8.2
+  deterministic pipeline, no seed
+  uv run --with-requirements paper/code/ws1/requirements.txt \
+      python paper/code/ws3/extract_features_chains.py
+  ```
+
+## RESULTS — WS3 step 5 prep: RQ4 chain feature extraction (2026-07-09 16:21)
+
+- **Result:** **67,164/67,164** eligible version-rows extracted (matches the pre-registered
+  N exactly), **18 failures (0.0268%)** — well under the 1% STOP gate. `n_feature_keys`
+  132, `n_eligible_chains` 14,388 (both match pre-reg). Confirms per the PRE-REG's gate.
+- **Residual failure reasons (18 rows, `analyze_error` read from the parquet):** all 18
+  are the **same** error, `UnicodeEncodeError: 'utf-8' codec can't encode characters in
+  position 0-1: surrogates not allowed` — lone/unpaired UTF-16 surrogate code points in
+  the source text hitting spaCy/textdescriptives' internal UTF-8 encode step. This is
+  **not** the date-frontmatter bug from the first launch (that was a distinct crash in
+  frontmatter parsing, fixed by #26/#27) — it's a separate, pre-existing malformed-text
+  edge case, at a rate (0.03%) far below the 1% gate, so left as-is (per-row `analyze_error`
+  captured, row kept with null features, no code change warranted here).
+- **Incident history:** first launch fired the pre-registered STOP gate at 2.45% failures
+  (date-typed frontmatter crashing `analyze_text`) → fixed via issue #26 / PR #27 (merged
+  to main and into `paper`) → rerun completed clean at 0.0268% (residual surrogate-char
+  failures only, see above).
+- **Artifact:** `paper/data/features_chains.parquet`
+  (`../ws1/manifests/features_chains.parquet.manifest.json`, `output_sha256`
+  `d424157089fe914cdf1096c3d59f8788e3ff30c68b5ab71e2c6f494b35846bc4…`).
+- **Verification:** `paper/code/ws3/tests/test_extract_features_chains.py` — 3/3 pass;
+  `uv run ruff check paper/code/ws3/extract_features_chains.py` — clean.
+- **Repro:**
+  ```
+  git commit  6e20acd3b66fb45238840c8d08bc80d8446ec8f2 (paper branch, -dirty at manifest time)
+  input       skill_diffs_chains.parquet  sha256 9d92df6337ab05215837c206bb14c929558356c3e2bf284c56f10b0b8aa0d5c8
+  output      features_chains.parquet     sha256 d424157089fe914cdf1096c3d59f8788e3ff30c68b5ab71e2c6f494b35846bc4
+  packages    spacy 3.8.14 · en_core_web_sm 3.8.0 · pyarrow 24.0.0 · textdescriptives 2.8.2
   deterministic pipeline, no seed
   uv run --with-requirements paper/code/ws1/requirements.txt \
       python paper/code/ws3/extract_features_chains.py
