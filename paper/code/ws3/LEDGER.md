@@ -6,16 +6,16 @@ Analysis rules are pre-registered in ADR-0004/0005 (D1–D9) and bind over this 
 
 ## PENDING
 
-- [x] `extract_features.py` — **step 1 (production run), supersedes the `featurize.py`
-      scaffold below.** Deterministic linguistic feature vectors over the WS1 corpus
-      (canonical UNION install-labeled scope). **Done** 2026-07-09. Parallel (multiprocessing
-      Pool, per-worker spaCy load), resumable via `paper/data/features_parts/part-*.parquet`,
-      per-doc `analyze_error` (never crashes the run on one doc), writes `features.parquet` +
-      manifest via ws1 `write_manifest`. Result lands in RESULTS +
-      `features.parquet.manifest.json`. See the WS3.1 PRE-REG block below.
+(nothing pending — next up: descriptives, step 2)
 
 ## STATUS
 
+- [x] `extract_features.py` — step 1 (production run), supersedes the `featurize.py`
+      scaffold below. **Done 2026-07-09 11:01** (cleared from PENDING 2026-07-09 11:14).
+      features.parquet 231,426 rows / 139 cols, gates passed — see RESULTS +
+      `../ws1/manifests/features.parquet.manifest.json`. Parallel (multiprocessing Pool,
+      per-worker spaCy load), resumable via `paper/data/features_parts/part-*.parquet`,
+      per-doc `analyze_error`.
 - [x→superseded] `featurize.py` — step 1 scaffold: corpus.parquet canonical docs →
       features.parquet. **Scaffolded + unit-tested** (TDD, ponytail) 2026-07-08. Pure seam
       `featurize_rows` filters `is_canonical`, carries metadata forward. **Superseded for
