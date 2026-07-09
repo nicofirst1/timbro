@@ -3,6 +3,8 @@
 Canonical results ledger for WS1 (experiment-discipline §4). Numbers are cited from
 `manifests/*.manifest.json` / `REPORT.md`, never retyped. Newest on top.
 
+**WS1 fully CLOSED 2026-07-09** — all STATUS items below are `[x]`.
+
 ## STATUS
 
 - [x] `build_skill_diffs.py` — anchor corpus (cross-sectional + version-chain tables). Done
@@ -39,13 +41,14 @@ Canonical results ledger for WS1 (experiment-discipline §4). Numbers are cited 
       WS1 step 10). **Written + unit-tested + run 2026-07-08** (sonnet-implemented,
       opus-reviewed APPROVE; see RESULTS). 587 rows → `src_machine_cell.parquet`
       (standalone cell, NOT folded into corpus.parquet).
-- [~] `build_human_baseline.py` — RQ5 human cells (ADR-0008, WS1 step 9). **Written +
+- [x] `build_human_baseline.py` — RQ5 human cells (ADR-0008, WS1 step 9). **Written +
       unit-tested + run 2026-07-08** (sonnet-implemented; see RESULTS). Post-2023 GitHub
-      cell DONE: 5,161 rows ≥ the 5k floor. HF gate later cleared; **full the-stack stream
-      RAN 2026-07-09 (floors passed pre=14,866/post=5,271) but LOST to a write-time
-      ArrowTypeError** (list-typed license) — type-safe write + post-stream reservoir
-      checkpoint added, **rerun IN FLIGHT** (see RESULTS 2026-07-09). Blocks the C3−C1
-      descriptive bracket only, NOT the confirmatory C3 vs C2 contrast (ADR-0008).
+      cell DONE: 5,161 rows ≥ the 5k floor. HF gate later cleared; the first full the-stack
+      stream RAN 2026-07-09 (floors passed pre=14,866/post=5,271) but was LOST to a
+      write-time ArrowTypeError (list-typed license) — type-safe write + post-stream
+      reservoir checkpoint added (commit 25740e9), **rerun COMPLETE 2026-07-09** (see
+      RESULTS): 20,137 rows, both ADR-0008 floors passed. **Both cells done — WS1 step 9
+      CLOSED.** Unblocks the C3−C1 descriptive bracket (ADR-0008).
 - [x] `build_skillssh.py` — installs join. **Gate cleared + crawl done 2026-07-08** (see
       RESULTS). `skills.sh/robots.txt` allows the sitemaps/detail pages (only `/api/*`
       disallowed), `/terms` permits "reasonable use, including caching results on your own
@@ -75,6 +78,36 @@ Canonical results ledger for WS1 (experiment-discipline §4). Numbers are cited 
 ## RESULTS
 
 All counts cited from `manifests/*.manifest.json` (never retyped). Newest on top.
+
+### 2026-07-09 16:36 — the-stack rerun COMPLETE: human_baseline.parquet 20,137 rows, WS1 step 9 CLOSED
+
+Rerun of `build_human_baseline.py --github-sample 6000` after the type-safe-write fix
+(commit 25740e9) completed clean. Numbers from `human_baseline.parquet.manifest.json`
+(sha256 `b2875fd6…`, seed 42, pyarrow 24.0.0, datasets 5.0.0, huggingface_hub 1.19.0, git
+`4f9f10d6-dirty`):
+
+- `human_baseline.parquet`: **20,137** rows — **era=pre 14,866** / **era=post 5,271**, both
+  **≥ the ADR-0008 5,000/cell floor** (`floor_status_per_era`: pre `true`, post `true`).
+  Stack cell: 40,751,875 scanned / 12,612,580 matched / 20,000 sampled; GH cell 6,000 docs
+  from 2,251 matched repos (3,210 scanned, 410 no-match/fetch-fail, 549 SKILL.md-repo
+  excluded). Pooled 26,000 → English filter (ascii-ratio + stopword heuristic) dropped
+  5,863 → 20,137 kept.
+- **Incident, resolved:** the first full stream (2026-07-09 13:03 entry below) passed both
+  floors but was lost at write time to an `ArrowTypeError` (the-stack's `license_spdx` is
+  `list<string>`, not a plain string) — 4h of streaming discarded because the reservoir
+  lived only in memory. Fix: type-safe `coerce_cell` write path + a post-stream reservoir
+  checkpoint (`stack_reservoir_checkpoint.pkl`, temp state, not DVC-tracked), commit
+  25740e9. This rerun streamed the-stack from scratch (checkpoint only helps a *post*-stream
+  retry) and wrote clean on the first attempt.
+- **Consequence (ADR-0008): both RQ5 cells now exist — the C3−C1 / C2−C1 descriptive
+  bracket is UNBLOCKED**, alongside the already-unaffected C3 vs C2 confirmatory contrast.
+  **WS1 step 9 is DONE; WS1 is fully closed.**
+- **Artifact:** `paper/data/human_baseline.parquet` (DVC-tracked; this rerun's `.dvc`
+  pointer replaces yesterday's stale post-only-cell pointer — expected, since the parquet
+  is a full overwrite each run).
+- **Repro:** `uv run python paper/code/ws1/build_human_baseline.py --github-sample 6000`,
+  git commit `4f9f10d6` (dirty at run time), seed 42, packages `datasets==5.0.0`
+  `huggingface_hub==1.19.0` `pyarrow==24.0.0` (all from the manifest).
 
 ### 2026-07-09 13:03 — the-stack full stream LOST to a write-time bug; type-safe write + checkpoint added, rerun launched
 

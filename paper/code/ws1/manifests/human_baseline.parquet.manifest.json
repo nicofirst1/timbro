@@ -8,21 +8,25 @@
       "n_repos_skill_md_excluded_marker_based": 549
     },
     "stack": {
-      "skipped": true
+      "blocked": false,
+      "error": null,
+      "n_matched": 12612580,
+      "n_sampled": 20000,
+      "n_scanned": 40751875
     }
   },
   "english_filter_ascii_min_ratio": 0.9,
-  "english_filter_dropped": 729,
+  "english_filter_dropped": 5863,
   "english_filter_method": "ascii_ratio+stopword_heuristic_NOT_langdetect",
   "english_filter_stopword_min_hits": 2,
   "floor_status_per_era": {
     "post": true,
-    "pre": false
+    "pre": true
   },
-  "git_commit": "8230d27dc3e689694ba9de7a515c759c968ab043-dirty",
+  "git_commit": "4f9f10d62494c39d916682730d2b75e5d188344f-dirty",
   "inputs": [
     {
-      "blocked": "skipped",
+      "blocked": false,
       "hf_dataset": "bigcode/the-stack",
       "streaming": true
     },
@@ -34,11 +38,12 @@
     }
   ],
   "n_by_era": {
-    "post": 5271
+    "post": 5271,
+    "pre": 14866
   },
-  "n_rows": 5271,
+  "n_rows": 20137,
   "output": "human_baseline.parquet",
-  "output_sha256": "d5c4e1b7621d4ab9e6b8c4c94aebfbe6dee3e9931a8ddeeb8737854a87b25656",
+  "output_sha256": "b2875fd6eed52a2d202d65f045e5f0cec509507864740f10a4e316cda57b30d7",
   "packages": {
     "datasets": "5.0.0",
     "huggingface_hub": "1.19.0",
@@ -47,5 +52,5 @@
   "script": "build_human_baseline.py",
   "seed": 42,
   "source": "human_baseline",
-  "utc": "2026-07-08T19:45:00.020320+00:00"
+  "utc": "2026-07-09T14:35:05.829266+00:00"
 }
