@@ -1,0 +1,37 @@
+{
+  "anomaly_duplicate_ndc_in_population": 0,
+  "corpus_footprint_total": 12595,
+  "exploratory": true,
+  "git_commit": "25740e97795480d5e456ab0f60d5a5f0a18a0048-dirty",
+  "inputs": [
+    {
+      "file": "features.parquet",
+      "sha256": "b999c8e99df4349c432c118446c8250b7ad295b58971a4bdaee23b8de13f7b2e"
+    },
+    {
+      "file": "dedup_map.parquet",
+      "sha256": "0c8f7320382f5f6c27212a95dc5231cb109fedf28b799c9116a38bbf72104699"
+    },
+    {
+      "file": "corpus.parquet",
+      "sha256": "5b7f02f07961c86b57ee6e3b6da299e09b80566ed9f7896d1306f66e203c9011"
+    }
+  ],
+  "island_members_total": 6846,
+  "n_rows": 10,
+  "note": "descriptive dedup-linkage of the 10 step-3 HDBSCAN islands \u2014 no hypothesis test, never a headline claim",
+  "output": "step3_island_dedup.parquet",
+  "output_sha256": "122b1470b76ea03e182b48216f9df3b7745dda0482d6a17db88f98a2fcbbde2b",
+  "packages": {
+    "numpy": "2.4.6",
+    "pandas": "3.0.3",
+    "pyarrow": "24.0.0",
+    "scikit-learn": "1.9.0",
+    "scipy": "1.17.1"
+  },
+  "reproduction_verified": true,
+  "script": "step3_island_dedup.py",
+  "seed": 42,
+  "source": "ws3_island_dedup_linkage_probe_exploratory",
+  "utc": "2026-07-09T11:38:46.781924+00:00"
+}

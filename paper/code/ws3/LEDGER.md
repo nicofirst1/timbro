@@ -6,7 +6,14 @@ Analysis rules are pre-registered in ADR-0004/0005 (D1–D9) and bind over this 
 
 ## PENDING
 
-(nothing pending — next up: RQ1 clustering, step 3)
+- [x] machine-cell projection probe (ADR-0009 exploratory) — **Done 2026-07-09 13:37.**
+      587 known-machine docs projected into the frozen step-3 geometry; 80% land blob/noise,
+      20% in the diffuse island 8, 0 in any tight (template-farm) island. See RESULTS +
+      `../ws1/manifests/step3_machine_projection.parquet.manifest.json`.
+- [x] island dedup-linkage probe (exploratory follow-up) — **Done 2026-07-09 13:39.**
+      0 duplicate near_dup_cluster_id in-population (canonical-by-construction confirmed);
+      8/10 islands are 100%/99% single-repo template farms; 6,846 canonical heads = 12,595
+      corpus footprint. See RESULTS + `../ws1/manifests/step3_island_dedup.parquet.manifest.json`.
 
 ## STATUS
 
@@ -30,6 +37,13 @@ Analysis rules are pre-registered in ADR-0004/0005 (D1–D9) and bind over this 
 - [x] machine-cell feature extraction (ADR-0009 exploratory prep) —
       `extract_features_machine.py`. **Done 2026-07-09 12:14.** 587/587 rows, 0 failures.
       See RESULTS + `../ws1/manifests/features_machine.parquet.manifest.json`.
+- [x] machine-cell projection probe (ADR-0009 exploratory) — `step3_machine_projection.py`.
+      **Done 2026-07-09 13:37.** Reproduced the step-3 geometry via `clustering.py` seams
+      (asserted vs. manifest), projected the 587 machine docs; 80% blob/noise, 20% island 8,
+      0 tight-island. Reading leans to a *refinement of* hyp. (b) — tight islands are
+      template farms (organic repos), the known-machine cell is diverse (blob-like), so
+      neither (a) nor (b) as stated holds. See RESULTS +
+      `../ws1/manifests/step3_machine_projection.parquet.manifest.json`.
 - [x] RQ1 clustering (step 3) — PCA → HDBSCAN; confound gates D4/D8/D9. **Done
       2026-07-09 13:00.** Weak structure (k-means k=5, silhouette 0.1129) after
       pre-registered HDBSCAN fallback; D4/D8/D9 gates un-fired. See RESULTS +
@@ -350,7 +364,270 @@ Analysis rules are pre-registered in ADR-0004/0005 (D1–D9) and bind over this 
   pins        scikit-learn / pandas / numpy / matplotlib / pyarrow recorded in the manifest
   ```
 
+## PRE-REG — WS3 machine-cell projection probe (2026-07-09 13:17) [ADR-0009 exploratory]
+
+- **Framing (binding):** This is an **ADR-0009 EXPLORATORY** probe — descriptive only, no
+  hypothesis test, no inferential statistic, and it may **never** become a headline claim
+  (ADR-0009: "no promotion to headline claims"). It answers one narrow descriptive question:
+  *where in the frozen step-3 cluster geometry do the 587 KNOWN-machine-authored docs land?*
+  The organic corpus has **no authorship ground truth**; this probe does NOT label any
+  organic doc as machine- or human-authored. It only projects docs that are provably
+  machine-generated (SkillFlow 582 across 11 LLMs + Trace2Skill 5) and reports where they fall.
+- **User's motivating hypothesis pair (stated both directions, neither is being tested — this
+  is exploratory description, not a test that can confirm/refute either):**
+  - **(a)** the 86.3%-noise HDBSCAN blob is AI-authored homogeneous text and the tight
+    islands are distinct human voices → machine docs would land mostly IN the tight islands
+    would be WRONG under (a); under (a) machine docs land in the blob/noise region and the
+    islands are human. i.e. machine docs cluster with the blob.
+  - **(b)** the inverse — the tight islands are template/generator families (machine text is
+    the *more uniform* thing) and the blob is diverse human writing → machine docs would land
+    concentrated IN a small number of tight islands, not spread across the blob.
+  The probe reports the observed landing distribution; the write-up says which direction the
+  evidence *leans*, calibrated and exploratory, and explicitly does not claim either is true.
+- **Reproduction gate (STOP if any mismatch):** recompute the step-3 pipeline deterministically
+  by IMPORTING `clustering.py`'s seams (no reimplementation): organic canonical error-dropped
+  population **222,256**; median-impute + z-score fit on all 222,256; PCA fit on the seed-42
+  platform-stratified **50K** discovery sample → **62 components / 0.9027** cum variance;
+  HDBSCAN(min_cluster_size=200) on the 50K → **10 clusters, noise 0.86308, silhouette 0.6638**
+  (the persisted `hdbscan_prefallback`); k-means fallback (noise>0.50 fired) → best k=**5**,
+  full assigned-set sizes **{0:108698, 1:4, 2:30342, 3:218, 4:82994}**. Any deviation → STOP,
+  report, do not project. (Verified against
+  `../ws1/manifests/rq1_cluster_assignments.parquet.manifest.json`.)
+- **Island-assignment rule for out-of-sample machine docs (fixed BEFORE projecting):** the
+  "islands" are the **10 HDBSCAN non-noise clusters** discovered on the 50K sample (the
+  geometry hypothesis (a)/(b) is about, NOT the post-fallback k-means partition). For each
+  island *i*, in the retained-62-component PCA space:
+  - centroid *c_i* = mean PCA coords of island *i*'s discovery-sample members;
+  - radius *r_i* = the **90th percentile** of island-*i* members' Euclidean distance to *c_i*
+    (each island's own member-radius, so a tight island has a tight acceptance ball).
+  - A machine doc is assigned to the **nearest** island *i\** (min Euclidean distance to any
+    island centroid); if that distance **≤ r_{i\*}** it is "in island i\*", else it is
+    labelled **"blob/noise"** (outside every island's 90th-pct ball). Ties: lowest island id.
+  This rule is a **descriptive locator**, not a classifier with a learned threshold; the 90th
+  pct is a fixed non-tuned choice named here before the run.
+- **Projection transform (no refit):** impute + standardize the 587 machine docs with the
+  **organic-fit** `SimpleImputer` + `StandardScaler` (same 130 numeric feature columns, same
+  column order), then apply the **organic-fit** 62-component PCA `transform` (fit on the 50K
+  organic sample). No refit of imputer/scaler/PCA/HDBSCAN/k-means on machine data.
+- **Reported (all descriptive):**
+  1. k-means cluster (0–4) assignment distribution of the 587 (nearest of the 5 k-means
+     centroids, same `nearest_centroid_labels` seam step-3 uses for the ~172K remainder);
+  2. HDBSCAN-island assignment distribution (10 islands + "blob/noise") under the rule above;
+  3. both, broken down per `generator_model` — the 11 SkillFlow models, and the 5 Trace2Skill
+     rows (`machine:trace2skill:*`) reported **separately** (N too small for anything but a
+     per-row note, ADR-0009).
+  Plus a human-readable island-inspection file (uncommitted, raw text stays out of git) so the
+  user can read example organic docs per island and judge (a) vs (b) by eye.
+- **Confirms / STOP:** "confirms" only that the pipeline reproduced (the reproduction gate) and
+  produced finite distributions; there is no confirmatory hypothesis. STOP if the reproduction
+  gate mismatches, if machine features are missing any of the 130 columns, or if the imputer/
+  scaler/PCA cannot be reused as-is (column mismatch).
+- **Robustness (§2):** (a) degenerate slice — the machine cell is a whole standalone table,
+  no subgroup filter; per-model breakdown surfaces any single-model dominance. (b) missing data
+  — 130 features, organic-fit median imputation applied to machine docs (2 machine cols at
+  98.5% coverage on short docs, same known SMOG/coherence pattern); no rows dropped. (c) leakage
+  — none: nothing is refit on machine data; the geometry is frozen from step 3. (d) inferential
+  test — N/A, exploratory descriptive, no p-value/AUC. (e) n/subset — 587 exact (582+5), per
+  model. (f) pilot vs full — full machine cell.
+- **Repro pins (fixed before the run):**
+  ```
+  git commit  <paper branch, -dirty: adds step3_machine_projection.py + step3_machine_projection.md>
+  input       features.parquet          sha256 b999c8e99df4349c432c118446c8250b7ad295b58971a4bdaee23b8de13f7b2e
+  input       features_machine.parquet  sha256 <hashed at run, from features_machine manifest 7d463b35…>
+  input       corpus.parquet            sha256 5b7f02f07961c86b57ee6e3b6da299e09b80566ed9f7896d1306f66e203c9011  (island-inspection text join)
+  seed        42 (50K stratified draw + all step-3 stochastic pins; reused via clustering.py)
+  env         uv run --with-requirements paper/code/ws3/requirements.txt python paper/code/ws3/step3_machine_projection.py
+  pins        scikit-learn / pandas / numpy / scipy / pyarrow recorded in the projection manifest
+  ```
+
+## PRE-REG — WS3 island dedup-linkage probe (2026-07-09 13:31) [exploratory follow-up]
+
+- **Framing (binding):** **EXPLORATORY / descriptive only** — no hypothesis test, no
+  inferential statistic, never a headline claim. Follow-up to the step-3 island analysis.
+  The user read the per-island example docs (uncommitted `step3_islands_examples.md`) and
+  saw template/copy-paste families (repos like `NeuralBlitz/Agent-Gateway`,
+  `Sandeeprdy1729/skill_galaxy`, `zwright8/OpenClaw-Code`). This probe **quantifies** the
+  relationship between the 10 HDBSCAN islands and the corpus dedup structure.
+- **User's motivating hypothesis (NOT being tested — described, not confirmed):** the
+  islands are **NOT a dedup leak** (the RQ1 population is canonical-by-construction — one
+  canonical per near-dup cluster) but **STRUCTURAL template families** invisible to lexical
+  MinHash (near-identical scaffold, domain noun swapped → different enough tokens to escape
+  the near-dup threshold), and each island member may itself be the canonical head of a
+  large lexical near-dup (fork) family.
+- **Islands = the 10 HDBSCAN non-noise clusters** discovered on the D2 seed-42 50K
+  platform-stratified sample (same object the (a)/(b) machine-projection probe used, NOT
+  the post-fallback k-means partition). Reused via
+  `step3_machine_projection._reproduce_step3` (imports `clustering.py` seams; no
+  reimplementation). Island membership = `labels_hdb` mapped through `sample_idx` to `pop`
+  rows (the discovery-sample members of each island).
+- **Reproduction gate (STOP on any mismatch):** the imported seam already asserts the
+  step-3 reproduction (organic canonical pop 222,256; PCA 62 comps / 0.9027 cum var;
+  HDBSCAN 10 islands, noise 0.86308, silhouette 0.6638; k-means best k=5, full sizes
+  `{0:108698,1:4,2:30342,3:218,4:82994}`) against
+  `rq1_cluster_assignments.parquet.manifest.json`. Any deviation → STOP.
+- **Data:** `paper/data/features.parquet` (`../ws1/manifests/features.parquet.manifest.json`,
+  `output_sha256` `b999c8e9…`) for the population + island geometry;
+  `paper/data/dedup_map.parquet` (`skill_id → near_dup_cluster_id, cluster_size,
+  is_canonical`; 672,022 rows, one canonical per cluster, `cluster_size` = # lexical
+  near-dup members of that cluster, verified pre-run) joined by `skill_id`;
+  `paper/data/corpus.parquet` (`skill_id → repo`) joined by `skill_id` for the vendor-repo
+  concentration. All joins on `skill_id`.
+- **Computed per island (all descriptive):**
+  - `n_members` (discovery-sample island members);
+  - `n_distinct near_dup_cluster_id` — **expected == n_members** because the population is
+    canonical-only (one canonical per cluster). **Any duplicate near_dup_cluster_id within
+    the analysis population is a real anomaly → flag loudly** (would mean a non-canonical or
+    duplicated row leaked into RQ1).
+  - member `cluster_size` distribution (median, max, **sum**) from the dedup_map join.
+    **"sum" = the island's true corpus footprint** including every lexical near-dup of its
+    members (each island member is a canonical head; its cluster_size counts its fork
+    family).
+  - per-island **platform** split (from features carry column);
+  - **vendor-repo concentration** — top-3 repos by island-member count (from corpus join);
+    the share of members in the top repo tells the template-farm story.
+- **Confirms / STOP:** "confirms" only that the reproduction gate passed and the join
+  produced finite per-island descriptives. No confirmatory hypothesis. STOP if the
+  reproduction gate mismatches, if any island member is missing from dedup_map (should be
+  0 — every canonical is in dedup_map), or if the anomaly count (duplicate
+  near_dup_cluster_id in-population) is > 0 (report it, do not silently proceed).
+- **Robustness (§2):** (a) degenerate slice — per-island reporting surfaces any single-repo
+  or single-platform island. (b) missing data — cluster_size is present for all 672,022
+  dedup_map rows; report join coverage. (c) leakage — none refit; geometry frozen from
+  step 3; the anomaly check IS the leak guard. (d) inferential test — N/A (exploratory
+  descriptive; counts + medians only). (e) n/subset — 50K discovery-sample island members,
+  exact per island. (f) pilot vs full — the D2 discovery sample is the pre-registered basis
+  for island membership (the islands only exist on the 50K).
+- **Repro pins (fixed before the run):**
+  ```
+  git commit  <paper branch, -dirty: adds step3_island_dedup.py + step3_island_dedup.md>
+  input       features.parquet  sha256 b999c8e99df4349c432c118446c8250b7ad295b58971a4bdaee23b8de13f7b2e
+  input       dedup_map.parquet sha256 <hashed at run>
+  input       corpus.parquet    sha256 5b7f02f07961c86b57ee6e3b6da299e09b80566ed9f7896d1306f66e203c9011
+  seed        42 (50K stratified draw + all step-3 stochastic pins; reused via clustering.py)
+  env         uv run --with-requirements paper/code/ws3/requirements.txt python paper/code/ws3/step3_island_dedup.py
+  pins        scikit-learn / pandas / numpy / scipy / pyarrow recorded in the manifest
+  ```
+
 ## RESULTS
+
+### Island dedup-linkage probe (2026-07-09 13:39) [EXPLORATORY follow-up]
+
+- **Result (descriptive):** For the 10 step-3 HDBSCAN islands (discovered on the D2 seed-42
+  50K sample; geometry reproduced via `step3_machine_projection._reproduce_step3`, asserted
+  against `rq1_cluster_assignments.parquet.manifest.json` before computing):
+  - **Anomaly check: 0 duplicate `near_dup_cluster_id`** among all 6,846 island members —
+    `n_distinct near_dup_cluster_id == n_members` for every island. The RQ1 population is
+    **canonical-by-construction** (one canonical head per near-dup cluster); the islands are
+    **not a dedup leak**.
+  - **Repo concentration (template-farm signature): 8 of 10 islands are single-repo at
+    100% / 99%** of members — island 0 `NeuralBlitz/Agent-Gateway` (100%), 1/3/9
+    `Sandeeprdy1729/skill_galaxy` (100%), 4/5 `zwright8/OpenClaw-Code` (100%/99.9%), 7
+    `membranedev/application-skills` (99.1%). Only islands **2** (`vamseeachanta/workspace-hub`
+    64%) and **8** (`BetterPromptme/skills` 24%, 4 platforms) are repo/platform-diverse —
+    island 8 is the same diffuse, genuinely-diverse island the machine-projection probe
+    flagged (radius 6.37, ~7x the tight islands).
+  - **Corpus footprint (sum of member `cluster_size`, incl. lexical near-dups):** the 6,846
+    canonical heads stand in for **12,595 total docs**. Per island (n_members → footprint):
+    0: 726→730 · 1: 824→830 · 2: 238→269 · 3: 583→583 · 4: 244→244 · 5: 1,864→2,049 ·
+    **6: 348→3,739** (median cluster_size **19**, the only heavily-lexically-forked island) ·
+    7: 671→680 · **8: 913→3,034** (max cluster_size **298**, one canonical head with a
+    298-member fork family) · 9: 435→437.
+- **Claim (Observed level only, exploratory):** the islands are **structural template
+  families, not a dedup artifact** — near-identical scaffolds with domain nouns swapped
+  differ in enough tokens to escape the lexical MinHash near-dup threshold, so each surfaces
+  as a tight linguistic-feature island despite being one repo's forked scaffold. Two
+  orthogonal propagation modes coexist: **within-repo structural forking** (what builds the
+  8 single-repo template islands, invisible to lexical dedup) and **lexical near-duplication**
+  (what dedup catches — visible only in islands 6 and 8's cluster_size sums). No hypothesis
+  test; never a headline claim (ADR-0009-style exploratory).
+- **Robustness (§2):** (a) degenerate slice — per-island reporting surfaces the single-repo
+  concentration directly (that IS the finding). (b) missing data — 0 island members missing
+  from dedup_map; features vs dedup_map `near_dup_cluster_id` agree on 100% of rows (asserted).
+  (c) leakage — the anomaly check (0 duplicate in-population ndc) is the dedup-leak guard;
+  nothing refit, geometry frozen from step 3. (d) inferential test — N/A (descriptive counts
+  + medians). (e) n/subset — 6,846 discovery-sample island members, exact per island.
+  (f) pilot vs full — the D2 50K discovery sample is the pre-registered basis on which the
+  islands exist.
+- **Artifact:** table `paper/data/step3_island_dedup.parquet`; summary
+  `paper/code/ws3/step3_island_dedup.md`; manifest
+  `../ws1/manifests/step3_island_dedup.parquet.manifest.json` (`output_sha256` `122b1470…`,
+  `anomaly_duplicate_ndc_in_population` 0, `corpus_footprint_total` 12595). All numbers above
+  are cited from that parquet/manifest, not retyped from the run log.
+- **Repro:**
+  ```
+  git commit  <paper branch, -dirty: adds step3_island_dedup.py + step3_island_dedup.md>
+  input       features.parquet  sha256 b999c8e99df4349c432c118446c8250b7ad295b58971a4bdaee23b8de13f7b2e
+  input       dedup_map.parquet sha256 0c8f7320382f5f6c27212a95dc5231cb109fedf28b799c9116a38bbf72104699
+  input       corpus.parquet    sha256 5b7f02f07961c86b57ee6e3b6da299e09b80566ed9f7896d1306f66e203c9011
+  output      step3_island_dedup.parquet  sha256 122b1470b76ea03e182b48216f9df3b7745dda0482d6a17db88f98a2fcbbde2b
+  seed        42 (50K stratified draw + all step-3 stochastic pins; reused via clustering.py)
+  pins        scikit-learn 1.9.0 · pandas 3.0.3 · numpy 2.4.6 · scipy 1.17.1 · pyarrow 24.0.0
+  uv run --with-requirements paper/code/ws3/requirements.txt python paper/code/ws3/step3_island_dedup.py
+  ```
+
+### Machine-cell projection probe (2026-07-09 13:37) [ADR-0009 EXPLORATORY]
+
+- **Framing (binding):** ADR-0009 **exploratory** — descriptive locator, **no hypothesis
+  test**, no inferential statistic, and per ADR-0009 this **never becomes a headline claim**.
+  It reports only where 587 KNOWN-machine-authored docs (SkillFlow 582 across 11 LLMs +
+  Trace2Skill 5) fall in the frozen step-3 geometry. It does **not** attribute authorship to
+  any organic doc (no ground truth exists).
+- **Reproduction gate PASSED:** the step-3 pipeline was recomputed by importing
+  `clustering.py`'s seams (no reimplementation) and asserted against the persisted manifest:
+  organic pop **222,256**; PCA **62 comps / 0.9027**; HDBSCAN **10 islands, noise 0.86308,
+  silhouette 0.6638091411557737**; k-means fallback best k=**5**, full sizes
+  **{0:108698, 1:4, 2:30342, 3:218, 4:82994}** — all matched (asserts held). Same imputer +
+  scaler (fit on all 222,256) + PCA (fit on the 50K sample) reused to transform the machine
+  docs with **no refit**.
+- **Result (Observed, descriptive):** the 587 machine docs land —
+  - **k-means (0–4):** {0: 400 (68.1%), 2: 3 (0.5%), 4: 184 (31.3%)} — i.e. split between the
+    two large substantive step-3 clusters (0, 4), essentially none in the degenerate
+    structural micro-clusters 1/3.
+  - **HDBSCAN island (nearest island ≤ its 90th-pct member radius, else blob/noise):**
+    **blob/noise 469 (79.9%), island 8 118 (20.1%), every other tight island 0.** SkillFlow
+    only (582): blob/noise 464, island 8 118. Per-model: the in-island landings are almost
+    entirely **Claude-family** models (e.g. `claude-code-minimax2dot7-skill` 41/93 in island 8,
+    `claude-code-sonnet4dot6-skill` 25/51); the **Qwen** models land ~entirely blob/noise
+    (`qwen-coder-480b` 0/104 in-island, `qwen-coder-next` 2/109). The 5 **Trace2Skill** rows
+    (incl. the human Anthropic baseline) all fall in blob/noise (nearest island 8 or 7).
+  - **Island character (by-eye, from the uncommitted inspection file):** the 10 tight HDBSCAN
+    islands are **bulk-generated template/generator families** from *organic-corpus* repos
+    (islands 0/1/3/9 = skill_galaxy scaffolds; 4/5 = OpenClaw-Code scaffolds; 6 = Rube-MCP;
+    7 = Membrane-CLI; 2 = code-only snippets) — one scaffold, many number/noun-swapped
+    variants. The exception is **island 8** (loosest, 90th-pct radius 6.37 vs. ~2 for the tight
+    islands), which holds genuinely diverse hand-written-looking skills.
+- **Claim (Observed / exploratory only — NOT a headline, ADR-0009):** the known-machine docs
+  do **not** occupy the corpus's tightest, most template-like structure; they miss every crisp
+  template island and pool in the **diffuse island 8 + blob**. This **leans toward a
+  *refinement of* the user's hypothesis (b), not (a):** the tight islands are template farms
+  (uniform generation) — but they are *organic-corpus* template farms, a distinct phenomenon
+  from our machine cell — while the SkillFlow/Trace2Skill machine text is diverse enough to
+  read as ordinary blob prose. **Neither (a) nor (b) as originally stated is confirmed:** (a)
+  is unsupported (tight islands are demonstrably templates, not human voices); (b) is only
+  half-supported (template-farm generation is uniform, our known-machine cell is not). No
+  claim of authorship-by-geometry is made.
+- **Robustness (§2):** (a) degenerate slice — whole machine table, per-model breakdown surfaces
+  the Claude-vs-Qwen split. (b) missing data — organic-fit median imputation applied to machine
+  docs, no rows dropped, N=587 (582+5) stated. (c) leakage — none, nothing refit on machine
+  data; geometry frozen from step 3, reproduction asserted. (d) inferential test — N/A
+  (exploratory descriptive; distributions only, no p-value/AUC). (e) n/subset — 587 exact,
+  per model. (f) pilot vs full — full machine cell. Determinism: `_assign_islands` seam
+  unit-tested (2 tests), 20/20 ws3 tests pass; reproduction asserts are the pipeline gate.
+- **Artifact:** `paper/code/ws1/manifests/step3_machine_projection.parquet.manifest.json`
+  (`output_sha256` `1e4029c5…`); summary `paper/code/ws3/step3_machine_projection.md`;
+  uncommitted island-inspection file `paper/data/step3_islands_examples.md` (raw organic text —
+  never committed). All numbers above are cited from the manifest/summary, not the run log.
+- **Repro:**
+  ```
+  git commit  <paper branch, -dirty: adds step3_machine_projection.py + .md + test>
+  input       features.parquet          sha256 b999c8e99df4349c432c118446c8250b7ad295b58971a4bdaee23b8de13f7b2e
+  input       features_machine.parquet  sha256 7d463b35…  (from the machine-cell manifest)
+  input       corpus.parquet            sha256 5b7f02f07961c86b57ee6e3b6da299e09b80566ed9f7896d1306f66e203c9011
+  output      step3_machine_projection.parquet  sha256 1e4029c5…
+  seed        42 (step-3 50K draw + all stochastic pins, reused via clustering.py)
+  pins        scikit-learn 1.9.0 · pandas 3.0.3 · numpy 2.4.6 · scipy 1.17.1 · pyarrow 24.0.0
+  uv run --with-requirements paper/code/ws3/requirements.txt python paper/code/ws3/step3_machine_projection.py
+  ```
 
 ### Step 3 — RQ1 clustering / instruction dialects (2026-07-09 13:00)
 
