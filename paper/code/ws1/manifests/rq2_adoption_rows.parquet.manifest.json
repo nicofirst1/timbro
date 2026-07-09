@@ -1,0 +1,47 @@
+{
+  "crawl_anchor": "2026-07-08",
+  "figures": [
+    "paper/figures/ws3_step4_confirmatory_forest.png",
+    "paper/figures/ws3_step4_outcome_hist.png"
+  ],
+  "git_commit": "9db59b6c56b3913d6a4bd95c9976f188884654aa-dirty",
+  "inputs": [
+    {
+      "name": "features.parquet",
+      "sha256": "b999c8e99df4349c432c118446c8250b7ad295b58971a4bdaee23b8de13f7b2e"
+    },
+    {
+      "name": "skillssh_weekly.parquet",
+      "sha256": "d64d7395e2df80702b671362f5fd2e773f75db5391725ac334fbf82fe2fdf569"
+    },
+    {
+      "name": "corpus.parquet",
+      "sha256": "5b7f02f07961c86b57ee6e3b6da299e09b80566ed9f7896d1306f66e203c9011"
+    }
+  ],
+  "join_coverage_matched": 9686,
+  "join_coverage_population": 9686,
+  "n_all_zero_weekly_series": 58,
+  "n_rows": 9686,
+  "output": "rq2_adoption_rows.parquet",
+  "output_sha256": "d98abe6f1c3cc53c44a7c446e931b8f6521a22479c6cff6385b845c290b67e96",
+  "packages": {
+    "matplotlib": "3.11.0",
+    "numpy": "2.4.6",
+    "pandas": "3.0.3",
+    "pyarrow": "24.0.0",
+    "scikit-learn": "1.9.0",
+    "scipy": "1.17.1",
+    "statsmodels": "0.14.6"
+  },
+  "primary_bh_survivors": [
+    "dict_imperative_ratio"
+  ],
+  "primary_n": 9686,
+  "primary_r2": 0.039000817396936616,
+  "report": "paper/code/ws3/step4_adoption.md",
+  "script": "adoption.py",
+  "seed": 42,
+  "source": "ws3_rq2_adoption",
+  "utc": "2026-07-09T13:32:21.471234+00:00"
+}

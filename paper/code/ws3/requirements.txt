@@ -17,3 +17,5 @@ numpy>=1.26
 # step 3 RQ1 clustering: HDBSCAN ships in scikit-learn>=1.4 (no new cluster dep);
 # scipy is used directly for the Cramer's V chi-square confound gates (D4/D8/D9).
 scipy>=1.11
+# step 4 RQ2 adoption: OLS with cluster-robust SEs on near_dup_cluster_id (ADR-0010 §4).
+statsmodels>=0.14

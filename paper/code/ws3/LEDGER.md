@@ -48,7 +48,10 @@ Analysis rules are pre-registered in ADR-0004/0005 (D1–D9) and bind over this 
       2026-07-09 13:00.** Weak structure (k-means k=5, silhouette 0.1129) after
       pre-registered HDBSCAN fallback; D4/D8/D9 gates un-fired. See RESULTS +
       `../ws1/manifests/rq1_cluster_assignments.parquet.manifest.json`.
-- [ ] RQ2 adoption (step 4) — regressions on `log1p(installs_wk_mean)`; BH per D6.
+- [x] RQ2 adoption (step 4) — regressions on `log1p(installs_wk_mean)`; BH per D6. **Done
+      2026-07-09 15:32.** 9,686/9,686 weekly-join coverage; 1/5 confirmatory survives BH
+      (`dict_imperative_ratio` +0.107 [+0.069, +0.145], durable across total-installs +
+      canonical-only), other 4 null. See RESULTS + `../ws1/manifests/rq2_adoption_rows.parquet.manifest.json`.
 - [ ] RQ4 temporal (step 5) — chains ≥3 versions (ADR-0005).
 - [ ] holdout (step 6) — `rq2_holdout_candidates.parquet` drift characterization.
 - [ ] `run_all.py` — re-runnable driver + generated `FINDINGS.md` (acceptance).
@@ -623,6 +626,84 @@ Analysis rules are pre-registered in ADR-0004/0005 (D1–D9) and bind over this 
   pins        scikit-learn / pandas / numpy / scipy / matplotlib / pyarrow recorded in the manifest
   ```
 
+## PRE-REG — WS3 step-3 SURGICAL farm-only recluster (2026-07-09 15:20)
+
+- **Goal / hypothesis (RQ1 robustness, variant of the 14:55 cut):** the committed farm-excluded
+  recluster (LEDGER RESULT 2026-07-09 15:14) excluded ALL 10 HDBSCAN islands = **59,124** docs,
+  but **35,413** of those (59.9%) fell into **island 8's** ball. Island 8 is the ONE island the
+  dedup + machine-projection probes characterized as the **diffuse, genuinely-diverse,
+  hand-written-looking** island (90th-pct radius **6.37** vs ~0.5–2.45 for the tight farms
+  0–7). So the committed cut is honestly "farms **plus** a large diverse tail", which leaves a
+  reviewer hole: *"you removed the most diverse slice, of course the rest looks homogeneous."*
+  This variant closes it by excluding **only the 9 tight single-repo/template-scaffold islands
+  (0–7 and 9)** — the ones `step3_island_dedup.md` shows are 100%/99% single-repo template
+  farms — and **explicitly RETAINING island 8** (it is diverse hand-written-looking content, not
+  a template farm; its radius 6.37 is the tell). If the residual (farms removed, but the diverse
+  island 8 KEPT) still shows no categorical structure, the dimensional reading is supported
+  **without** the "you deleted diversity" objection. Exploratory / descriptive, same as step 3:
+  **Observed**-level only, no inferential statistic, no "significant"/"validated".
+- **Reproduction gate (STOP on any mismatch):** identical to the 14:55 cut — rebuild the frozen
+  step-3 geometry via `step3_machine_projection._reproduce_step3` (imports `clustering.py`
+  seams), asserted against `rq1_cluster_assignments.parquet.manifest.json`: organic pop
+  **222,256**; PCA **62 comps / 0.9027**; HDBSCAN **10 islands, noise 0.86308, silhouette
+  0.6638**; k-means best k=**5**, full sizes **{0:108698,1:4,2:30342,3:218,4:82994}**. Any
+  deviation → STOP.
+- **Exclusion rule (fixed BEFORE running — SAME island-radius assignment as the 14:55 cut, only
+  the excluded island SET changes):** project every organic canonical doc into the frozen
+  62-comp PCA space; `_assign_islands` gives each doc its nearest island id (or -1 if outside
+  every 90th-pct ball). A doc is **excluded** iff its assigned island ∈ **{0,1,2,3,4,5,6,7,9}**
+  (the 9 tight islands) — **island 8 members are RETAINED in the recluster population.** Every
+  other choice (radius rule, ties → lowest id, frozen transforms for the projection) is
+  identical to the 14:55 cut; the ONLY change is dropping island 8 from the exclusion set.
+  **n_excluded expected ≈ 59,124 − 35,413 ≈ 23,711** (the exact number is derived + recorded,
+  not pre-known). Note island 2 (code-only snippets, `vamseeachanta/workspace-hub` 64%) is a
+  borderline case but is a tight island (radius 1.94) the dedup probe flags as a template family,
+  so it stays in the exclusion set; only island 8 is retained.
+- **Re-cluster population:** the **remainder = 222,256 − n_excluded** organic canonical docs
+  (every doc NOT assigned to a tight island; island-8-ball docs are IN the remainder). Recorded:
+  remainder N, source split, platform split.
+- **Re-cluster pipeline (IDENTICAL to the 14:55 cut — the same `recluster_population` seam, no
+  new machinery):** fresh median-impute + z-score fit on the remainder; PCA ≥ 0.90 (D3); D2 50K
+  stratified discovery sample seed 42 if remainder > 100K; HDBSCAN(min_cluster_size=200);
+  k-means fallback if noise > 0.50 OR non-noise clusters < 3, k ∈ {4..12} by best silhouette,
+  seed 42; D3 "no discrete dialects" if best silhouette < 0.10; k-means silhouette-per-k table
+  side by side with step 3 AND the all-islands cut; D4/D8/D9 confound gates on the reduced set.
+- **Reading rule (FIXED IN ADVANCE — identical thresholds to the 14:55 cut, read off
+  mechanically):** recluster HDBSCAN noise > **0.50** AND/OR k-means best silhouette < **0.25**
+  → **SUPPORTS the dimensional reframe** (no hidden categorical structure behind the farms, and
+  now with the diverse island 8 KEPT so "you removed diversity" is off the table). HDBSCAN noise
+  < 0.50 with substantive (size ≥ 200) clusters OR k-means silhouette ≥ 0.25 → **REAL NEW
+  FINDING**, reported straight (name clusters, run confound gates, do not explain away).
+- **Confirms if (descriptive goal met):** reproduction gate passes at N=222,256; the surgical
+  exclusion yields a finite n_excluded ≈ 23.7k (island 8 retained); the recluster runs end to
+  end on the remainder and produces a comp count, HDBSCAN outcome, k-means fallback (or D3
+  no-dialects), the silhouette-per-k table, three confound Cramér's V, and the top-5 PCA axis
+  table. The reframe's status (SUPPORTED vs REAL-NEW-FINDING) is read off the fixed rule.
+- **Would NOT confirm / STOP if:** reproduction gate mismatches (pop ≠ 222,256, PCA ≠ 62/0.9027,
+  islands ≠ 10, k-means sizes ≠ frozen set) → STOP; OR n_excluded ≥ the 14:55 cut's 59,124
+  (would mean island 8 was NOT actually retained — a rule bug) → STOP, record, consult. High
+  recluster noise, low silhouette, or a fired confound gate are the pre-registered FINDINGS,
+  never stop conditions.
+- **Robustness (§2) plan:** (a) degenerate slice — the whole point is a SURGICAL farm-only cut
+  that keeps the diverse island 8; watch the remainder for the same n=4 structural-outlier
+  micro-cluster and name it honestly. (b) missing data — median impute on the remainder, no rows
+  dropped, N stated. (c) confound/leakage — exclusion uses the FROZEN step-3 geometry (no refit
+  for the cut); the recluster gets its own standardize+PCA fit on the reduced population; D4/D8/D9
+  reported. (d) inferential test — N/A (unsupervised descriptive). (e) n/subset — 222,256 →
+  exclude n_excluded (island 8 retained) → remainder N, all stated; D2 50K discovery sample
+  stated. (f) pilot vs full — full organic remainder via the D2 50K discovery sample.
+- **BLAS/thread cap (concurrency constraint):** background stack rerun (PID 97545) + an RQ2
+  analysis agent (step4/adoption) — leave 4 of 10 cores free. Cap
+  `OMP/OPENBLAS/MKL/VECLIB/NUMEXPR_NUM_THREADS=4`. Deterministic; caps do not change results.
+- **Repro pins (fixed before the run):**
+  ```
+  git commit  <paper branch, -dirty: extends step3_robustness.py (--tight-only) + step3_robustness.md + test>
+  input       features.parquet  sha256 b999c8e99df4349c432c118446c8250b7ad295b58971a4bdaee23b8de13f7b2e
+  input       corpus.parquet    sha256 5b7f02f07961c86b57ee6e3b6da299e09b80566ed9f7896d1306f66e203c9011  (D8 text + D9 created_at + repo breakdown, join by skill_id)
+  seed        42 (frozen step-3 50K draw + recluster's own 50K draw + TF-IDF k-means + k-means fallback; reused via clustering.py)
+  env         OMP/BLAS threads capped to 4; uv run --with-requirements paper/code/ws3/requirements.txt python paper/code/ws3/step3_robustness.py --tight-only
+  ```
+
 ## RESULTS
 
 ### Step-3 robustness cut — farm-excluded recluster (2026-07-09 15:14)
@@ -1051,4 +1132,232 @@ _Earlier steps (descriptives → holdout) follow once run._
   deterministic pipeline, no seed
   uv run --with-requirements paper/code/ws1/requirements.txt \
       python paper/code/ws3/extract_features_chains.py
+  ```
+
+## PRE-REG — WS3 step 4 RQ2 adoption (2026-07-09 15:23)
+
+- **Goal / hypothesis (RQ2, CONFIRMATORY):** do the deterministic linguistic features of a
+  skill predict its adoption, controlling for length, age, and ecosystem? This is the paper's
+  **confirmatory** analysis. Outcome, covariates, feature family, and correction rule are
+  **pre-frozen in ADR-0004 (§8, D1–D8), ADR-0007 (§8 amendment 2, D9), and ADR-0010** — this
+  block is faithful execution, not design. Earns up to a **"Supported"/"Refuted"** claim on
+  the 5 confirmatory features (§3), guarded by BH (D6). A **null is publishable and reported
+  straight** with the minimum detectable effect (D6).
+- **BINDING rules carried in (not re-decided here):**
+  - **Primary outcome (ADR-0007):** `log1p(installs_wk_mean)` — mean of the 8-week weekly
+    install series. **Robustness outcomes:** (a) `log1p(total installs + 1)` (the corpus
+    `installs` total); (b) GitHub `stars` on single-skill repos only.
+  - **Confirmatory feature family (ADR-0004, FROZEN — 5 features, NOT open):**
+    `dict_imperative_ratio`, `dict_hedge_per_1k`, `read_flesch_kincaid_grade`,
+    `syn_mean_tree_depth`, `coh_lemma_overlap_adj`. Everything else is exploratory and
+    labeled exploratory. Because ADR-0004 fixes the confirmatory family, the task's
+    "pre-register your own feature choice" branch does **not** apply.
+  - **Mandatory covariates:** `log(desc_tokens)` (length, ADR-0004) AND `log1p(skill_age_days)`
+    (age, ADR-0007) — always covariates, never hypotheses, in **every** RQ2 regression.
+  - **D6 correction:** Benjamini–Hochberg at **q=0.10 over the 5 confirmatory features only**
+    (the primary-outcome regression's 5 feature coefficients). No promoting exploratory hits
+    to headline claims. If nothing survives → report the null + MDE.
+  - **ADR-0010 population + SEs:** RQ2 population = the **entry-level install-labeled
+    representatives** (one representative row per distinct loose `(owner,repo,name)` entry,
+    already materialized as the 9,686 `installs`-labeled rows in `features.parquet`);
+    **cluster-robust SEs on `near_dup_cluster_id`**; **canonical-only sensitivity rerun** (the
+    5,667-entry `is_canonical=="true"` subset).
+- **Estimator (pre-registered choice, per the task's "pre-register which"):** **statsmodels
+  OLS with cluster-robust (CR1) SEs clustered on `near_dup_cluster_id`** — this is the literal
+  ADR-0010 §4 requirement ("RQ2 models cluster standard errors on `near_dup_cluster_id`").
+  NOT mixedlm repo-random-effects: ADR-0010 §4 names `near_dup_cluster_id` as the
+  non-independence unit, not repo; a repo RE would cluster on a different unit than the ADR
+  fixes. (New dep: `statsmodels>=0.14`, added to ws3 requirements — regression is this issue's
+  explicit scope; guardrail "no new dependency unless the issue says so" is satisfied by the
+  task brief naming statsmodels.) Platform enters as **fixed effects** (dummies). **Domain FE:
+  corpus rows carry NO domain labels** (ADR-0006 dropped ClawHub categories; D8's TF-IDF proxy
+  is an unlabeled RQ1 clustering tool, not a frozen RQ2 taxonomy) — so domain FE is **omitted
+  and stated as a limitation per D8**, not invented.
+- **Data / population:** `paper/data/features.parquet` (manifest
+  `../ws1/manifests/features.parquet.manifest.json`, `output_sha256` `b999c8e9…`) — the
+  **9,686** `installs` non-null/non-empty entry-level representative rows (verified pre-run:
+  9,686 rows, all `source==skill_diffs`, 5,667 canonical + 4,019 non-canonical, 9,009 distinct
+  `near_dup_cluster_id`). Feature vectors + `platform` + `near_dup_cluster_id` + `is_canonical`
+  from features.parquet; **outcome, age, stars, repo joined from `corpus.parquet`** by
+  `skill_id` (features.parquet's `frontmatter_json` is JSON-normalized to `{}`, so the raw
+  `name:` needed for the weekly join lives only in corpus.parquet).
+- **Outcome join (loose key, merge.py convention):** weekly outcome from
+  `paper/data/skillssh_weekly.parquet` (`installs_wk_mean`), joined on the loose key
+  `re.sub(r"[^a-z0-9]","",s.lower())` applied to `(owner, reponame)` split from corpus `repo`
+  and the frontmatter `name:` (skills.sh `(owner, repo, skill)` on the weekly side; per-key max
+  on the weekly side for the ~8 duplicate keys, mirroring merge.py's `_skillssh_lookup`).
+  **Verified pre-run: 9,686/9,686 (100%) labeled representatives match a weekly row** — join
+  coverage reported in the summary. **8-week single-anchor window limitation (ADR-0007) and the
+  580 all-zero-series caveat stated wherever the outcome is reported.**
+- **Age:** `skill_age_days` = (crawl anchor **2026-07-08** − `created_at` first-commit date from
+  corpus.parquet). Verified pre-run: `created_at` 100% non-null on the labeled set, all ages
+  positive (min 68.5d, median 140.2d, max 276.4d). Covariate enters as `log1p(skill_age_days)`.
+- **Length:** `log(desc_tokens)` (`desc_tokens` present in features.parquet, the document-length
+  feature).
+- **Missing feature values:** the 34/130 features with nulls on short docs — for the 5
+  confirmatory features specifically, **median-impute** (fit on the RQ2 population) and record
+  the imputed count per feature; no rows dropped (N stated). Confirmatory features are all
+  numeric analyze outputs; report their coverage on the 9,686.
+- **Analysis (all pre-registered):**
+  1. **Spearman screen (EXPLORATORY, D6-labeled exploratory):** Spearman ρ of each of the 130
+     numeric features vs `log1p(installs_wk_mean)`, BH q=0.10 across the 130 — reported as an
+     **exploratory screen only** (D6 forbids promoting these to headline claims). The 5
+     confirmatory features' screen values are highlighted but the confirmatory inference is the
+     regression + D6-over-5, not this screen.
+  2. **Primary confirmatory regression:** OLS
+     `log1p(installs_wk_mean) ~ z(dict_imperative_ratio) + z(dict_hedge_per_1k) +
+     z(read_flesch_kincaid_grade) + z(syn_mean_tree_depth) + z(coh_lemma_overlap_adj) +
+     log(desc_tokens) + log1p(skill_age_days) + C(platform)`, features **z-scored** (fit on the
+     RQ2 population) so coefficients are per-SD effect sizes; **CR1 cluster-robust SEs on
+     `near_dup_cluster_id`**. Report each confirmatory coefficient with a **95% CI** and the
+     **BH-adjusted p over the 5** (D6). Never bare p-values.
+  3. **Robustness reruns (all pre-registered, reported side by side with the primary):**
+     - (a) outcome = `log1p(total installs + 1)` (corpus `installs`), same RHS;
+     - (b) **canonical-only population** (the 5,667 `is_canonical=="true"` entries, ADR-0010
+       sensitivity) — same primary spec; a coefficient-sign flip vs the full set would indicate
+       cluster/fork structure drives the result;
+     - (c) outcome = `stars` on **single-skill repos only** (repos contributing exactly one
+       labeled entry; verified feasible — 375 such entries, `stars` present with 330 nulls on
+       the full set). `log1p(stars)`, same RHS minus the repo-level collinear terms as needed;
+       if N or `stars` coverage makes it uninformative, record why rather than over-claim.
+  4. **Selection-bias check (pre-registered WS1 risk item):** compare the **labeled** organic
+     canonical docs (the 5,667 canonical labeled) vs the **unlabeled** organic canonical docs
+     (canonical, not install-labeled) on **length (`desc_tokens`), platform mix, and the 5
+     confirmatory headline features** — medians/IQR + platform shares, to characterize how the
+     skills.sh-indexed subset differs from the corpus. Descriptive (Observed), no inferential
+     claim.
+- **Seed:** 42 only where stochastic (none of OLS/Spearman is stochastic; seed recorded for
+  provenance parity — the analysis is deterministic given the frozen inputs).
+- **Confirms if (execution goal met):** join coverage computed (expected 9,686/9,686); the
+  primary OLS fits and yields 5 finite confirmatory coefficients with CR1 SEs and CIs; BH-over-5
+  applied; the three robustness reruns + the selection-bias table produced. RQ2's **answer is
+  whatever the regression reports** — supported features (BH-surviving, CI excluding 0), a null
+  (nothing survives → report MDE), or mixed, are all valid confirmatory outcomes reported
+  straight.
+- **Would NOT confirm / STOP if:** labeled population ≠ 9,686 OR its source/canonical split ≠
+  {skill_diffs 9,686; canonical 5,667 + non-canonical 4,019} (D7-style drift — the script
+  asserts and aborts; record + consult user); OR weekly-join coverage falls materially below
+  ~100% (the merge.py key should reproduce the 9,686 matches — a large miss means a key/schema
+  change under us → STOP, record). A null result, a fired-nothing BH, or a robustness flip are
+  **findings, not stop conditions**.
+- **Robustness (§2) plan:** (a) degenerate slice — the 580 all-zero weekly series are kept
+  (log1p handles 0) and their count is reported; canonical-only rerun surfaces fork-structure
+  sensitivity. (b) missing data — median-impute the 5 confirmatory features, count reported, no
+  rows dropped. (c) confound/leakage — length + age covariates (both mandatory arrows,
+  ADR-0007), platform FE, cluster-robust SEs on near_dup_cluster_id; domain FE omitted +
+  flagged (D8). (d) inferential test — OLS with CR1 cluster-robust SEs, effect sizes with 95%
+  CIs, BH q=0.10 over the 5 (D6). (e) n/subset — full 9,686 primary; 5,667 canonical-only;
+  375 single-skill-repo stars; all Ns stated. (f) pilot vs full — full RQ2 labeled population.
+- **Selection-bias / coverage caveat (RISK item, PLAN §6):** install-labeled skills are a
+  curated skills.sh slice (~1.74% of the corpus); coverage is RQ2's denominator and the
+  labeled-vs-unlabeled check is the pre-registered guard — both reported straight.
+- **Repro pins (fixed before the run):**
+  ```
+  git commit  58e27fa (paper branch, -dirty: adds adoption.py + statsmodels req + test)
+  input       features.parquet         sha256 b999c8e99df4349c432c118446c8250b7ad295b58971a4bdaee23b8de13f7b2e
+  input       skillssh_weekly.parquet  sha256 <hashed at run>
+  input       corpus.parquet           sha256 5b7f02f07961c86b57ee6e3b6da299e09b80566ed9f7896d1306f66e203c9011  (outcome-join name, age, stars, repo; join by skill_id)
+  crawl anchor 2026-07-08 (age from created_at first-commit date)
+  seed        42 (provenance parity; OLS/Spearman deterministic)
+  env         OMP/BLAS threads capped to 4; uv run --with-requirements paper/code/ws3/requirements.txt python paper/code/ws3/adoption.py
+  pins        statsmodels / scikit-learn / pandas / numpy / scipy / matplotlib / pyarrow recorded in the manifest
+  ```
+
+### Step 4 — RQ2 adoption (CONFIRMATORY) (2026-07-09 15:32)
+
+- **Population + join coverage (asserted, D7 gate passed):** RQ2 population =
+  **9,686** entry-level install-labeled representatives (ADR-0010; 5,667 canonical +
+  4,019 non-canonical, all `skill_diffs`; **9,009** distinct `near_dup_cluster_id`).
+  Weekly outcome (`installs_wk_mean`) joined via the loose merge.py key (owner/repo from
+  corpus `repo` + frontmatter `name:`, each `re.sub(r"[^a-z0-9]","",lower)`): **9,686/9,686
+  (100.0%)** matched. Age from first-commit `created_at` → crawl anchor **2026-07-08**:
+  9,686/9,686 non-null, median 140.2 d. **8-week single-anchor window** (ADR-0007); **58 of
+  the 9,686 labeled skills carry an all-zero weekly series** (kept; log1p handles 0 — the
+  corpus-wide 580 all-zero figure is the full skills.sh table, not this labeled subset).
+- **Primary confirmatory regression (Supported/Refuted per feature) —
+  `log1p(installs_wk_mean)`:** OLS, z-scored 5 confirmatory features (per-SD effects) +
+  `log(desc_tokens)` + `log1p(skill_age_days)` + platform FE; **CR1 cluster-robust SEs on
+  `near_dup_cluster_id`** (9,009 clusters); BH q=0.10 over the 5 (D6). N=9,686, R²=0.0390.
+  **1 of 5 survives BH: `dict_imperative_ratio` +0.1068 [+0.0691, +0.1445], p_BH 3e-8** —
+  more-imperative skills have higher weekly install velocity, ~0.11 log-units per feature-SD.
+  The other four do NOT survive: `dict_hedge_per_1k` +0.0224 [-0.0055, +0.0502] (p_BH 0.288),
+  `read_flesch_kincaid_grade` -0.0170 [-0.0683, +0.0344] (0.709), `syn_mean_tree_depth`
+  +0.0089 [-0.0454, +0.0632] (0.748), `coh_lemma_overlap_adj` -0.0100 [-0.0442, +0.0242]
+  (0.709). Covariates behave as expected: `log(desc_tokens)` +0.1090 [+0.0706, +0.1475];
+  `log1p(age)` **-0.7269 [-0.8355, -0.6183]** (older skills past peak velocity — the age
+  arrow ADR-0007 controls for is real and large).
+- **Robustness (all pre-registered, side by side):**
+  - (a) `log1p(total installs+1)`: `dict_imperative_ratio` **survives** (+0.0626 [+0.0216,
+    +0.1036], p_BH 0.014); `coh_lemma_overlap_adj` also survives (+0.0316 [+0.0015, +0.0617],
+    p_BH 0.099, borderline); the rest do not.
+  - (b) canonical-only (5,667 entries, ADR-0010 sensitivity): `dict_imperative_ratio`
+    **survives, same sign/magnitude** (+0.1114 [+0.0736, +0.1493], p_BH 4e-8) — **no flip**,
+    so the imperative effect is not a cluster/fork artifact.
+  - (c) stars on single-skill repos (**359** labeled entries with `stars`; the primary
+    outcome is installs, not stars — this is a weak secondary): `dict_imperative_ratio` NOT
+    significant (+0.2358 [-0.0358, +0.5074], p_BH 0.222); `dict_hedge_per_1k` the only BH
+    survivor here (+0.4463 [+0.1362, +0.7564], p_BH 0.024). Underpowered (N=359, wide CIs);
+    reported, not over-claimed.
+- **Durability read:** `dict_imperative_ratio` is the one confirmatory feature that survives
+  BH on the primary outcome AND both install-based robustness cuts (total installs;
+  canonical-only) with a stable positive sign — the durable RQ2 signal. Stars (single-skill,
+  N=359) is too thin to corroborate it.
+- **Exploratory Spearman screen (130 features, BH q=0.10 — EXPLORATORY, NOT headline per
+  D6):** 105/130 survive BH (large-N corpus, tiny ρ). Top by |ρ| are POS/dependency-mix and
+  coherence features (`posdep_dep_det` +0.143, `posdep_pos_DET` +0.142,
+  `coh_first_order_coherence` -0.135, …), all ρ ≈ 0.11–0.14 — **larger raw correlations than
+  any confirmatory feature, and D6 explicitly forbids promoting them to headline claims.**
+  The 5 confirmatory features' own screen ρ: imperative +0.080, hedge +0.075, FKG -0.071,
+  tree-depth -0.032, cohesion -0.012. Confirmatory inference is the regression + BH-over-5,
+  not this screen.
+- **Selection-bias check (labeled 5,667 canonical vs unlabeled 216,589 organic canonical —
+  the pre-registered WS1 risk item):** the skills.sh-indexed labeled slice is **longer**
+  (`desc_tokens` median 370 vs 250), **more imperative** (0.25 vs 0.20), **far more hedged**
+  (`dict_hedge_per_1k` 2.93 vs 0), and **overwhelmingly Claude-platform** (93.5% vs 68.1%
+  claude_skill; hermes/openclaw/opencode all under-represented in the labeled set). So RQ2's
+  population is a curated, Claude-skewed, somewhat-longer slice — the coverage/selection
+  caveat (PLAN §6, ~1.74% of the corpus) is concrete, not hypothetical.
+- **Claim (calibrated, confirmatory):** Under the frozen ADR-0004/0007/0010 rules, **of the
+  5 pre-registered confirmatory linguistic features, only `dict_imperative_ratio` predicts
+  the primary adoption outcome** (weekly install velocity) after length + age + platform,
+  cluster-robust on near-dup clusters — a small but durable positive effect (~+0.11 log-units
+  per SD, surviving BH on the primary and both install robustness cuts). The other four
+  (hedging, readability, syntactic depth, cohesion) are **null at q=0.10** with the CIs above.
+  Model R² 0.039: linguistic style adds a small, mostly-imperative-driven increment over the
+  dominant length and (negative) age covariates. **Limitations (stated straight):** domain FE
+  omitted (no corpus domain labels — ADR-0006 dropped ClawHub categories, D8); 8-week
+  single-anchor outcome window (ADR-0007); labeled set is a curated, Claude-skewed ~1.74%
+  skills.sh slice (selection-bias table above). No "significant" language beyond the BH gate;
+  effect sizes are reported with 95% CIs throughout.
+- **Robustness (§2):** (a) degenerate slice — 58 all-zero weekly series kept (log1p),
+  canonical-only rerun surfaces fork-structure sensitivity (no flip). (b) missing data — the
+  5 confirmatory features median-imputed on the population, 0 rows dropped, N stated.
+  (c) confound/leakage — length + age covariates (both ADR-0007 arrows), platform FE,
+  CR1 cluster-robust SEs on near_dup_cluster_id; domain FE omitted + flagged (D8).
+  (d) inferential test — OLS with cluster-robust SEs, effect sizes with 95% CIs, BH q=0.10
+  over the 5 (D6). (e) n/subset — 9,686 primary; 5,667 canonical-only; 359 single-skill-repo
+  stars; all stated. (f) pilot vs full — full RQ2 labeled population. Determinism: rerun
+  reproduced the same BH survivor and output sha (`d98abe6f…`); the D7 population assert is
+  the drift gate; 7/7 `tests/test_adoption.py` pass (join-key seam + BH-over-5); ruff clean.
+  All numbers above are cited from `step4_adoption.md` / the manifest, not retyped from the
+  run log.
+- **Artifact:** table `paper/data/rq2_adoption_rows.parquet` (gitignored); summary
+  `paper/code/ws3/step4_adoption.md`; figures
+  `paper/figures/ws3_step4_confirmatory_forest.png`,
+  `paper/figures/ws3_step4_outcome_hist.png`; manifest
+  `../ws1/manifests/rq2_adoption_rows.parquet.manifest.json` (`output_sha256` `d98abe6f…`,
+  `join_coverage_matched` 9686, `n_all_zero_weekly_series` 58, `primary_bh_survivors`
+  `["dict_imperative_ratio"]`, `primary_r2` 0.0390).
+- **Repro:**
+  ```
+  git commit  9db59b6 (paper branch, -dirty: adds adoption.py + step4_adoption.md + test + statsmodels req)
+  input       features.parquet         sha256 b999c8e99df4349c432c118446c8250b7ad295b58971a4bdaee23b8de13f7b2e
+  input       skillssh_weekly.parquet  sha256 d64d7395e2df8070...
+  input       corpus.parquet           sha256 5b7f02f07961c86b57ee6e3b6da299e09b80566ed9f7896d1306f66e203c9011
+  output      rq2_adoption_rows.parquet  sha256 d98abe6f1c3cc53c44a7c446e931b8f6521a22479c6cff6385b845c290b67e96
+  crawl anchor 2026-07-08 (age from created_at first-commit date)
+  seed        42 (provenance parity; OLS/Spearman deterministic)
+  pins        statsmodels 0.14.6 · scikit-learn 1.9.0 · pandas 3.0.3 · numpy 2.4.6 · scipy 1.17.1 · matplotlib 3.11.0 · pyarrow 24.0.0
+  env         OMP/BLAS threads capped to 4
+  uv run --with-requirements paper/code/ws3/requirements.txt python paper/code/ws3/adoption.py
   ```
