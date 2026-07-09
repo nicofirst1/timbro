@@ -39,8 +39,13 @@ Canonical results ledger for WS1 (experiment-discipline §4). Numbers are cited 
       WS1 step 10). **Written + unit-tested + run 2026-07-08** (sonnet-implemented,
       opus-reviewed APPROVE; see RESULTS). 587 rows → `src_machine_cell.parquet`
       (standalone cell, NOT folded into corpus.parquet).
-- [ ] `build_human_baseline.py` — RQ5 human cells (ADR-0008, WS1 step 9). In progress
-      2026-07-08 (sonnet-dispatched).
+- [~] `build_human_baseline.py` — RQ5 human cells (ADR-0008, WS1 step 9). **Written +
+      unit-tested + run 2026-07-08** (sonnet-implemented; see RESULTS). Post-2023 GitHub
+      cell DONE: 5,161 rows ≥ the 5k floor. **Pre-2023 the-stack cell BLOCKED** — HF gated
+      dataset, no local token (`DatasetNotFoundError` … "must be authenticated"). Code
+      ready + resumable: accept the `bigcode/the-stack` gate, set `HF_TOKEN`, rerun without
+      flags (GH cell resumes from cache). Blocks the C3−C1 descriptive bracket only, NOT
+      the confirmatory C3 vs C2 contrast (ADR-0008).
 - [x] `build_skillssh.py` — installs join. **Gate cleared + crawl done 2026-07-08** (see
       RESULTS). `skills.sh/robots.txt` allows the sitemaps/detail pages (only `/api/*`
       disallowed), `/terms` permits "reasonable use, including caching results on your own
@@ -70,6 +75,33 @@ Canonical results ledger for WS1 (experiment-discipline §4). Numbers are cited 
 ## RESULTS
 
 All counts cited from `manifests/*.manifest.json` (never retyped). Newest on top.
+
+### 2026-07-08 — RQ5 human baseline: post-2023 cell built (5,161 rows); pre-2023 cell blocked on HF gate
+
+Ran `build_human_baseline.py --skip-stack --github-sample 6000` (WS1 step 9, ADR-0008).
+Numbers from `human_baseline.parquet.manifest.json` (sha256 `991c680e…`, seed 42):
+
+- `human_baseline.parquet`: **5,161** rows, all `era=post` — **≥ the ADR-0008 5k/cell
+  floor** (`floor_status_per_era.post: true`). 6,001 docs fetched from 2,185 matched /
+  3,105 scanned repos (min_stars 5, created/updated ≥ 2023-01-01); **840** dropped by the
+  English filter. SKILL.md-repo exclusion enforced on the full recursive tree per repo;
+  post-hoc invariant check: seeded 100-repo sample of the delivered 1,970 repos → 0 carry
+  a SKILL.md. (A stale `n_repos_skill_md_excluded: 0` diagnostic in the first manifest was
+  never wired to the check — cosmetic; replaced by marker-based counters in code.)
+- **Pre-2023 the-stack cell BLOCKED:** `bigcode/the-stack` is HF-gated, no local token
+  (`HfFolder.get_token()` → None). Streaming + seeded reservoir sampling (target 20k)
+  implemented and untested-on-live; retry = accept gate + `HF_TOKEN` + rerun (GH cell
+  resumes from `human_baseline_gh_cache/`). Manifest records the cell as `blocked`, not
+  zero-success. **Consequence (ADR-0008): C3 vs C2 confirmatory contrast UNAFFECTED;
+  C3−C1 / C2−C1 descriptive bracket pending the unblock.**
+- **Flagged implementation choices (not in ADR-0008, logged per its deviation rule):**
+  English filter = ascii-ratio + stopword heuristic (NOT langdetect — no new deps),
+  applied identically to both cells; `MAX_DOCS_PER_REPO=5` diversity cap (a smoke-test
+  monorepo yielded 172 README/CONTRIBUTING files; root-level/shortest-path preferred);
+  GH sample sized 6,000 (API budget ~1.4 s/repo) — top-up = rerun with higher
+  `--github-sample`, cache-resumable; D1 dedup treatment deferred downstream to WS3
+  step 7 (dedup.py owns fixed `src_*` inputs; ADR-0008 requires dedup before analysis,
+  not at build time). DVC-tracked.
 
 ### 2026-07-08 — machine-authored cell built (ADR-0009, exploratory): src_machine_cell.parquet
 

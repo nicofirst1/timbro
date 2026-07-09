@@ -57,8 +57,11 @@ Dependency order: WS1 → WS3 needs WS2 → WS4 needs WS3 → WS5 needs all. WS6
 ### WS1 — Corpus assembly (July) — `agent:mechanical`
 
 Code in `paper/code/ws1/`, data in `paper/data/` (gitignored / DVC-tracked). Results ledger:
-`paper/code/ws1/LEDGER.md`. **Status: builds 1–4 + 7 done 2026-07-08 (ClawHub dropped);
-dedup.py + merge.py written, runs pending; step 8 not yet written (see LEDGER STATUS).**
+`paper/code/ws1/LEDGER.md`. **Status 2026-07-08 EOD: steps 1–8 + 10 done and run
+(ClawHub dropped, ADR-0006); dedup + merge run — corpus.parquet 672,022 rows, D1 STOP
+fired → ADR-0010 cluster unit + entry-level RQ2 join (9,686 labeled entries). Step 9:
+post-2023 cell done (5,161 ≥ 5k floor); pre-2023 the-stack cell BLOCKED on the HF gate —
+needs user `HF_TOKEN` + gate acceptance, then a plain rerun. See LEDGER STATUS.**
 
 1. `build_skill_diffs.py`: stream `shl0ms/skill-diffs` with `datasets` (streaming mode, do not
    load 8GB in RAM). Emit one row per unique `skill_id`: latest SKILL.md text, `repo`,

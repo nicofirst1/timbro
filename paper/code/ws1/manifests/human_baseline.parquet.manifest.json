@@ -1,0 +1,51 @@
+{
+  "cell_reports": {
+    "github": {
+      "n_docs": 6000,
+      "n_repos_matched": 2251,
+      "n_repos_no_match_or_fetch_fail": 410,
+      "n_repos_scanned": 3210,
+      "n_repos_skill_md_excluded_marker_based": 549
+    },
+    "stack": {
+      "skipped": true
+    }
+  },
+  "english_filter_ascii_min_ratio": 0.9,
+  "english_filter_dropped": 729,
+  "english_filter_method": "ascii_ratio+stopword_heuristic_NOT_langdetect",
+  "english_filter_stopword_min_hits": 2,
+  "floor_status_per_era": {
+    "post": true,
+    "pre": false
+  },
+  "git_commit": "8230d27dc3e689694ba9de7a515c759c968ab043-dirty",
+  "inputs": [
+    {
+      "blocked": "skipped",
+      "hf_dataset": "bigcode/the-stack",
+      "streaming": true
+    },
+    {
+      "contact": "nicofirst1@gmail.com",
+      "cutoff": "2023-01-01",
+      "min_stars": 5,
+      "source": "github_search_api"
+    }
+  ],
+  "n_by_era": {
+    "post": 5271
+  },
+  "n_rows": 5271,
+  "output": "human_baseline.parquet",
+  "output_sha256": "d5c4e1b7621d4ab9e6b8c4c94aebfbe6dee3e9931a8ddeeb8737854a87b25656",
+  "packages": {
+    "datasets": "5.0.0",
+    "huggingface_hub": "1.19.0",
+    "pyarrow": "24.0.0"
+  },
+  "script": "build_human_baseline.py",
+  "seed": 42,
+  "source": "human_baseline",
+  "utc": "2026-07-08T19:45:00.020320+00:00"
+}
