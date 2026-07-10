@@ -1,0 +1,61 @@
+{
+  "figures": [
+    "paper/figures/ws3_step5_h4a_length_trajectory.png",
+    "paper/figures/ws3_step5_h4b_convergence.png"
+  ],
+  "git_commit": "3e1c59fcbdc48450480eb00258607592500eb169-dirty",
+  "h4a_ci": [
+    0.026608717713404402,
+    0.028977381491865795
+  ],
+  "h4a_coef_version_index": 0.0277930496026351,
+  "h4a_estimator": "MixedLM(REML, random intercept per skill_id)",
+  "h4a_p_bh": 0.0,
+  "h4a_re_var": 0.904127714948409,
+  "h4a_supported": true,
+  "h4b_ci": [
+    -0.43698694871851884,
+    -0.019179572710168263
+  ],
+  "h4b_coef_version_index": -0.22808326071434357,
+  "h4b_estimator": "MixedLM(REML, random intercept per skill_id)",
+  "h4b_ols_cluster_robust_coef": -0.2763680998337722,
+  "h4b_ols_cluster_robust_p": 0.00121507321610616,
+  "h4b_p_bh": 0.03236208511568288,
+  "h4b_re_var": 9941.20143793927,
+  "h4b_reference": "nearest of frozen RQ1 k=5 centroids (dimensional-not-categorical caveat)",
+  "h4b_singular_re_warning": true,
+  "h4b_supported": true,
+  "inputs": [
+    {
+      "name": "features_chains.parquet",
+      "sha256": "d424157089fe914cdf1096c3d59f8788e3ff30c68b5ab71e2c6f494b35846bc4"
+    },
+    {
+      "name": "rq1_cluster_assignments.parquet",
+      "sha256": "edebcc744b38d8d4b68cc46b8b4ce2f43913d17cc2dc7459d235b9a3c11257a7"
+    },
+    {
+      "name": "features.parquet",
+      "sha256": "b999c8e99df4349c432c118446c8250b7ad295b58971a4bdaee23b8de13f7b2e"
+    }
+  ],
+  "n_chains": 14382,
+  "n_rows": 67146,
+  "n_version_rows": 67146,
+  "output": "rq4_chain_trajectories.parquet",
+  "output_sha256": "d6fdc80d515f6f7d3b577eafdabb977a1d98d8aef390ded374abe6c40f367d35",
+  "packages": {
+    "matplotlib": "3.11.0",
+    "numpy": "2.4.6",
+    "pandas": "3.0.3",
+    "pyarrow": "24.0.0",
+    "scipy": "1.17.1",
+    "statsmodels": "0.14.6"
+  },
+  "report": "paper/code/ws3/step5_rq4/step5_rq4.md",
+  "script": "step5_rq4.py",
+  "seed": 42,
+  "source": "ws3_rq4_temporal",
+  "utc": "2026-07-10T06:58:48.777056+00:00"
+}
