@@ -20,7 +20,7 @@ a rerun skips parts that already exist and re-concats at the end.
 
 Run (from repo root, detached — leaves ~2 cores free for concurrent WS1 jobs):
   nohup env PYTHONUNBUFFERED=1 uv run --with-requirements paper/code/ws1/requirements.txt \
-      python paper/code/ws3/extract_features.py > <log> 2>&1 &
+      python paper/code/ws3/step1_extraction/extract_features.py > <log> 2>&1 &
 """
 from __future__ import annotations
 
@@ -34,8 +34,8 @@ import pyarrow.compute as pc
 import pyarrow.parquet as pq
 
 # WS1 provenance helpers (data_dir, write_manifest, sha256, git, versions).
-# __file__ = paper/code/ws3/extract_features.py -> parents[1] = paper/code
-sys.path.append(str(Path(__file__).resolve().parents[1] / "ws1"))
+# __file__ = paper/code/ws3/step1_extraction/extract_features.py -> parents[2] = paper/code
+sys.path.append(str(Path(__file__).resolve().parents[2] / "ws1"))
 from _manifest import data_dir, sha256_file, write_manifest  # noqa: E402
 
 # --- scope + layout constants -------------------------------------------------

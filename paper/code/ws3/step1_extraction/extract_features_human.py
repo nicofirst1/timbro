@@ -17,7 +17,7 @@ dedup treatment happens in step 7's ANALYSIS, not here.
 
 Run (from repo root):
   uv run --with-requirements paper/code/ws1/requirements.txt \
-      python paper/code/ws3/extract_features_human.py
+      python paper/code/ws3/step1_extraction/extract_features_human.py
 """
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ import pyarrow.compute as pc
 import pyarrow.parquet as pq
 
 # WS1 provenance helpers (data_dir, write_manifest, sha256, git, versions).
-sys.path.append(str(Path(__file__).resolve().parents[1] / "ws1"))
+sys.path.append(str(Path(__file__).resolve().parents[2] / "ws1"))
 from _manifest import data_dir, sha256_file, write_manifest  # noqa: E402
 
 # Reuse extract_features.py's analyze machinery (no duplication).
