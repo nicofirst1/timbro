@@ -1,0 +1,64 @@
+{
+  "bh_survivors": [
+    "dict_imperative_ratio",
+    "dict_hedge_per_1k",
+    "read_flesch_kincaid_grade",
+    "syn_mean_tree_depth",
+    "coh_lemma_overlap_adj"
+  ],
+  "c3_vs_c2_bh_p": {
+    "coh_lemma_overlap_adj": 2.7537185575023868e-05,
+    "dict_hedge_per_1k": 1.447892651797689e-09,
+    "dict_imperative_ratio": 1.0072675806118374e-68,
+    "read_flesch_kincaid_grade": 3.47611421513569e-182,
+    "syn_mean_tree_depth": 1.0742174938528991e-74
+  },
+  "c3_vs_c2_cohens_d": {
+    "coh_lemma_overlap_adj": 0.05796175483453313,
+    "dict_hedge_per_1k": -0.09438185057611923,
+    "dict_imperative_ratio": 0.2488360442574775,
+    "read_flesch_kincaid_grade": 0.4024257625243705,
+    "syn_mean_tree_depth": 0.25798987333214846
+  },
+  "confirmatory_contrast": "C3_vs_C2 (two-sided, conservative lower bound)",
+  "figures": [
+    "paper/figures/ws3_step7_rq5_bracket.png"
+  ],
+  "floor_cleared": true,
+  "git_commit": "a9286be8459348ef0d33e8b4c53ebc2c57caba1d-dirty",
+  "inputs": [
+    {
+      "name": "features_human.parquet",
+      "sha256": "27e04ad9e66817e300e142434b1ede4a18e9a8a6306959d2141e8fa8c6ed5123"
+    },
+    {
+      "name": "human_baseline.parquet",
+      "sha256": "b2875fd6eed52a2d202d65f045e5f0cec509507864740f10a4e316cda57b30d7"
+    },
+    {
+      "name": "features.parquet",
+      "sha256": "b999c8e99df4349c432c118446c8250b7ad295b58971a4bdaee23b8de13f7b2e"
+    }
+  ],
+  "n_bh_survivors": 5,
+  "n_c1_post_dedup": 14716,
+  "n_c2_post_dedup": 5183,
+  "n_c3_organic_canonical": 222260,
+  "n_rows": 15,
+  "output": "rq5_audience_contrast.parquet",
+  "output_sha256": "f452654787d79552b129c440a27df692ee2815699ed5abb92d1adee4e174353f",
+  "packages": {
+    "datasketch": "2.0.0",
+    "matplotlib": "3.11.0",
+    "numpy": "2.4.6",
+    "pandas": "3.0.3",
+    "pyarrow": "24.0.0",
+    "scipy": "1.17.1",
+    "statsmodels": "0.14.6"
+  },
+  "report": "paper/code/ws3/step7_rq5/step7_rq5.md",
+  "script": "step7_rq5.py",
+  "seed": 42,
+  "source": "ws3_rq5_audience_contrast",
+  "utc": "2026-07-10T07:21:32.051911+00:00"
+}
