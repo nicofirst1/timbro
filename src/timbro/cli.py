@@ -194,6 +194,14 @@ def main():
         print("revise toward your voice:")
     for mv in payload["direction"]:
         print(f"  - {mv['hint']:24s} (confidence {mv['confidence']:.2f})")
+    if not args.quiet and payload.get("structure"):
+        off = [ax for ax in payload["structure"] if ax["direction"]]
+        print("structure vs corpus:")
+        if off:
+            for ax in sorted(off, key=lambda a: -abs(a["z"])):
+                print(f"  - {ax['direction']:26s} (z {ax['z']:+.2f}, {ax['axis'][7:]})")
+        else:
+            print("  - on-target: every structure axis within corpus spread")
     if not args.quiet and payload.get("spans"):
         print("highest-leverage paragraphs:")
         for span in payload["spans"]:

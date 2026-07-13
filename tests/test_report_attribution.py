@@ -21,6 +21,9 @@ class ReportAttributionTests(unittest.TestCase):
             def on_voice(self, text: str):
                 return False
 
+            def struct_report(self, text: str):
+                return []
+
             def profile_report(self):
                 return {
                     "health": "ok",
