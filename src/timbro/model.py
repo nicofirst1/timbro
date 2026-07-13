@@ -33,7 +33,7 @@ from timbro.tells import tell_rates, TELL_LABEL, TELL_PRIOR
 # direction, (raise, lower), matching the "fewer/more <label>" register of the POS
 # direction. Only structural (`struct_*`) numeric axes a writer can actually move are
 # listed; the frontmatter-description (`fm_desc_*`) and string fields are excluded.
-STRUCT_AXES: tuple[tuple[str, str, str], ...] = (
+MARKDOWN_AXES: tuple[tuple[str, str, str], ...] = (
     ("struct_heading_count", "add section headings", "merge section headings"),
     ("struct_max_heading_depth", "deepen sectioning", "flatten sectioning"),
     ("struct_code_char_ratio", "add code blocks", "reduce code blocks"),
@@ -46,10 +46,10 @@ STRUCT_AXES: tuple[tuple[str, str, str], ...] = (
     ("struct_long_paragraph_ratio", "lengthen paragraphs", "break up long paragraphs"),
     ("struct_prose_ratio", "add prose", "reduce prose"),
 )
-STRUCT_AXIS_NAMES: tuple[str, ...] = tuple(name for name, _, _ in STRUCT_AXES)
+STRUCT_AXIS_NAMES: tuple[str, ...] = tuple(name for name, _, _ in MARKDOWN_AXES)
 # Within half a corpus std of the mean = on-target; no revision direction named for that
 # axis. ponytail: fixed tolerance, promote to a knob only if a caller needs to tune it.
-STRUCT_Z_TOL = 0.5
+MARKDOWN_Z_TOL = 0.5
 
 # Universal POS tags (spaCy `pos_`). Rates over these 17 are length-normalized,
 # so the doc-length confound that plagued raw counts can't arise here.
@@ -136,7 +136,7 @@ def _pos_rates(text: str) -> tuple[float, ...]:
 
 @lru_cache(maxsize=512)
 def _struct_vec(text: str) -> tuple[float, ...]:
-    """Markdown-structure feature vector (STRUCT_AXES order) for one raw document.
+    """Markdown-structure feature vector (MARKDOWN_AXES order) for one raw document.
     Reuses analyze._struct_features -- the same extractor `timbro analyze` emits, so
     scoring and analysis never drift. Ratio axes are None on empty input; coerce to 0.0
     (no structure == zero structure) so a draft with no markdown never breaks z-scoring.
@@ -188,7 +188,7 @@ class FeatureMove:
 
 
 @dataclass
-class StructAxis:
+class MarkdownAxis:
     """One markdown-structure axis: where the draft sits vs the corpus (z-score) and the
     named direction back toward the corpus pole. Separate from FeatureMove -- struct is a
     standalone axis group, not part of the embedding/POS composite (issue #28)."""
@@ -393,13 +393,13 @@ class VoiceModel:
                 )
         return ScoreResult(self._dist(text), moves)
 
-    def struct_report(self, text: str) -> list[StructAxis]:
+    def markdown_report(self, text: str) -> list[MarkdownAxis]:
         """Per-axis markdown-structure distance from the corpus (issue #28).
 
         z-scores the draft's struct features against the exemplar-corpus mean/std
         (computed at fit time, same machinery as the POS path), and names the direction
         back toward the corpus pole. Separate from score() -- struct never touches the
-        embedding distance or POS direction. A near-target axis (|z| < STRUCT_Z_TOL) gets
+        embedding distance or POS direction. A near-target axis (|z| < MARKDOWN_Z_TOL) gets
         an empty direction string. Returns [] if the model was built without struct stats.
         """
         if self.smean is None or self.sstd is None:
@@ -407,13 +407,13 @@ class VoiceModel:
         vec = np.array(_struct_vec(text), dtype=float)
         z = (vec - self.smean) / self.sstd
         out = []
-        for i, (axis, raise_hint, lower_hint) in enumerate(STRUCT_AXES):
+        for i, (axis, raise_hint, lower_hint) in enumerate(MARKDOWN_AXES):
             zi = float(z[i])
-            if abs(zi) < STRUCT_Z_TOL:
+            if abs(zi) < MARKDOWN_Z_TOL:
                 direction = ""
             else:
                 direction = lower_hint if zi > 0 else raise_hint  # move back toward corpus mean
-            out.append(StructAxis(axis, float(vec[i]), float(self.smean[i]), zi, direction))
+            out.append(MarkdownAxis(axis, float(vec[i]), float(self.smean[i]), zi, direction))
         return out
 
 

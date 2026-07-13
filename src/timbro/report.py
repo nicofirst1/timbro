@@ -49,7 +49,7 @@ def voice_report(model, text: str) -> dict:
     out["profile"] = model.profile_report()
     # Structure runs on the raw draft (markdown intact), not the markup-stripped `prepared`
     # text -- struct features live in the markup itself (#28). Separate axis group.
-    out["structure"] = [axis.to_dict() for axis in model.struct_report(text)]
+    out["markdown"] = [axis.to_dict() for axis in model.markdown_report(text)]
     out["spans"] = _span_guidance(model, prepared)
     out["flow"] = flow_report(prepared).to_dict() if len(paragraphs(prepared)) >= 4 else None
     return out
