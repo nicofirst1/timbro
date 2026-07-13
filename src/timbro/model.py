@@ -27,6 +27,30 @@ import numpy as np
 
 from timbro.tells import tell_rates, TELL_LABEL, TELL_PRIOR
 
+# Markdown-structure axes scored as a SEPARATE group from the embedding/POS composite
+# (issue #28) -- these never feed the distance/direction above, they get their own
+# z-score-vs-corpus report. Each axis carries an imperative revision phrase per
+# direction, (raise, lower), matching the "fewer/more <label>" register of the POS
+# direction. Only structural (`struct_*`) numeric axes a writer can actually move are
+# listed; the frontmatter-description (`fm_desc_*`) and string fields are excluded.
+MARKDOWN_AXES: tuple[tuple[str, str, str], ...] = (
+    ("struct_heading_count", "add section headings", "merge section headings"),
+    ("struct_max_heading_depth", "deepen sectioning", "flatten sectioning"),
+    ("struct_code_char_ratio", "add code blocks", "reduce code blocks"),
+    ("struct_inline_code_char_ratio", "add inline code", "reduce inline code"),
+    ("struct_list_item_ratio", "add lists", "reduce list share"),
+    ("struct_bullet_list_ratio", "add bullets", "reduce bullet share"),
+    ("struct_ordered_list_ratio", "add numbered steps", "reduce numbered steps"),
+    ("struct_table_count", "add tables", "remove tables"),
+    ("struct_external_ref_count", "add external references", "trim external references"),
+    ("struct_long_paragraph_ratio", "lengthen paragraphs", "break up long paragraphs"),
+    ("struct_prose_ratio", "add prose", "reduce prose"),
+)
+STRUCT_AXIS_NAMES: tuple[str, ...] = tuple(name for name, _, _ in MARKDOWN_AXES)
+# Within half a corpus std of the mean = on-target; no revision direction named for that
+# axis. ponytail: fixed tolerance, promote to a knob only if a caller needs to tune it.
+MARKDOWN_Z_TOL = 0.5
+
 # Universal POS tags (spaCy `pos_`). Rates over these 17 are length-normalized,
 # so the doc-length confound that plagued raw counts can't arise here.
 POS_TAGS = ("ADJ", "ADP", "ADV", "AUX", "CCONJ", "DET", "INTJ", "NOUN", "NUM",
@@ -110,6 +134,19 @@ def _pos_rates(text: str) -> tuple[float, ...]:
     return tuple(c.get(tag, 0) / n for tag in POS_TAGS)
 
 
+@lru_cache(maxsize=512)
+def _struct_vec(text: str) -> tuple[float, ...]:
+    """Markdown-structure feature vector (MARKDOWN_AXES order) for one raw document.
+    Reuses analyze._struct_features -- the same extractor `timbro analyze` emits, so
+    scoring and analysis never drift. Ratio axes are None on empty input; coerce to 0.0
+    (no structure == zero structure) so a draft with no markdown never breaks z-scoring.
+    """
+    from timbro.analyze import _struct_features  # lazy: analyze imports POS_TAGS from here
+
+    struct, _ = _struct_features(text)
+    return tuple(float(struct.get(name) or 0.0) for name in STRUCT_AXIS_NAMES)
+
+
 def _label(name: str) -> str:
     """POS or tell label for a feature, so the hint reads as advice not a feature id."""
     return POS_LABEL[name[4:]] if name.startswith("pos_") else TELL_LABEL[name[5:]]
@@ -145,6 +182,21 @@ class FeatureMove:
     delta: float        # signed move toward your corpus mean (target z = 0)
     confidence: float   # R^2: how reliably this feature marks your voice (0-1)
     hint: str
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+
+@dataclass
+class MarkdownAxis:
+    """One markdown-structure axis: where the draft sits vs the corpus (z-score) and the
+    named direction back toward the corpus pole. Separate from FeatureMove -- struct is a
+    standalone axis group, not part of the embedding/POS composite (issue #28)."""
+    axis: str
+    value: float        # the draft's raw feature value on this axis
+    corpus_mean: float
+    z: float            # draft's distance from corpus mean in corpus std units (0 = on-target)
+    direction: str      # imperative phrase toward the corpus mean, "" once |z| is negligible
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -199,7 +251,10 @@ class VoiceModel:
     def __init__(self, names, pmean, pstd, train_pz, confidence,
                  emean, estd, train_ez, top_k, knn_k,
                  exemplar_count, contrast_count, total_words, total_paragraphs,
-                 health, warning, exemplar_floor, exemplar_spread, contrast_ceiling):
+                 health, warning, exemplar_floor, exemplar_spread, contrast_ceiling,
+                 smean=None, sstd=None):
+        self.smean = smean            # struct axis mean / std over the exemplar corpus (#28)
+        self.sstd = sstd              # -- separate group, z-scored independently of the composite
         self.names = names            # POS feature names (direction is white-box)
         self.mean = pmean             # POS mean / std for z-scoring the direction
         self.std = pstd
@@ -234,6 +289,12 @@ class VoiceModel:
         for i, nm in enumerate(names):
             if nm.startswith("tell_"):
                 conf[i] = max(conf[i], TELL_PRIOR[nm[5:]])
+        # struct path (separate axis group #28): same z-score machinery as the POS path --
+        # mean/std over the exemplar corpus, zero-variance axes guarded to std=1 so a
+        # degenerate corpus yields z=0 (on-target) instead of inf/NaN.
+        S = np.array([_struct_vec(t) for t in texts], dtype=float)
+        smean, sstd = S.mean(0), S.std(0)
+        sstd[sstd == 0] = 1.0
         # embedding path (scalar)
         E = np.array([_style_vec(t) for t in texts])
         emean, estd = E.mean(0), E.std(0)
@@ -251,7 +312,8 @@ class VoiceModel:
         return cls(names, pmean, pstd, (X - pmean) / pstd, conf,
                    emean, estd, train_ez, top_k, knn_k,
                    len(texts), len(contrast or []), total_words, total_paragraphs,
-                   health, warning, exemplar_floor, exemplar_spread, contrast_ceiling)
+                   health, warning, exemplar_floor, exemplar_spread, contrast_ceiling,
+                   smean=smean, sstd=sstd)
 
     @classmethod
     def from_dir(cls, exemplars: str | Path, contrast: str | Path | None = None,
@@ -330,6 +392,29 @@ class VoiceModel:
                     )
                 )
         return ScoreResult(self._dist(text), moves)
+
+    def markdown_report(self, text: str) -> list[MarkdownAxis]:
+        """Per-axis markdown-structure distance from the corpus (issue #28).
+
+        z-scores the draft's struct features against the exemplar-corpus mean/std
+        (computed at fit time, same machinery as the POS path), and names the direction
+        back toward the corpus pole. Separate from score() -- struct never touches the
+        embedding distance or POS direction. A near-target axis (|z| < MARKDOWN_Z_TOL) gets
+        an empty direction string. Returns [] if the model was built without struct stats.
+        """
+        if self.smean is None or self.sstd is None:
+            return []
+        vec = np.array(_struct_vec(text), dtype=float)
+        z = (vec - self.smean) / self.sstd
+        out = []
+        for i, (axis, raise_hint, lower_hint) in enumerate(MARKDOWN_AXES):
+            zi = float(z[i])
+            if abs(zi) < MARKDOWN_Z_TOL:
+                direction = ""
+            else:
+                direction = lower_hint if zi > 0 else raise_hint  # move back toward corpus mean
+            out.append(MarkdownAxis(axis, float(vec[i]), float(self.smean[i]), zi, direction))
+        return out
 
 
 def default_model() -> "VoiceModel":
