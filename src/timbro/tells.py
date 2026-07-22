@@ -13,7 +13,7 @@ becomes a named feature that flows through the same z-score + confidence machine
 as POS rates. A clean exemplar corpus has ~0 of these, so against AI-slop they
 separate sharply; `TELL_PRIOR` (from the Reddit frequency ranks) gives each tell a
 confidence floor so it surfaces even with no contrast. Most tells are pure regex;
-two (`dropped_subject`, `staccato_run`) use the spaCy tagger + sentencizer.
+three (`empty_punch`, `dropped_subject`, `staccato_run`) use the tagger + sentencizer.
 """
 
 from __future__ import annotations
@@ -115,15 +115,10 @@ _PATTERNS: dict[str, re.Pattern] = {
     ),
     # Bolded lead-in bullet: "- **Word:** …" or "**Word:**" at line start.
     "bold_leadin": re.compile(r"^\s*(?:[-*+]\s+)?\*\*[^*\n]{1,40}\*\*\s*[:—-]", re.MULTILINE),
-    # American-style comma/period INSIDE a closing double quote (Nico's rule: outside).
+    # American-style comma/period INSIDE a closing double quote (logical style: outside).
     "quote_punct": re.compile(r'[,.]"'),
     # Colon then >=2 comma-separated items in the same sentence ("foo: a, b, c").
     "colon_list": re.compile(r":\s*[^:.!?\n]+,\s*[^:.!?\n]+(?:,\s*[^:.!?\n]+)*[.!?]"),
-    # Curated contentless declarative opening (cheap, low-recall, zero false positives).
-    "empty_punch": re.compile(
-        r"(?:^|\n)\s*(?:The (?:answer|direction|point|shape|tension) is \w+\.|"
-        r"Here is the whole \w+[^.\n]*\.)"
-    ),
 }
 
 _EMOJI = re.compile("[\U0001F300-\U0001FAFF\U00002600-\U000027BF\U0001F1E6-\U0001F1FF]")
@@ -152,28 +147,46 @@ def _nlp():
 # imperative ("Consider", "Stop") and is legitimate, so it is excluded.
 _FINITE_TAGS = {"VBD", "VBZ", "VBP", "VBG"}
 
+# Abstract subject nouns that carry no concrete content ("The answer is thin").
+# POS gates the structure (short, declarative, no named entity); this small lexicon
+# separates them from concrete subjects ("The parser dropped a row"), which POS can't.
+_ABSTRACT_SUBJ = {
+    "answer", "direction", "point", "shape", "tension",
+    "question", "idea", "thing", "story", "truth",
+}
+
 
 @lru_cache(maxsize=512)
-def _pos_counts(text: str) -> tuple[int, int]:
-    """(dropped_subject, staccato_run) counts. Cached: one parse per doc."""
+def _pos_counts(text: str) -> tuple[int, int, int]:
+    """(dropped_subject, staccato_run, empty_punch) counts. Cached: one parse per doc."""
     doc = _nlp()(text[:100000])
     dropped = 0
+    empty_punch = 0
     short_run = 0  # length of current run of <8-word sentences
     staccato = 0
     for sent in doc.sents:
         toks = [t for t in sent if not t.is_space and not t.is_punct]
+        if not toks:
+            continue
         # dropped-subject: first real token is a finite/participle verb. "No subject
         # before it" is vacuous once we key off toks[0] -- nothing precedes the opener.
-        if toks and toks[0].tag_ in _FINITE_TAGS:
+        if toks[0].tag_ in _FINITE_TAGS:
             dropped += 1
+        # empty-punch: short declarative whose first noun is abstract and which names
+        # no concrete entity (no PROPN). Verb-agnostic, unlike a phrase-list regex.
+        if (len(toks) <= 8 and not any(t.pos_ == "PROPN" for t in toks)
+                and any(t.pos_ in ("VERB", "AUX") for t in toks)):
+            nouns = [t for t in toks if t.pos_ == "NOUN"]
+            if nouns and nouns[0].lower_ in _ABSTRACT_SUBJ:
+                empty_punch += 1
         # staccato: consecutive sentences under 8 words.
-        if 0 < len(toks) < 8:
+        if len(toks) < 8:
             short_run += 1
             if short_run == 3:
                 staccato += 1  # count the run once, when it reaches length 3
         else:
             short_run = 0
-    return dropped, staccato
+    return dropped, staccato, empty_punch
 
 
 def _counts(text: str) -> dict[str, int]:
@@ -187,7 +200,7 @@ def _counts(text: str) -> dict[str, int]:
     }
     for name, pat in _PATTERNS.items():
         c[name] = len(pat.findall(body))
-    c["dropped_subject"], c["staccato_run"] = _pos_counts(body)
+    c["dropped_subject"], c["staccato_run"], c["empty_punch"] = _pos_counts(body)
     return c
 
 
