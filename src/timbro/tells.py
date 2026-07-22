@@ -121,6 +121,7 @@ _PATTERNS: dict[str, re.Pattern] = {
     "colon_list": re.compile(r":\s*[^:.!?\n]+,\s*[^:.!?\n]+(?:,\s*[^:.!?\n]+)*[.!?]"),
 }
 
+_DASH = re.compile("[—–]")
 _EMOJI = re.compile("[\U0001F300-\U0001FAFF\U00002600-\U000027BF\U0001F1E6-\U0001F1FF]")
 _CURLY = re.compile("[“”‘’]")
 _HR = re.compile(r"^(?:-{3,}|\*{3,}|_{3,})\s*$", re.MULTILINE)
@@ -157,51 +158,67 @@ _ABSTRACT_SUBJ = {
 
 
 @lru_cache(maxsize=512)
-def _pos_counts(text: str) -> tuple[int, int, int]:
-    """(dropped_subject, staccato_run, empty_punch) counts. Cached: one parse per doc."""
+def _pos_occurrences(text: str) -> tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...]]:
+    """(dropped_subject, staccato_run, empty_punch) offending spans. Cached: one parse per doc."""
     doc = _nlp()(text[:100000])
-    dropped = 0
-    empty_punch = 0
-    short_run = 0  # length of current run of <8-word sentences
-    staccato = 0
+    dropped: list[str] = []
+    empty_punch: list[str] = []
+    run: list[str] = []  # texts of the current run of <8-word sentences
+    staccato: list[str] = []
     for sent in doc.sents:
         toks = [t for t in sent if not t.is_space and not t.is_punct]
         if not toks:
             continue
+        span = sent.text.strip()
         # dropped-subject: first real token is a finite/participle verb. "No subject
         # before it" is vacuous once we key off toks[0] -- nothing precedes the opener.
         if toks[0].tag_ in _FINITE_TAGS:
-            dropped += 1
+            dropped.append(span)
         # empty-punch: short declarative whose first noun is abstract and which names
         # no concrete entity (no PROPN). Verb-agnostic, unlike a phrase-list regex.
         if (len(toks) <= 8 and not any(t.pos_ == "PROPN" for t in toks)
                 and any(t.pos_ in ("VERB", "AUX") for t in toks)):
             nouns = [t for t in toks if t.pos_ == "NOUN"]
             if nouns and nouns[0].lower_ in _ABSTRACT_SUBJ:
-                empty_punch += 1
+                empty_punch.append(span)
         # staccato: consecutive sentences under 8 words.
         if len(toks) < 8:
-            short_run += 1
-            if short_run == 3:
-                staccato += 1  # count the run once, when it reaches length 3
+            run.append(span)
+            if len(run) == 3:
+                staccato.append(" ".join(run))  # record the run once, when it reaches length 3
         else:
-            short_run = 0
-    return dropped, staccato, empty_punch
+            run = []
+    return tuple(dropped), tuple(staccato), tuple(empty_punch)
+
+
+def _occurrences(text: str) -> dict[str, list[str]]:
+    """Every matched span per tell, in TELL_NAMES order. Counts and rates derive from
+    this, so the score path and the `tells` rubric share one definition of a match."""
+    body = _FRONTMATTER.sub("", text)  # drop YAML so its --- isn't read as an HR
+    occ: dict[str, list[str]] = {
+        "dash": _DASH.findall(body),
+        "diction": _DICTION.findall(body),
+        "emoji": _EMOJI.findall(body),
+        "curly_quote": _CURLY.findall(body),
+        "hr_divider": _HR.findall(body),
+    }
+    for name, pat in _PATTERNS.items():
+        occ[name] = pat.findall(body)
+    dropped, staccato, empty_punch = _pos_occurrences(body)
+    occ["dropped_subject"], occ["staccato_run"], occ["empty_punch"] = (
+        list(dropped), list(staccato), list(empty_punch),
+    )
+    return {name: occ[name] for name in TELL_NAMES}
 
 
 def _counts(text: str) -> dict[str, int]:
-    body = _FRONTMATTER.sub("", text)  # drop YAML so its --- isn't read as an HR
-    c = {
-        "dash": body.count("—") + body.count("–"),
-        "diction": len(_DICTION.findall(body)),
-        "emoji": len(_EMOJI.findall(body)),
-        "curly_quote": len(_CURLY.findall(body)),
-        "hr_divider": len(_HR.findall(body)),
-    }
-    for name, pat in _PATTERNS.items():
-        c[name] = len(pat.findall(body))
-    c["dropped_subject"], c["staccato_run"], c["empty_punch"] = _pos_counts(body)
-    return c
+    return {name: len(spans) for name, spans in _occurrences(text).items()}
+
+
+def tell_occurrences(text: str) -> dict[str, list[str]]:
+    """Example spans per tell (`name -> matched substrings`), in TELL_NAMES order.
+    Feeds the `tells` rubric so each finding can quote what tripped it."""
+    return _occurrences(text)
 
 
 def tell_rates(text: str) -> dict[str, float]:

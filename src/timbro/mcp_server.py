@@ -46,18 +46,25 @@ def accept_rewrite(original: str, revised: str) -> dict:
 
 
 @mcp.tool()
-def check_voice(text: str) -> dict:
-    """Run the deterministic Schimel writing rubric over `text` (no model, no voice corpus).
+def check_voice(text: str, rubric: str = "schimel") -> dict:
+    """Run a deterministic writing rubric over `text` (no model, no voice corpus, no LLM-as-judge).
 
-    Returns a structured verdict (pass/warn/fail), per-dimension scores, and located
-    findings: weak opening, objective-only challenge, resolution that doesn't answer or
-    closes on a caveat, broken circle-back, undefined acronyms, fuzzy verbs,
-    nominalization, noun trains, overloaded sentences, stacked adjectives, inline
-    number-ladders, and coy/deferral phrasing. This is the second pair of eyes a draft's
-    author cannot reliably be: it grades structure mechanically, so use it instead of
-    self-reporting that a 'Schimel pass' was run.
+    Returns a structured verdict (pass/warn/fail), per-dimension scores, and located findings.
+
+    Pick the rubric by the question you're answering:
+    - `slop` — does this read AI-generated? Catches the mechanical AI-slop tells: em/en
+      dashes, "it's not X, it's Y", delve/tapestry/leverage diction, signposting and wrap-up
+      phrases, emoji, curly quotes, bold lead-in bullets, and uniform/staccato rhythm. Use
+      this for "check for AI slop", "does this sound like an LLM wrote it", "de-slop this".
+    - `schimel` (default) — is this good prose? Weak opening, objective-only challenge,
+      resolution that doesn't answer or closes on a caveat, broken circle-back, undefined
+      acronyms, fuzzy verbs, nominalization, noun trains, overloaded sentences, stacked
+      adjectives, inline number-ladders, and coy/deferral phrasing.
+
+    This is the second pair of eyes a draft's author cannot reliably be: it grades text
+    mechanically, so use it instead of self-reporting that a rubric pass was run.
     """
-    return check_text(text).to_dict()
+    return check_text(text, rubric=rubric).to_dict()
 
 
 def main():
