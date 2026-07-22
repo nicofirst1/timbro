@@ -12,12 +12,14 @@ Each detector returns a count; `tell_rates` length-normalises to a rate, so a te
 becomes a named feature that flows through the same z-score + confidence machinery
 as POS rates. A clean exemplar corpus has ~0 of these, so against AI-slop they
 separate sharply; `TELL_PRIOR` (from the Reddit frequency ranks) gives each tell a
-confidence floor so it surfaces even with no contrast. Pure regex, no model load.
+confidence floor so it surfaces even with no contrast. Most tells are pure regex;
+two (`dropped_subject`, `staccato_run`) use the spaCy tagger + sentencizer.
 """
 
 from __future__ import annotations
 
 import re
+from functools import lru_cache
 
 # Plain-English labels so a flagged tell reads as advice, not a feature id.
 TELL_LABEL = {
@@ -35,6 +37,11 @@ TELL_LABEL = {
     "bold_leadin": "bold lead-in bullets (**Word:** …)",
     "hr_divider": "--- section dividers",
     "rhetorical_opener": "conversational openers (Honestly, Look, Here's the thing)",
+    "quote_punct": "American-style punctuation inside closing quotes",
+    "colon_list": "colon-then-list construction (sentence: a, b, c)",
+    "empty_punch": "contentless opening fragment (e.g. 'The answer is thin.')",
+    "dropped_subject": "dropped-subject opener (bare finite verb, no subject)",
+    "staccato_run": "staccato run (3+ consecutive sentences under 8 words)",
 }
 
 # Confidence floor in [0,1], seeded from the Reddit study's citation frequency:
@@ -44,6 +51,8 @@ TELL_PRIOR = {
     "signpost": 0.35, "hr_divider": 0.35, "conclusion": 0.30, "emoji": 0.30,
     "rhetorical_opener": 0.30, "bold_leadin": 0.25, "rule_of_three": 0.25,
     "filler": 0.25, "aphorism": 0.25, "curly_quote": 0.20,
+    "dropped_subject": 0.35, "empty_punch": 0.30, "staccato_run": 0.30,
+    "quote_punct": 0.25, "colon_list": 0.22,
 }
 
 _FRONTMATTER = re.compile(r"\A---\n.*?\n---\n", re.DOTALL)
@@ -106,6 +115,15 @@ _PATTERNS: dict[str, re.Pattern] = {
     ),
     # Bolded lead-in bullet: "- **Word:** …" or "**Word:**" at line start.
     "bold_leadin": re.compile(r"^\s*(?:[-*+]\s+)?\*\*[^*\n]{1,40}\*\*\s*[:—-]", re.MULTILINE),
+    # American-style comma/period INSIDE a closing double quote (Nico's rule: outside).
+    "quote_punct": re.compile(r'[,.]"'),
+    # Colon then >=2 comma-separated items in the same sentence ("foo: a, b, c").
+    "colon_list": re.compile(r":\s*[^:.!?\n]+,\s*[^:.!?\n]+(?:,\s*[^:.!?\n]+)*[.!?]"),
+    # Curated contentless declarative opening (cheap, low-recall, zero false positives).
+    "empty_punch": re.compile(
+        r"(?:^|\n)\s*(?:The (?:answer|direction|point|shape|tension) is \w+\.|"
+        r"Here is the whole \w+[^.\n]*\.)"
+    ),
 }
 
 _EMOJI = re.compile("[\U0001F300-\U0001FAFF\U00002600-\U000027BF\U0001F1E6-\U0001F1FF]")
@@ -113,6 +131,49 @@ _CURLY = re.compile("[“”‘’]")
 _HR = re.compile(r"^(?:-{3,}|\*{3,}|_{3,})\s*$", re.MULTILINE)
 
 TELL_NAMES = tuple(TELL_LABEL)  # stable order for the feature vector
+
+
+@lru_cache(maxsize=1)
+def _nlp():
+    # ponytail: a second spaCy load (separate from model.py's, which disables the
+    # parser and can't give sentence boundaries). Deliberately kept as its own
+    # lru_cache(size=1) loader rather than threading a Doc through every call site.
+    import spacy
+
+    try:
+        nlp = spacy.load("en_core_web_sm", disable=["ner", "lemmatizer", "parser"])
+    except OSError as e:  # model isn't a pip dep; spaCy ships it via a separate download
+        raise OSError("Run: uv run python -m spacy download en_core_web_sm") from e
+    nlp.add_pipe("sentencizer")  # rule-based boundaries; no statistical parser
+    return nlp
+
+
+# Penn finite/participle tags that mark a bare-verb opener; base-form VB is an
+# imperative ("Consider", "Stop") and is legitimate, so it is excluded.
+_FINITE_TAGS = {"VBD", "VBZ", "VBP", "VBG"}
+
+
+@lru_cache(maxsize=512)
+def _pos_counts(text: str) -> tuple[int, int]:
+    """(dropped_subject, staccato_run) counts. Cached: one parse per doc."""
+    doc = _nlp()(text[:100000])
+    dropped = 0
+    short_run = 0  # length of current run of <8-word sentences
+    staccato = 0
+    for sent in doc.sents:
+        toks = [t for t in sent if not t.is_space and not t.is_punct]
+        # dropped-subject: first real token is a finite/participle verb. "No subject
+        # before it" is vacuous once we key off toks[0] -- nothing precedes the opener.
+        if toks and toks[0].tag_ in _FINITE_TAGS:
+            dropped += 1
+        # staccato: consecutive sentences under 8 words.
+        if 0 < len(toks) < 8:
+            short_run += 1
+            if short_run == 3:
+                staccato += 1  # count the run once, when it reaches length 3
+        else:
+            short_run = 0
+    return dropped, staccato
 
 
 def _counts(text: str) -> dict[str, int]:
@@ -126,6 +187,7 @@ def _counts(text: str) -> dict[str, int]:
     }
     for name, pat in _PATTERNS.items():
         c[name] = len(pat.findall(body))
+    c["dropped_subject"], c["staccato_run"] = _pos_counts(body)
     return c
 
 
@@ -146,10 +208,13 @@ if __name__ == "__main__":
     # Smoke test: AI-slop must light up tells a plain human sentence does not.
     slop = ("Honestly? Let's dive in. It's not just a tool, it's a vibrant tapestry. "
             "We delve into the landscape — a testament to seamless, robust design. \U0001F680\n\n"
+            "The answer is thin. It has three parts: speed, scale, and cost. "
+            'He called it "the whole point," and moved on.\n'
             "- **Key:** in conclusion, the future looks bright. Great question!")
     clean = "I fixed the parser today. It dropped the last row, so I added a guard and a test."
     rs, rc = tell_rates(slop), tell_rates(clean)
     lit = [k for k, v in rs.items() if v > 0]
     assert rs["tell_dash"] > 0 and rs["tell_not_x_y"] > 0 and rs["tell_diction"] > 0
+    assert rs["tell_quote_punct"] > 0 and rs["tell_colon_list"] > 0 and rs["tell_empty_punch"] > 0
     assert sum(rc.values()) == 0, f"clean text tripped tells: {rc}"
     print(f"ok: slop lit {len(lit)} tells {sorted(k[5:] for k in lit)}; clean lit 0")
