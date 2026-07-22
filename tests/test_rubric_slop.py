@@ -4,7 +4,7 @@ import unittest
 
 from timbro.rubrics import check_text, get_rubric
 from timbro.rubrics.slop.checks import DIMENSION, DIMENSIONS, tell_findings
-from timbro.tells import TELL_NAMES
+from timbro.tells import TELL_NAMES, tell_baseline
 
 # Lights up tells across all four dimensions; a clean sentence lights up none.
 _SLOP = (
@@ -41,6 +41,43 @@ class SlopRubricTest(unittest.TestCase):
         diction = next(f for f in findings if f.rule == "diction")
         self.assertRegex(diction.message, r"^\d+×")
         self.assertTrue(diction.span, "finding should quote an example span")
+
+
+class RelativeSlopTest(unittest.TestCase):
+    # A corpus whose voice legitimately runs em-dashes at a steady, varied rate.
+    _CORPUS = [
+        "The plan was simple — we shipped it fast. It held up well enough for a first week.",
+        "We kept the design small on purpose — nobody wanted another sprawling framework.",
+        "Testing came first — always — and the habit paid off when the big refactor landed.",
+    ]
+
+    def test_normal_usage_not_flagged(self):
+        baseline = tell_baseline(self._CORPUS)
+        # one em-dash in a normal-length sentence: within this voice's norm
+        draft = "We built the thing over a week — then tested it thoroughly before releasing it widely."
+        dash = [f for f in tell_findings(draft, baseline) if f.rule == "dash"]
+        self.assertEqual(dash, [], "an on-norm em-dash should not flag in relative mode")
+
+    def test_overuse_flagged(self):
+        baseline = tell_baseline(self._CORPUS)
+        draft = "We built it — tested it — shipped it — fixed it — praised it — and then — finally — rested."
+        dash = [f for f in tell_findings(draft, baseline) if f.rule == "dash"]
+        self.assertEqual(len(dash), 1)
+        self.assertIn("your corpus norm", dash[0].message)
+
+    def test_absolute_mode_would_flag_the_same_on_norm_draft(self):
+        # contrast: without a baseline, the single on-norm em-dash IS slop
+        draft = "We built the thing over a week — then tested it thoroughly before releasing it widely."
+        dash = [f for f in tell_findings(draft) if f.rule == "dash"]
+        self.assertEqual(len(dash), 1)
+
+    def test_empty_corpus_rejected(self):
+        with self.assertRaises(ValueError):
+            tell_baseline([])
+
+    def test_profile_only_valid_for_slop(self):
+        with self.assertRaises(ValueError):
+            check_text(_CLEAN, rubric="schimel", profile="anything")
 
 
 if __name__ == "__main__":

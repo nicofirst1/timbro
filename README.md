@@ -190,6 +190,8 @@ The two sentence-transformer models download from Hugging Face on first use. Eve
 
 ## FAQ
 
+**My voice legitimately uses em-dashes — won't `slop` nag me?** By default it flags against zero, so yes. Add `timbro slop draft.md --profile <name>` to baseline the tells against your own corpus instead: a tell is flagged only where the draft _overuses_ it relative to how you normally write. Absolute mode answers "is this AI-generated?"; `--profile` answers "is this driftier than my own writing?".
+
 **Do I need the contrast set?** No, but it sharpens the direction — without it, every feature looks equally informative.
 
 **Will it work on one author / a whole company?** Both. The "voice" is whatever you put in `data/exemplars/`. Mixed registers (blogs + papers) are fine — the scorer is multi-modal.

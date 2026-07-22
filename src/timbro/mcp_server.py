@@ -46,7 +46,7 @@ def accept_rewrite(original: str, revised: str) -> dict:
 
 
 @mcp.tool()
-def check_voice(text: str, rubric: str = "schimel") -> dict:
+def check_voice(text: str, rubric: str = "schimel", profile: str | None = None) -> dict:
     """Run a deterministic writing rubric over `text` (no model, no voice corpus, no LLM-as-judge).
 
     Returns a structured verdict (pass/warn/fail), per-dimension scores, and located findings.
@@ -61,10 +61,15 @@ def check_voice(text: str, rubric: str = "schimel") -> dict:
       acronyms, fuzzy verbs, nominalization, noun trains, overloaded sentences, stacked
       adjectives, inline number-ladders, and coy/deferral phrasing.
 
+    `profile` (slop only): baseline the tells against that profile's exemplar corpus, so a
+    draft is flagged only where it overuses a tell versus *your* norm — not against zero.
+    Use it when a voice legitimately uses some tells (an em-dash habit) and you only want
+    the drift called out.
+
     This is the second pair of eyes a draft's author cannot reliably be: it grades text
     mechanically, so use it instead of self-reporting that a rubric pass was run.
     """
-    return check_text(text, rubric=rubric).to_dict()
+    return check_text(text, rubric=rubric, profile=profile).to_dict()
 
 
 def main():

@@ -79,6 +79,14 @@ uv run timbro slop draft.md --json   # {verdict, dimensions, findings}
 
 (`slop` is an alias for `timbro check --rubric slop`; the `check_voice` MCP tool takes the same `rubric="slop"`.) It flags the mechanical LLM fingerprints — em/en dashes, "it's not X, it's Y", delve/tapestry/leverage diction, signposting and wrap-up phrases, emoji, curly quotes, bold lead-in bullets, colon-lists, and uniform/staccato rhythm — grouped into four dimensions (diction, construction, rhythm, formatting). Pure regex + POS, offline, **no LLM judging LLM prose**. Reach for it on "check for AI slop", "de-slop this", "does this sound like an LLM wrote it". Each flagged tell is a marker to delete or vary, not a style dial — removing it only helps.
 
+**Corpus-relative mode.** By default `slop` measures against zero — any em-dash is a tell. If a voice legitimately uses some tells (an em-dash habit, say), add `--profile <name>` to baseline against that profile's exemplar corpus instead: a tell is flagged only where the draft _overuses_ it relative to your own norm.
+
+```bash
+uv run timbro slop draft.md --profile <name>   # flag only tells you overuse vs your corpus
+```
+
+Use absolute mode (no profile) to answer "is this AI-generated?"; use `--profile` to answer "is this driftier than my own writing?".
+
 ## Related: the writing rubric (`check`)
 
 Voice alignment answers _"does this sound like the target?"_ (needs a corpus); the slop rubric answers _"does this read AI-generated?"_. A third, corpus-free capability answers _"is this good prose?"_ — `timbro check <file>` (or the `check_voice` MCP tool) runs ~30 deterministic Schimel _Writing Science_ checks (buried subject–verb core, passive voice, comma splices, expletive openings, preposition chains, nominalizations, word-echo repetition, metadiscourse frames, caveat/defensive closings, and more), no model, no voice corpus. Reach for it when the user asks to "check my writing", "run a Schimel pass", or clean up prose quality rather than match a specific voice.

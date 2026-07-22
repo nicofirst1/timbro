@@ -234,6 +234,25 @@ def tell_rates(text: str) -> dict[str, float]:
     return {f"tell_{name}": 1000 * counts[name] / n for name in TELL_NAMES}
 
 
+def tell_baseline(texts: list[str]) -> dict[str, tuple[float, float]]:
+    """Per-tell (mean, std) rate across a corpus, for corpus-relative slop scoring.
+
+    Lets `slop --profile` judge a draft against *your* norm instead of against zero: a
+    voice that legitimately runs em-dashes won't be flagged for using them at its usual
+    rate, only for overusing them. Same per-1000-word rates as `tell_rates`. Empty corpus
+    is a caller error (there's no norm to compare against)."""
+    if not texts:
+        raise ValueError("tell_baseline needs a non-empty corpus")
+    rates = [tell_rates(t) for t in texts]
+    out: dict[str, tuple[float, float]] = {}
+    for name in TELL_NAMES:
+        vals = [r[f"tell_{name}"] for r in rates]
+        mean = sum(vals) / len(vals)
+        std = (sum((v - mean) ** 2 for v in vals) / len(vals)) ** 0.5
+        out[name] = (mean, std)
+    return out
+
+
 if __name__ == "__main__":
     # Smoke test: AI-slop must light up tells a plain human sentence does not.
     slop = ("Honestly? Let's dive in. It's not just a tool, it's a vibrant tapestry. "
