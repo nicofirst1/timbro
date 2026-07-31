@@ -12,6 +12,7 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/nicofirst1/timbro/actions/workflows/ci.yml"><img src="https://github.com/nicofirst1/timbro/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <img src="https://img.shields.io/badge/python-3.11%2B-111111?style=flat-square" alt="Python 3.11+">
   <img src="https://img.shields.io/badge/inference-local%20·%20CPU--only-111111?style=flat-square" alt="Local CPU-only inference">
   <img src="https://img.shields.io/badge/MCP-ready-111111?style=flat-square" alt="MCP ready">
@@ -40,6 +41,12 @@ Top findings
 ```
 
 Delete the flagged markers, re-run, and it reads `slop: PASS (1.00)`. Same meaning, no tells.
+
+**Sanity check, not a headline number:** `eval/slop_benchmark.py` scores a small set of genuinely LLM-generated paragraphs against the packaged known-good human prose and reports how often `slop` fires on each side. It's a repo-local smoke test, not independent validation — the human side is the same corpus the tell rules were tuned against (see the script's own caveat), so its false-positive rate isn't a claim about unseen writing. Run it yourself:
+
+```bash
+uv run python eval/slop_benchmark.py
+```
 
 **Why not just ask an LLM "does this read AI-generated?"** Because that is an LLM grading an LLM: nondeterministic, an API call every time, and it can't show you _which_ words tripped it. Timbro is white-box. Every flag is a named marker you can see, cite, and remove; it runs local and CPU-only, gives the same answer every time, and is fast enough for a git hook.
 
@@ -258,5 +265,11 @@ src/timbro/
 ├── cli.py           # `timbro score` + `timbro check` + `timbro slop`
 └── mcp_server.py    # MCP wrapper: score_voice, accept_rewrite, check_voice
 skills/timbro/       # Claude Code skill
-eval/harness.py      # LOO-AUC, permutation baseline, direction sign test
+eval/harness.py           # LOO-AUC, permutation baseline, direction sign test
+eval/rubric_dashboard.py  # per-rule findings-per-1000-words on known-good prose
+eval/slop_benchmark.py    # slop hit rate / false-positive rate on a small LLM/human corpus
 ```
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
