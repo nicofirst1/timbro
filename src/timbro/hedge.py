@@ -95,7 +95,7 @@ def hedge_booster_rates(text: str) -> tuple[float, float]:
 # reflects hedges being slightly more common than boosters in careful prose (Hyland's
 # corpora skew the same way). strength=2.0: a modest pseudo-count so a 5+ doc profile
 # corpus dominates, but the axis still reports something sane with zero corpus.
-# PROPOSED -- flagged in the PR for @nicofirst1 to confirm or adjust.
+# PROPOSED -- flagged in the PR body for maintainer confirmation.
 HEDGE_BOOSTER_REFERENCE = Reference(
     mean=(6.0, 4.0),
     spread=(4.0, 4.0),
