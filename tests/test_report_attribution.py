@@ -27,6 +27,9 @@ class ReportAttributionTests(unittest.TestCase):
             def hedge_report(self, text: str):
                 return []
 
+            def fw_report(self, text: str):
+                return []
+
             def concreteness_report(self, text: str):
                 return []
 
