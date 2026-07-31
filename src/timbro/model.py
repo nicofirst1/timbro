@@ -25,7 +25,8 @@ from pathlib import Path
 
 import numpy as np
 
-from timbro.tells import tell_rates, TELL_LABEL, TELL_PRIOR
+from timbro.metric import Reference, register
+from timbro.tells import tell_rates, TELL_LABEL, TELL_PRIOR, TELL_METRIC  # noqa: F401  (import registers the tells metric)
 
 # Markdown-structure axes scored as a SEPARATE group from the embedding/POS composite
 # (issue #28) -- these never feed the distance/direction above, they get their own
@@ -145,6 +146,34 @@ def _struct_vec(text: str) -> tuple[float, ...]:
 
     struct, _ = _struct_features(text)
     return tuple(float(struct.get(name) or 0.0) for name in STRUCT_AXIS_NAMES)
+
+
+# --- Metric port (#43) --------------------------------------------------------------
+# The markdown-structure axes as a `Metric`. `extract` is `_struct_vec` (STRUCT_AXIS_NAMES
+# order); the reference is corpus-derived at fit (smean/sstd), so this axis group runs
+# only contrastively today -- `markdown_report` returns [] with no corpus and the declared
+# prior below is a formal neutral placeholder (mean 0 / spread 1) until a corpus-free
+# markdown default is chosen. `markdown_report` keeps using smean/sstd; no number moves.
+MARKDOWN_REFERENCE = Reference(
+    mean=tuple(0.0 for _ in STRUCT_AXIS_NAMES),
+    spread=tuple(1.0 for _ in STRUCT_AXIS_NAMES),
+    strength=0.0,
+)
+
+
+class _MarkdownMetric:
+    """Markdown-structure axis group as a `Metric`. `extract` returns the struct feature
+    vector in `STRUCT_AXIS_NAMES` order for one raw document."""
+
+    name = "markdown"
+    axes = STRUCT_AXIS_NAMES
+    prior = MARKDOWN_REFERENCE
+
+    def extract(self, text: str) -> tuple[float, ...]:
+        return _struct_vec(text)
+
+
+MARKDOWN_METRIC = register(_MarkdownMetric())
 
 
 def _label(name: str) -> str:
@@ -292,7 +321,7 @@ class VoiceModel:
         # struct path (separate axis group #28): same z-score machinery as the POS path --
         # mean/std over the exemplar corpus, zero-variance axes guarded to std=1 so a
         # degenerate corpus yields z=0 (on-target) instead of inf/NaN.
-        S = np.array([_struct_vec(t) for t in texts], dtype=float)
+        S = np.array([MARKDOWN_METRIC.extract(t) for t in texts], dtype=float)
         smean, sstd = S.mean(0), S.std(0)
         sstd[sstd == 0] = 1.0
         # embedding path (scalar)
@@ -404,7 +433,7 @@ class VoiceModel:
         """
         if self.smean is None or self.sstd is None:
             return []
-        vec = np.array(_struct_vec(text), dtype=float)
+        vec = np.array(MARKDOWN_METRIC.extract(text), dtype=float)
         z = (vec - self.smean) / self.sstd
         out = []
         for i, (axis, raise_hint, lower_hint) in enumerate(MARKDOWN_AXES):
