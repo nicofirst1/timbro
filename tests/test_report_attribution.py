@@ -24,6 +24,9 @@ class ReportAttributionTests(unittest.TestCase):
             def markdown_report(self, text: str):
                 return []
 
+            def hedge_report(self, text: str):
+                return []
+
             def profile_report(self):
                 return {
                     "health": "ok",

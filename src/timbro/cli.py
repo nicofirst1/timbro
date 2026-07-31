@@ -209,6 +209,14 @@ def main():
                 print(f"  - {ax['direction']:26s} (z {ax['z']:+.2f}, {ax['axis'][7:]})")
         else:
             print("  - on-target: every structure axis within corpus spread")
+    if not args.quiet and payload.get("hedge"):
+        hoff = [ax for ax in payload["hedge"] if ax["direction"]]
+        print("hedge/booster stance:")
+        if hoff:
+            for ax in sorted(hoff, key=lambda a: -abs(a["z"])):
+                print(f"  - {ax['direction']:38s} (z {ax['z']:+.2f}, {ax['axis']})")
+        else:
+            print("  - on-target: within the reference spread")
     if not args.quiet and payload.get("spans"):
         print("highest-leverage paragraphs:")
         for span in payload["spans"]:

@@ -17,6 +17,7 @@ prior->posterior formula the new axes use.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Protocol, runtime_checkable
 
 
@@ -81,6 +82,35 @@ def register(metric: Metric) -> Metric:
     if not any(m.name == metric.name for m in REGISTRY):
         REGISTRY.append(metric)
     return metric
+
+
+@lru_cache(maxsize=1)
+def _nlp():
+    # Shared lemma+POS pipeline for axes that need more than tells.py's tagger-only
+    # parse (#44 hedge/booster; future #45/#46). Separate loader/cache from tells.py's
+    # `_nlp()` (tagger only, no lemmatizer) and model.py's `_nlp()` (POS rates, no
+    # lemmatizer/sentencizer) -- each caller enables only what it needs, and spaCy
+    # doesn't let you re-enable a disabled component after load, so three call sites
+    # want three pipelines. tagger + attribute_ruler + lemmatizer stay enabled (the
+    # lemmatizer needs the tagger's output); ner/parser disabled for speed, same as
+    # tells.py. sentencizer is added (cheap, rule-based, not the statistical parser) so
+    # sentence-boundary axes (#45/#46 candidates) don't need a second parse.
+    import spacy
+
+    try:
+        nlp = spacy.load("en_core_web_sm", disable=["ner", "parser"])
+    except OSError as e:  # model isn't a pip dep; spaCy ships it via a separate download
+        raise OSError("Run: uv run python -m spacy download en_core_web_sm") from e
+    nlp.add_pipe("sentencizer")
+    return nlp
+
+
+@lru_cache(maxsize=8)  # small: Docs are heavy, keep memory bounded
+def parsed_doc(text: str):
+    """Cached text->Doc for axes that need lemma+POS (and sentence bounds). One parse
+    shared across every `Metric` that calls this, instead of each axis reparsing the
+    same draft. text[:100000] caps spaCy work, same cap tells.py/model.py use."""
+    return _nlp()(text[:100000])
 
 
 if __name__ == "__main__":
