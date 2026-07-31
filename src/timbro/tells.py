@@ -21,6 +21,8 @@ from __future__ import annotations
 import re
 from functools import lru_cache
 
+from timbro.metric import Reference, register
+
 # Plain-English labels so a flagged tell reads as advice, not a feature id.
 TELL_LABEL = {
     "dash": "em/en dashes",
@@ -251,6 +253,35 @@ def tell_baseline(texts: list[str]) -> dict[str, tuple[float, float]]:
         std = (sum((v - mean) ** 2 for v in vals) / len(vals)) ** 0.5
         out[name] = (mean, std)
     return out
+
+
+# --- Metric port (#43) --------------------------------------------------------------
+# The tells were already the prior-shaped axis: `TELL_PRIOR` is a per-tell confidence
+# floor so a tell surfaces with no contrast corpus. This exposes the same extractor
+# through the `Metric` interface. A clean exemplar corpus carries ~0 tells, so the
+# reference MEAN is 0 per axis; `TELL_PRIOR` stays the confidence floor it always was
+# (consumed in model.py unchanged -- no number moves).
+TELL_REFERENCE = Reference(
+    mean=tuple(0.0 for _ in TELL_NAMES),      # clean prose ~ 0 tells / 1000 words
+    spread=tuple(1.0 for _ in TELL_NAMES),    # unit spread; z-scoring uses the corpus std at fit
+    strength=0.0,                              # a real corpus fully sets the mean/std (behaviour today)
+)
+
+
+class _TellMetric:
+    """The AI-tell axis group as a `Metric`. `extract` returns the per-1000-word rates in
+    `TELL_NAMES` order; the reference declares the clean-prose mean (~0)."""
+
+    name = "tells"
+    axes = tuple(f"tell_{n}" for n in TELL_NAMES)
+    prior = TELL_REFERENCE
+
+    def extract(self, text: str) -> tuple[float, ...]:
+        r = tell_rates(text)
+        return tuple(r[f"tell_{n}"] for n in TELL_NAMES)
+
+
+TELL_METRIC = register(_TellMetric())
 
 
 if __name__ == "__main__":
