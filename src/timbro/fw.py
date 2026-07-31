@@ -67,18 +67,19 @@ def function_word_rates(text: str) -> tuple[float, float, float, float, float]:
 #
 # Dataset: src/timbro/sample/exemplars/ (3 docs) + src/timbro/sample/contrast/ (4 docs),
 # combined, N=7. Statistic: mean (and population stdev for spread) of the per-doc rate,
-# via `parsed_doc`, same POS predicates as `function_word_rates` above.
-#   first_person_sg:   mean=29.85   pstdev=30.32
-#   article_rate:      mean=87.98   pstdev=26.42
-#   preposition_rate:  mean=59.98   pstdev=17.72
-#   conjunction_rate:  mean=42.14   pstdev=18.02
-#   pronoun_rate:      mean=94.60   pstdev=22.56
+# computed via `function_word_rates` itself (same word-count denominator as the shipped
+# extractor, punctuation excluded).
+#   first_person_sg:   mean=35.30   pstdev=36.01
+#   article_rate:      mean=104.85  pstdev=29.15
+#   preposition_rate:  mean=72.30   pstdev=22.69
+#   conjunction_rate:  mean=50.24   pstdev=20.16
+#   pronoun_rate:      mean=113.21  pstdev=26.22
 # strength=2.0: reuses hedge.py's literal value -- same "modest pseudo-count" role, no
 # documented reason found to pick a different number for this axis.
 # PROPOSED -- flagged in the PR body for maintainer confirmation.
 FUNCTION_WORD_REFERENCE = Reference(
-    mean=(29.85, 87.98, 59.98, 42.14, 94.60),
-    spread=(30.32, 26.42, 17.72, 18.02, 22.56),
+    mean=(35.30, 104.85, 72.30, 50.24, 113.21),
+    spread=(36.01, 29.15, 22.69, 20.16, 26.22),
     strength=2.0,
 )
 
