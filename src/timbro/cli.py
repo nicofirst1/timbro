@@ -31,7 +31,13 @@ def main():
     c = sub.add_parser("check", help="run a deterministic writing rubric")
     c.add_argument("file", help="path to the draft, or - for stdin")
     c.add_argument("--rubric", default="schimel", help="rubric name")
+    c.add_argument("--profile", help="for --rubric slop: baseline tells against this profile's corpus")
     c.add_argument("--json", action="store_true", help="raw JSON payload")
+
+    sl = sub.add_parser("slop", help="detect AI-writing tells (alias for check --rubric slop)")
+    sl.add_argument("file", help="path to the draft, or - for stdin")
+    sl.add_argument("--profile", help="baseline tells against this profile's corpus (relative mode)")
+    sl.add_argument("--json", action="store_true", help="raw JSON payload")
 
     an = sub.add_parser("analyze", help="emit deterministic linguistic feature vectors")
     an.add_argument("paths", nargs="+", help="one or more .md/.txt files")
@@ -129,9 +135,10 @@ def main():
                 print(f"- {row['file']}: {row['words']} words, {row['paragraphs']} paragraphs, nn-dist {row['nearest_neighbor_distance']:.2f}")
             return
 
-    if args.cmd == "check":
+    if args.cmd in ("check", "slop"):
+        rubric = "slop" if args.cmd == "slop" else args.rubric
         text = sys.stdin.read() if args.file == "-" else open(args.file, encoding="utf-8").read()
-        result = check_text(text, rubric=args.rubric)
+        result = check_text(text, rubric=rubric, profile=args.profile)
         if args.json:
             print(json.dumps(result.to_dict(), indent=2))
             return
