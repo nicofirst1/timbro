@@ -26,6 +26,7 @@ from pathlib import Path
 import numpy as np
 
 from timbro.concreteness import CONCRETENESS_METRIC  # noqa: F401  (import registers the concreteness metric)
+from timbro.fw import FUNCTION_WORD_METRIC  # noqa: F401  (import registers the fw metric)
 from timbro.hedge import HEDGE_BOOSTER_METRIC  # noqa: F401  (import registers the hedge metric)
 from timbro.metric import Reference, register
 from timbro.tells import tell_rates, TELL_LABEL, TELL_PRIOR, TELL_METRIC  # noqa: F401  (import registers the tells metric)
@@ -62,6 +63,18 @@ HEDGE_AXES: tuple[tuple[str, str, str], ...] = (
     ("booster_rate", "assert claims more directly (clearly/must/in fact)", "soften strong claims"),
 )
 HEDGE_Z_TOL = 0.5
+
+# Function-word axis labels (#45): (axis, raise_hint, lower_hint), same shape as
+# HEDGE_AXES. "raise" fires when the draft sits below the reference (needs more of the
+# marker); "lower" fires above it.
+FW_AXES: tuple[tuple[str, str, str], ...] = (
+    ("first_person_sg", "use more first-person singular (I/me/my)", "use less first-person singular"),
+    ("article_rate", "add more articles (a/an/the)", "trim articles"),
+    ("preposition_rate", "add more prepositions", "trim prepositions"),
+    ("conjunction_rate", "add more conjunctions", "trim conjunctions"),
+    ("pronoun_rate", "add more pronouns", "trim pronouns"),
+)
+FW_Z_TOL = 0.5
 
 # Concreteness axis labels (#46): (axis, raise_hint, lower_hint), same shape as
 # HEDGE_AXES. "raise" fires when the draft sits below the reference (needs more concrete
@@ -264,6 +277,22 @@ class HedgeAxis:
 
 
 @dataclass
+class FwAxis:
+    """One function-word axis: where the draft sits vs the reference (prior, or prior
+    blended with the profile corpus) and the named direction back toward it. Mirrors
+    `HedgeAxis`'s shape/naming; always has a reference (the declared prior), so it
+    reports even with no corpus."""
+    axis: str
+    value: float           # the draft's raw rate on this axis (per 1000 words)
+    reference_mean: float  # prior, or prior blended with the corpus (Reference.blend)
+    z: float                # draft's distance from reference_mean in reference-spread units
+    direction: str          # imperative phrase toward the reference, "" once |z| is negligible
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+
+@dataclass
 class ConcretenessAxis:
     """The concreteness axis: where the draft sits vs the reference (prior, or prior
     blended with the profile corpus) and the named direction back toward it. Same shape
@@ -329,12 +358,16 @@ class VoiceModel:
                  exemplar_count, contrast_count, total_words, total_paragraphs,
                  health, warning, exemplar_floor, exemplar_spread, contrast_ceiling,
                  smean=None, sstd=None, hmean=None, hstd=None, hn=0,
+                 fmean=None, fstd=None, fn=0,
                  cmean=None, cstd=None, cn=0):
         self.smean = smean            # struct axis mean / std over the exemplar corpus (#28)
         self.sstd = sstd              # -- separate group, z-scored independently of the composite
         self.hmean = hmean            # hedge/booster corpus mean / std (#44) -- blended with the
         self.hstd = hstd              # declared prior via Reference.blend, not used raw like smean/sstd
         self.hn = hn                  # corpus doc count fed to Reference.blend as n
+        self.fmean = fmean            # function-word corpus mean / std (#45) -- same blend pattern as hedge
+        self.fstd = fstd
+        self.fn = fn                  # corpus doc count fed to Reference.blend as n
         self.cmean = cmean            # concreteness corpus mean / std (#46) -- blended with the
         self.cstd = cstd              # declared prior via Reference.blend, same treatment as hedge
         self.cn = cn                  # corpus doc count fed to Reference.blend as n
@@ -383,10 +416,13 @@ class VoiceModel:
         # prior, unlike struct which has no prior and z-scores raw).
         H = np.array([HEDGE_BOOSTER_METRIC.extract(t) for t in texts], dtype=float)
         hmean, hstd = H.mean(0), H.std(0)
+        # function-word path (#45): same blend-with-prior treatment as hedge/booster.
+        F = np.array([FUNCTION_WORD_METRIC.extract(t) for t in texts], dtype=float)
+        fmean, fstd = F.mean(0), F.std(0)
         # concreteness path (#46): same treatment as hedge/booster -- raw corpus mean/std,
         # blended with the declared prior via Reference.blend in concreteness_report().
-        C = np.array([CONCRETENESS_METRIC.extract(t) for t in texts], dtype=float)
-        cmean, cstd = C.mean(0), C.std(0)
+        CN = np.array([CONCRETENESS_METRIC.extract(t) for t in texts], dtype=float)
+        cmean, cstd = CN.mean(0), CN.std(0)
         # embedding path (scalar)
         E = np.array([_style_vec(t) for t in texts])
         emean, estd = E.mean(0), E.std(0)
@@ -406,6 +442,7 @@ class VoiceModel:
                    len(texts), len(contrast or []), total_words, total_paragraphs,
                    health, warning, exemplar_floor, exemplar_spread, contrast_ceiling,
                    smean=smean, sstd=sstd, hmean=hmean, hstd=hstd, hn=len(texts),
+                   fmean=fmean, fstd=fstd, fn=len(texts),
                    cmean=cmean, cstd=cstd, cn=len(texts))
 
     @classmethod
@@ -533,6 +570,31 @@ class VoiceModel:
             else:
                 direction = lower_hint if zi > 0 else raise_hint  # move back toward the reference
             out.append(HedgeAxis(axis, float(vec[i]), float(ref_mean[i]), zi, direction))
+        return out
+
+    def fw_report(self, text: str) -> list[FwAxis]:
+        """Per-axis function-word distance from the reference (issue #45).
+
+        Same treatment as `hedge_report`: always has a reference (the declared prior,
+        `FUNCTION_WORD_REFERENCE`), blended with the corpus mean/std via `Reference.blend`
+        weighted by `fn` against the prior's `strength`. With no corpus (fn=0) `blend`
+        passes the prior through unchanged. Never touches the embedding distance or POS
+        direction -- standalone axis group, same as markdown/hedge.
+        """
+        vec = np.array(FUNCTION_WORD_METRIC.extract(text), dtype=float)
+        prior = FUNCTION_WORD_METRIC.prior
+        corpus_mean = self.fmean if self.fmean is not None else prior.mean
+        corpus_std = self.fstd if self.fstd is not None else prior.spread
+        ref_mean, ref_spread = prior.blend(corpus_mean, corpus_std, self.fn)
+        out = []
+        for i, (axis, raise_hint, lower_hint) in enumerate(FW_AXES):
+            spread = ref_spread[i] or 1.0
+            zi = float((vec[i] - ref_mean[i]) / spread)
+            if abs(zi) < FW_Z_TOL:
+                direction = ""
+            else:
+                direction = lower_hint if zi > 0 else raise_hint  # move back toward the reference
+            out.append(FwAxis(axis, float(vec[i]), float(ref_mean[i]), zi, direction))
         return out
 
     def concreteness_report(self, text: str) -> list[ConcretenessAxis]:

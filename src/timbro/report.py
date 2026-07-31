@@ -53,6 +53,9 @@ def voice_report(model, text: str) -> dict:
     # Hedge/booster (#44): standalone axis group, same treatment as markdown -- runs on
     # the markup-stripped `prepared` text since stance markers are prose, not markup.
     out["hedge"] = [axis.to_dict() for axis in model.hedge_report(prepared)]
+    # Function words (#45): standalone axis group, same treatment as hedge -- runs on the
+    # markup-stripped `prepared` text since pronoun/article/preposition density is prose.
+    out["fw"] = [axis.to_dict() for axis in model.fw_report(prepared)]
     # Concreteness (#46): standalone axis group, same treatment as hedge -- runs on the
     # markup-stripped `prepared` text since word choice is prose, not markup.
     out["concreteness"] = [axis.to_dict() for axis in model.concreteness_report(prepared)]
