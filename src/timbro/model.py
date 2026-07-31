@@ -78,12 +78,9 @@ DEFAULT_CONTRAST = _SAMPLE / "contrast"
 
 @lru_cache(maxsize=1)
 def _nlp():
-    import spacy
+    from timbro.spacy_model import load_spacy
 
-    try:
-        return spacy.load("en_core_web_sm", disable=["ner", "lemmatizer", "parser"])
-    except OSError as e:  # model isn't a pip dep; spaCy ships it via a separate download
-        raise OSError("Run: uv run python -m spacy download en_core_web_sm") from e
+    return load_spacy(disable=["ner", "lemmatizer", "parser"])
 
 
 @lru_cache(maxsize=1)

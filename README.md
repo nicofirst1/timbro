@@ -90,6 +90,12 @@ uv run timbro check draft.md --json     # {verdict, overall, dimensions, finding
 
 ## Install
 
+### As a one-shot CLI, no clone (fastest)
+
+```bash
+uvx timbro check draft.md   # first run downloads the spaCy POS model, then scores
+```
+
 ### As a Claude Code plugin (one command)
 
 ```
