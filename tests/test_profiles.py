@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import os
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
 from timbro.cleanup.latex import has_detex
-from timbro.profiles import add_file, diagnose_profile, init_profile
+from timbro.profiles import add_file, diagnose_profile, init_profile, profile_root
 
 
 @unittest.skipUnless(has_detex(), "detex is required for .tex ingestion tests")
@@ -60,6 +61,39 @@ class ProfileDiagnosticsTests(unittest.TestCase):
             self.assertEqual(result["exemplars"], 6)
             self.assertIn("doc5.md", result["outliers"])
             self.assertTrue(result["warning"])
+
+
+class ProfileRootResolutionTests(unittest.TestCase):
+    def test_xdg_data_home_default_when_no_legacy_dir(self):
+        with tempfile.TemporaryDirectory() as home, tempfile.TemporaryDirectory() as xdg:
+            with patch.dict(
+                os.environ,
+                {"XDG_DATA_HOME": xdg, "HOME": home},
+                clear=False,
+            ):
+                os.environ.pop("TIMBRO_PROFILE_ROOT", None)
+                with patch.object(Path, "home", return_value=Path(home)):
+                    result = profile_root()
+            self.assertEqual(result, (Path(xdg) / "timbro" / "profiles").resolve())
+
+    def test_legacy_dir_wins_when_present(self):
+        with tempfile.TemporaryDirectory() as home, tempfile.TemporaryDirectory() as xdg:
+            legacy = Path(home) / ".timbro" / "profiles"
+            legacy.mkdir(parents=True)
+            with patch.dict(os.environ, {"XDG_DATA_HOME": xdg}, clear=False):
+                os.environ.pop("TIMBRO_PROFILE_ROOT", None)
+                with patch.object(Path, "home", return_value=Path(home)):
+                    result = profile_root()
+            self.assertEqual(result, legacy.resolve())
+
+    def test_env_var_overrides_legacy_and_xdg(self):
+        with tempfile.TemporaryDirectory() as home, tempfile.TemporaryDirectory() as override:
+            legacy = Path(home) / ".timbro" / "profiles"
+            legacy.mkdir(parents=True)
+            with patch.dict(os.environ, {"TIMBRO_PROFILE_ROOT": override}, clear=False):
+                with patch.object(Path, "home", return_value=Path(home)):
+                    result = profile_root()
+            self.assertEqual(result, Path(override).resolve())
 
 
 if __name__ == "__main__":
