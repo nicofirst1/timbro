@@ -25,6 +25,7 @@ from pathlib import Path
 
 import numpy as np
 
+from timbro.hedge import HEDGE_BOOSTER_METRIC  # noqa: F401  (import registers the hedge metric)
 from timbro.metric import Reference, register
 from timbro.tells import tell_rates, TELL_LABEL, TELL_PRIOR, TELL_METRIC  # noqa: F401  (import registers the tells metric)
 
@@ -51,6 +52,15 @@ STRUCT_AXIS_NAMES: tuple[str, ...] = tuple(name for name, _, _ in MARKDOWN_AXES)
 # Within half a corpus std of the mean = on-target; no revision direction named for that
 # axis. ponytail: fixed tolerance, promote to a knob only if a caller needs to tune it.
 MARKDOWN_Z_TOL = 0.5
+
+# Hedge/booster axis labels (#44): (axis, raise_hint, lower_hint), same shape as
+# MARKDOWN_AXES. "raise" fires when the draft sits below the reference (needs more of
+# the marker); "lower" fires above it.
+HEDGE_AXES: tuple[tuple[str, str, str], ...] = (
+    ("hedge_rate", "hedge claims more (might/perhaps/seems)", "hedge claims less, state more directly"),
+    ("booster_rate", "assert claims more directly (clearly/must/in fact)", "soften strong claims"),
+)
+HEDGE_Z_TOL = 0.5
 
 # Universal POS tags (spaCy `pos_`). Rates over these 17 are length-normalized,
 # so the doc-length confound that plagued raw counts can't arise here.
@@ -232,6 +242,22 @@ class MarkdownAxis:
 
 
 @dataclass
+class HedgeAxis:
+    """One hedge/booster stance axis: where the draft sits vs the reference (prior, or
+    prior blended with the profile corpus) and the named direction back toward it.
+    Mirrors `MarkdownAxis`'s shape/naming; unlike markdown this axis always has a
+    reference (the declared prior), so it reports even with no corpus."""
+    axis: str
+    value: float           # the draft's raw rate on this axis (per 1000 words)
+    reference_mean: float  # prior, or prior blended with the corpus (Reference.blend)
+    z: float                # draft's distance from reference_mean in reference-spread units
+    direction: str          # imperative phrase toward the reference, "" once |z| is negligible
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+
+@dataclass
 class ScoreResult:
     distance: float           # StyleDistance embedding kNN distance to your voice cloud
     direction: list[FeatureMove]
@@ -281,9 +307,12 @@ class VoiceModel:
                  emean, estd, train_ez, top_k, knn_k,
                  exemplar_count, contrast_count, total_words, total_paragraphs,
                  health, warning, exemplar_floor, exemplar_spread, contrast_ceiling,
-                 smean=None, sstd=None):
+                 smean=None, sstd=None, hmean=None, hstd=None, hn=0):
         self.smean = smean            # struct axis mean / std over the exemplar corpus (#28)
         self.sstd = sstd              # -- separate group, z-scored independently of the composite
+        self.hmean = hmean            # hedge/booster corpus mean / std (#44) -- blended with the
+        self.hstd = hstd              # declared prior via Reference.blend, not used raw like smean/sstd
+        self.hn = hn                  # corpus doc count fed to Reference.blend as n
         self.names = names            # POS feature names (direction is white-box)
         self.mean = pmean             # POS mean / std for z-scoring the direction
         self.std = pstd
@@ -324,6 +353,11 @@ class VoiceModel:
         S = np.array([MARKDOWN_METRIC.extract(t) for t in texts], dtype=float)
         smean, sstd = S.mean(0), S.std(0)
         sstd[sstd == 0] = 1.0
+        # hedge/booster path (#44): corpus mean/std, raw material for Reference.blend
+        # (not z-scored here directly -- hedge_report() blends this with the declared
+        # prior, unlike struct which has no prior and z-scores raw).
+        H = np.array([HEDGE_BOOSTER_METRIC.extract(t) for t in texts], dtype=float)
+        hmean, hstd = H.mean(0), H.std(0)
         # embedding path (scalar)
         E = np.array([_style_vec(t) for t in texts])
         emean, estd = E.mean(0), E.std(0)
@@ -342,7 +376,7 @@ class VoiceModel:
                    emean, estd, train_ez, top_k, knn_k,
                    len(texts), len(contrast or []), total_words, total_paragraphs,
                    health, warning, exemplar_floor, exemplar_spread, contrast_ceiling,
-                   smean=smean, sstd=sstd)
+                   smean=smean, sstd=sstd, hmean=hmean, hstd=hstd, hn=len(texts))
 
     @classmethod
     def from_dir(cls, exemplars: str | Path, contrast: str | Path | None = None,
@@ -443,6 +477,32 @@ class VoiceModel:
             else:
                 direction = lower_hint if zi > 0 else raise_hint  # move back toward corpus mean
             out.append(MarkdownAxis(axis, float(vec[i]), float(self.smean[i]), zi, direction))
+        return out
+
+    def hedge_report(self, text: str) -> list[HedgeAxis]:
+        """Per-axis hedge/booster distance from the reference (issue #44).
+
+        Unlike `markdown_report`, this axis always has a reference: the declared prior
+        (`HEDGE_BOOSTER_REFERENCE`) blended with the corpus mean/std via `Reference.blend`,
+        weighted by `hn` (the corpus doc count) against the prior's `strength`. With no
+        corpus (hn=0) `blend` passes the prior through unchanged, so this still reports
+        something sane for a `check`-style no-profile call. Never touches the embedding
+        distance or POS direction -- standalone axis group, same as markdown.
+        """
+        vec = np.array(HEDGE_BOOSTER_METRIC.extract(text), dtype=float)
+        prior = HEDGE_BOOSTER_METRIC.prior
+        corpus_mean = self.hmean if self.hmean is not None else prior.mean
+        corpus_std = self.hstd if self.hstd is not None else prior.spread
+        ref_mean, ref_spread = prior.blend(corpus_mean, corpus_std, self.hn)
+        out = []
+        for i, (axis, raise_hint, lower_hint) in enumerate(HEDGE_AXES):
+            spread = ref_spread[i] or 1.0
+            zi = float((vec[i] - ref_mean[i]) / spread)
+            if abs(zi) < HEDGE_Z_TOL:
+                direction = ""
+            else:
+                direction = lower_hint if zi > 0 else raise_hint  # move back toward the reference
+            out.append(HedgeAxis(axis, float(vec[i]), float(ref_mean[i]), zi, direction))
         return out
 
 

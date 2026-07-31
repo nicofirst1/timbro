@@ -50,6 +50,9 @@ def voice_report(model, text: str) -> dict:
     # Structure runs on the raw draft (markdown intact), not the markup-stripped `prepared`
     # text -- struct features live in the markup itself (#28). Separate axis group.
     out["markdown"] = [axis.to_dict() for axis in model.markdown_report(text)]
+    # Hedge/booster (#44): standalone axis group, same treatment as markdown -- runs on
+    # the markup-stripped `prepared` text since stance markers are prose, not markup.
+    out["hedge"] = [axis.to_dict() for axis in model.hedge_report(prepared)]
     out["spans"] = _span_guidance(model, prepared)
     out["flow"] = flow_report(prepared).to_dict() if len(paragraphs(prepared)) >= 4 else None
     return out
