@@ -1,0 +1,66 @@
+name: Publish to PyPI
+
+# Runs on version tags (vX.Y.Z). Publishing uses PyPI's trusted-publisher OIDC flow
+# (pypa/gh-action-pypi-publish) -- no API token secret to manage or leak. The human
+# step this workflow depends on: register this repo/workflow as a trusted publisher
+# for the `timbro` project at https://pypi.org/manage/project/timbro/settings/publishing/
+# (one-time setup, done after the first manual `uv publish`).
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  verify-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.11"
+
+      - name: Assert tag == pyproject.toml == plugin.json version
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          PYPROJECT_VERSION=$(grep -m1 '^version = ' pyproject.toml | sed -E 's/version = "(.*)"/\1/')
+          PLUGIN_VERSION=$(python3 -c "import json; print(json.load(open('.claude-plugin/plugin.json'))['version'])")
+          echo "tag=$TAG_VERSION pyproject=$PYPROJECT_VERSION plugin=$PLUGIN_VERSION"
+          if [ "$TAG_VERSION" != "$PYPROJECT_VERSION" ] || [ "$TAG_VERSION" != "$PLUGIN_VERSION" ]; then
+            echo "::error::version mismatch: tag=$TAG_VERSION pyproject=$PYPROJECT_VERSION plugin=$PLUGIN_VERSION"
+            exit 1
+          fi
+
+      - name: Build
+        run: uv build
+
+      - name: twine check
+        run: uvx twine check dist/*
+
+      - name: Cold-start smoke test (clean venv, no repo deps)
+        run: |
+          python3 -m venv /tmp/cold-venv
+          /tmp/cold-venv/bin/pip install --quiet dist/*.whl
+          /tmp/cold-venv/bin/timbro check README.md
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    needs: verify-and-build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write  # OIDC trusted publishing, no token secret
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1

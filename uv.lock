@@ -2378,7 +2378,6 @@ name = "timbro"
 version = "0.6.0"
 source = { editable = "." }
 dependencies = [
-    { name = "en-core-web-sm" },
     { name = "lexical-diversity" },
     { name = "mcp" },
     { name = "numpy" },
@@ -2392,12 +2391,12 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "en-core-web-sm" },
     { name = "pytest" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "en-core-web-sm", url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" },
     { name = "lexical-diversity", specifier = ">=0.1.1" },
     { name = "mcp", specifier = ">=1.27.2" },
     { name = "numpy", specifier = ">=2.4.6" },
@@ -2410,7 +2409,10 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
-dev = [{ name = "pytest", specifier = ">=8" }]
+dev = [
+    { name = "en-core-web-sm", url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" },
+    { name = "pytest", specifier = ">=8" },
+]
 
 [[package]]
 name = "tokenizers"

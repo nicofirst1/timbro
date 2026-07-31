@@ -136,12 +136,9 @@ def _nlp():
     # ponytail: a second spaCy load (separate from model.py's, which disables the
     # parser and can't give sentence boundaries). Deliberately kept as its own
     # lru_cache(size=1) loader rather than threading a Doc through every call site.
-    import spacy
+    from timbro.spacy_model import load_spacy
 
-    try:
-        nlp = spacy.load("en_core_web_sm", disable=["ner", "lemmatizer", "parser"])
-    except OSError as e:  # model isn't a pip dep; spaCy ships it via a separate download
-        raise OSError("Run: uv run python -m spacy download en_core_web_sm") from e
+    nlp = load_spacy(disable=["ner", "lemmatizer", "parser"])
     nlp.add_pipe("sentencizer")  # rule-based boundaries; no statistical parser
     return nlp
 

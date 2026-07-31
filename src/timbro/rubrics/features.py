@@ -16,12 +16,9 @@ def _rubric_nlp():
     """spaCy with the dependency parser AND lemmatizer ON (passive voice, comma splices,
     sentence boundaries need the parser; repetition/terminology/defensive checks need lemmas).
     Separate from core._nlp, which disables both for fast scoring."""
-    import spacy
+    from timbro.spacy_model import load_spacy
 
-    try:
-        return spacy.load("en_core_web_sm", disable=["ner"])
-    except OSError as e:  # pragma: no cover
-        raise OSError("Run: uv run python -m spacy download en_core_web_sm") from e
+    return load_spacy(disable=["ner"])
 
 
 _CITATION = re.compile(r"\([A-Z][A-Za-z-]+(?: et al\.)?,? \d{4}\)|\[\d+\]")

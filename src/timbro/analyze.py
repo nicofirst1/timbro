@@ -142,12 +142,9 @@ _TD_RENAME = {
 
 @lru_cache(maxsize=1)
 def _analyze_nlp():
-    import spacy
+    from timbro.spacy_model import load_spacy
 
-    try:
-        nlp = spacy.load("en_core_web_sm", disable=["ner"])
-    except OSError as e:  # pragma: no cover
-        raise OSError("Run: uv run python -m spacy download en_core_web_sm") from e
+    nlp = load_spacy(disable=["ner"])
     for name in ("descriptive_stats", "readability", "dependency_distance", "coherence"):
         nlp.add_pipe(f"textdescriptives/{name}")
     return nlp
