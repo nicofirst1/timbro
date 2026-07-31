@@ -1,4 +1,4 @@
-"""M4 (#15) citable number: how often the `slop` tell detectors fire per paragraph.
+"""M4 (#15) sanity check: how often the `slop` tell detectors fire per paragraph.
 
 Scores every paragraph in two small corpora with the `slop` rubric's raw findings:
   - eval/slop_bench/llm/       genuinely LLM-generated paragraphs (unprompted
@@ -12,9 +12,16 @@ calibrated for whole documents, and single paragraphs rarely accumulate enough
 findings to cross it -- that's a document-level design choice this benchmark
 must not route around by inventing a second threshold.
 
+CAVEAT (review, PR #51): the human side (src/timbro/sample/exemplars/) is the
+exact corpus the slop rules were tuned against (see rules.py docstring and the
+M3 dashboard, #8) -- so its false-positive rate here is circular, not
+independent validation. This script is a reproducible smoke test for changes
+to the rules, not a claim about false-positive behavior on unseen prose. Point
+it at your own corpus (or extend it to accept one) before citing a number.
+
 Reports:
   - hit rate: % of LLM paragraphs with >=1 finding
-  - false-positive rate: % of human paragraphs with >=1 finding
+  - false-positive rate: % of human paragraphs with >=1 finding (not independent, see CAVEAT)
 
 Usage:
     uv run python eval/slop_benchmark.py            # human-readable

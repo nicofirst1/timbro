@@ -42,13 +42,11 @@ Top findings
 
 Delete the flagged markers, re-run, and it reads `slop: PASS (1.00)`. Same meaning, no tells.
 
-**The number:** on a small benchmark of genuinely LLM-generated paragraphs vs. the packaged known-good human prose, `slop` flags **100% of LLM paragraphs at a 12% false-positive rate** (8 LLM / 16 human paragraphs — small n, see caveat below). Reproduce it:
+**Sanity check, not a headline number:** `eval/slop_benchmark.py` scores a small set of genuinely LLM-generated paragraphs against the packaged known-good human prose and reports how often `slop` fires on each side. It's a repo-local smoke test, not independent validation — the human side is the same corpus the tell rules were tuned against (see the script's own caveat), so its false-positive rate isn't a claim about unseen writing. Run it yourself:
 
 ```bash
 uv run python eval/slop_benchmark.py
 ```
-
-_Caveat: this is a small, repo-local benchmark (not an external published corpus), so treat it as a reproducible sanity check rather than a generalization claim — rerun it against your own draft corpus for a number that means something for your writing._
 
 **Why not just ask an LLM "does this read AI-generated?"** Because that is an LLM grading an LLM: nondeterministic, an API call every time, and it can't show you _which_ words tripped it. Timbro is white-box. Every flag is a named marker you can see, cite, and remove; it runs local and CPU-only, gives the same answer every time, and is fast enough for a git hook.
 
