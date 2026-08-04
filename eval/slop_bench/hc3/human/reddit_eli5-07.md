@@ -1,0 +1,1 @@
+There 's certain things happen at certain times prior to takeoff , and announcing a countdown helps get those things right . The countdown does n't just go from ten seconds - NASA 's countdown clock starts at 43 hours , but there 's not somebody announcing ever second apart from at the very end !

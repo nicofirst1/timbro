@@ -1,0 +1,1 @@
+Dmitri Ivanovich Mendeleev (; 8 February 1834 – 2 February 1907 O.S. 27 January 1834 – 20 January 1907) was a Russian chemist and inventor.He formulated the Periodic Law, created his own version of the periodic table of elements , and used it to correct the properties of some already discovered elements and also to predict the properties of elements yet to be discovered!

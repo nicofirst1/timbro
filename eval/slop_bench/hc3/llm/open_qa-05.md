@@ -1,0 +1,1 @@
+Chayanne is a Puerto Rican singer, actor, and composer. He was born on June 28, 1968 in San Juan, Puerto Rico. He is known for his energetic stage presence and his romantic ballads, and he has released numerous albums throughout his career. Chayanne has also appeared in several films and television shows, both in Puerto Rico and internationally.

@@ -1,0 +1,1 @@
+The plot revolves around the assassination of North Korea 's leader , Kim Jong Un . North Korea discovered this and considered it an act of war . It is believed North Korean hackers are responsible for the recent Sony Pictures breach with exposed e - mails of many of the companies high ranking personnel .

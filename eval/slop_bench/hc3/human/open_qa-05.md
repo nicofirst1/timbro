@@ -1,0 +1,1 @@
+Heroin (diacetylmorphine or morphine diacetate ( INN )), also known as diamorphine ( BAN ), and colloquially as H, smack, horse, brown, black, tar, and other names, is an opioid analgesic synthesized by C.R. Alder Wright in 1874 by adding two acetyl groups to the molecule morphine , found in the opium poppy .
