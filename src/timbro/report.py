@@ -132,7 +132,7 @@ MARKDOWN_AXES: tuple[tuple[str, str, str], ...] = (
     ("struct_long_paragraph_ratio", "lengthen paragraphs", "break up long paragraphs"),
     ("struct_prose_ratio", "add prose", "reduce prose"),
 )
-# ponytail: fixed tolerance, promote to a knob only if a caller needs to tune it.
+# Fixed tolerance; promote to a knob only if a caller needs to tune it.
 MARKDOWN_Z_TOL = 0.5
 
 # Hedge/booster axis labels (#44): (axis, raise_hint, lower_hint), same shape as

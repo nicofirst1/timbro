@@ -32,11 +32,8 @@ class Reference:
         """Precision-weighted posterior of prior + corpus: `strength` is the prior's
         pseudo-count, the corpus mean wins in proportion to how many documents it has.
         With `n == 0` the prior passes through unchanged; as `n` grows the corpus
-        dominates. Returns (mean, spread) per axis.
-
-        ponytail: pooled by document count, not inverse-variance -- `strength` IS the knob
-        the spec asked for. A full inverse-variance pool is only worth it if a corpus needs
-        per-axis precision the count can't express.
+        dominates. Returns (mean, spread) per axis. Pooling is by document count,
+        not inverse-variance; `strength` is the only knob.
         """
         s = self.strength
         out_mean = []

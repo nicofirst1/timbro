@@ -126,7 +126,7 @@ TELL_NAMES = tuple(TELL_LABEL)  # stable order for the feature vector
 
 @lru_cache(maxsize=1)
 def _nlp():
-    # ponytail: a second spaCy load (separate from model.py's, which disables the
+    # A second spaCy load (separate from model.py's, which disables the
     # parser and can't give sentence boundaries). Deliberately kept as its own
     # lru_cache(size=1) loader rather than threading a Doc through every call site.
     from timbro.spacy_model import load_spacy

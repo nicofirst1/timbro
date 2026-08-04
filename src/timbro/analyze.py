@@ -31,7 +31,7 @@ _TABLE_SEPARATOR = re.compile(r"(?m)^[ \t]*:?-{2,}:?(?:[ \t]*\|[ \t]*:?-{2,}:?)+
 _BULLET_LIST = re.compile(r"^[ \t]*[-*+][ \t]+")
 _ORDERED_LIST = re.compile(r"^[ \t]*\d+\.[ \t]+")
 _BLANK_LINE = re.compile(r"\n[ \t]*\n")
-_SENTENCE_END = re.compile(r"[.!?]+")  # ponytail: naive sentence count, no spaCy in _struct
+_SENTENCE_END = re.compile(r"[.!?]+")  # naive sentence count; _struct runs without spaCy
 
 # Folk-advice exploratory features (#21).
 _INLINE_CODE_SPAN = re.compile(r"`([^`\n]+)`")

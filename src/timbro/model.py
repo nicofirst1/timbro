@@ -11,7 +11,7 @@ same-domain contrast):
   tried (added dims add noise faster than signal at this n).
 
 The embedding scalar is opaque (relaxes NFR2 for the distance); the direction stays
-fully named. # ponytail: dropped fw/punct/PCA/LedoitWolf -- all measured worse.
+fully named. fw/punct/PCA/LedoitWolf variants were dropped: all measured worse.
 """
 
 from __future__ import annotations
@@ -94,8 +94,8 @@ def read_corpus(directory: str | Path) -> list[str]:
     """All .md/.txt files in a dir, YAML frontmatter stripped."""
     d = Path(directory)
     files = sorted([*d.glob("*.md"), *d.glob("*.txt")])
-    # ponytail: strip frontmatter only; code fences / blockquotes left in as part
-    # of his texture. Strip them too if they prove to be topic noise, not style.
+    # Strip frontmatter only; code fences / blockquotes are left in as part of the
+    # voice's texture. Strip them too if they prove to be topic noise, not style.
     return [_FRONTMATTER.sub("", f.read_text(encoding="utf-8")) for f in files]
 
 
