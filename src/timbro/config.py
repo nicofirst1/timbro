@@ -83,20 +83,20 @@ DEFAULT_CONTRAST = _SAMPLE / "contrast"
 
 # --- concreteness.py: concreteness axis prior (#46) -------------------------------------
 
-# Proposed prior, derived (not copied) from the packaged sample voice (src/timbro/sample/
-# exemplars/ + contrast/, 7 short posts covering both a plain-spoken voice and its
-# corporate-jargon contrast -- the closest thing in-repo to a general English-prose
-# baseline). Per-doc mean_concreteness across all 7: 2.69-3.02, mean=2.85, stdev=0.099
-# (see PR body for the exact numbers). spread=0.30 here widens that empirical stdev --
-# 7 docs is too few to trust a tight 0.10 as the population spread, and hedge.py's own
-# prior derivation reasons the same way (round toward a plausible order of magnitude
-# rather than overfit a small-n empirical std). strength=2.0, matching hedge's modest
-# pseudo-count: enough for a 5+ doc profile corpus to dominate, while still reporting
-# something sane with zero corpus. PROPOSED -- flagged in the PR body for maintainer
-# confirmation.
+# Derived from the Brysbaert, Warriner & Kuperman (2014) concreteness norms
+# (src/timbro/norms/concreteness_brysbaert2014.csv.gz, 37,058 lemmas -- see
+# src/timbro/norms/NOTICE.md), frequency-weighted by the SUBTLEX-US occurrence count
+# carried in the same team's original distribution file (mean = sum(freq*conc) /
+# sum(freq), spread = weighted population stdev; scripts/derive_concreteness_prior.py
+# reproduces this, all 37,058 vendored lemmas joined). mean=2.7094, spread=1.0486
+# (#58; supersedes the earlier 7-doc-sample-derived 2.85/0.30 -- lemma-level
+# concreteness spans nearly the full 1-5 scale, unlike per-document means, so the
+# population spread is much wider than a handful of document averages suggested).
+# strength=2.0 unchanged: still a modest pseudo-count, enough for a 5+ doc profile
+# corpus to dominate while reporting something sane with zero corpus.
 CONCRETENESS_REFERENCE = Reference(
-    mean=(2.85,),
-    spread=(0.30,),
+    mean=(2.7094,),
+    spread=(1.0486,),
     strength=2.0,
 )
 
