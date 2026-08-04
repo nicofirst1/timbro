@@ -1,0 +1,1 @@
+many thanks.These can be normal movement of the legs due to pains and shivering etc.BUt if problem persist then take a video picture on your mobile phone and present to our forum or show to pedaitric neurologist.To exclude needs further investigations like EEG and Brain MRI

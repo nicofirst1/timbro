@@ -1,10 +1,15 @@
 """M4 (#15) sanity check: how often the `slop` tell detectors fire per paragraph.
 
-Scores every paragraph in two small corpora with the `slop` rubric's raw findings:
-  - eval/slop_bench/llm/       genuinely LLM-generated paragraphs (unprompted
-    "AI assistant" register -- the target class)
-  - src/timbro/sample/exemplars/   the packaged known-good human prose, reused
-    from the M3 dashboard (#8) as the negative/false-positive class
+Scores every paragraph in an HC3 subsample (#60) with the `slop` rubric's raw
+findings:
+  - eval/slop_bench/hc3/llm/     chatgpt_answers from HC3 (Hello-SimpleAI/HC3,
+    CC-BY-SA-4.0) -- the target class
+  - eval/slop_bench/hc3/human/   human_answers from the same HC3 rows -- the
+    negative/false-positive class
+
+Both sides come from scripts/hc3_subsample.py and are independent of
+src/timbro/sample/exemplars/ (the rule-tuning corpus), so the false-positive
+rate here is a real held-out measurement, not circular validation.
 
 A paragraph is "flagged" if at least one tell fires in it. This counts raw
 findings, not the pass/warn/fail verdict: the verdict threshold (report.py) is
@@ -12,16 +17,9 @@ calibrated for whole documents, and single paragraphs rarely accumulate enough
 findings to cross it -- that's a document-level design choice this benchmark
 must not route around by inventing a second threshold.
 
-CAVEAT (review, PR #51): the human side (src/timbro/sample/exemplars/) is the
-exact corpus the slop rules were tuned against (see rules.py docstring and the
-M3 dashboard, #8) -- so its false-positive rate here is circular, not
-independent validation. This script is a reproducible smoke test for changes
-to the rules, not a claim about false-positive behavior on unseen prose. Point
-it at your own corpus (or extend it to accept one) before citing a number.
-
 Reports:
   - hit rate: % of LLM paragraphs with >=1 finding
-  - false-positive rate: % of human paragraphs with >=1 finding (not independent, see CAVEAT)
+  - false-positive rate: % of human paragraphs with >=1 finding
 
 Usage:
     uv run python eval/slop_benchmark.py            # human-readable
@@ -35,11 +33,12 @@ import json
 import sys
 from pathlib import Path
 
-from timbro.model import DEFAULT_EXEMPLARS, read_corpus
+from timbro.model import read_corpus
 from timbro.rubrics import check_text
 from timbro.text import split_paragraphs
 
-LLM_DIR = Path(__file__).parent / "slop_bench" / "llm"
+HUMAN_DIR = Path(__file__).parent / "slop_bench" / "hc3" / "human"
+LLM_DIR = Path(__file__).parent / "slop_bench" / "hc3" / "llm"
 
 
 def _paragraphs(dir_path: Path) -> list[str]:
@@ -60,7 +59,7 @@ def main(argv: list[str]) -> int:
     args = parser.parse_args(argv)
 
     llm_paras = _paragraphs(LLM_DIR)
-    human_paras = _paragraphs(DEFAULT_EXEMPLARS)
+    human_paras = _paragraphs(HUMAN_DIR)
     if not llm_paras or not human_paras:
         print(f"empty corpus: {len(llm_paras)} llm, {len(human_paras)} human", file=sys.stderr)
         return 1

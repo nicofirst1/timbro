@@ -1,0 +1,4 @@
+Stars, like our own Sun, are made up of very hot gases, mostly hydrogen and helium. They give off energy in the form of light and heat, which is what we feel here on Earth as sunlight. 
+Stars are able to stay in balance and not explode or collapse because of something called nuclear fusion. This is a process that happens in the center of the star, where the temperature and pressure are extremely high. In nuclear fusion, the hydrogen atoms combine to form helium atoms, and this releases a huge amount of energy in the form of light and heat. 
+This energy helps to hold the star up and keep it from collapsing in on itself. The energy from nuclear fusion also helps to push outwards against the weight of the outer layers of the star, which would otherwise cause the star to collapse. 
+In short, the energy produced by nuclear fusion helps to balance the forces acting on a star and keeps it from collapsing or exploding.

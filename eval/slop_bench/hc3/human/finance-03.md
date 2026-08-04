@@ -1,0 +1,1 @@
+Investing requires capital, and the fastest way to get the capital is to develop good saving habits. Investing is an ongoing process to help you accumulate wealth, so to take advantage of compounding, the earlier you start, the better.  I can suggest a few pointers to get you started on the investing journey. Godspeed! :)

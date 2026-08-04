@@ -84,48 +84,59 @@ DEFAULT_CONTRAST = _SAMPLE / "contrast"
 
 # --- concreteness.py: concreteness axis prior (#46) -------------------------------------
 
-# Proposed prior, derived (not copied) from the packaged sample voice (src/timbro/sample/
-# exemplars/ + contrast/, 7 short posts covering both a plain-spoken voice and its
-# corporate-jargon contrast -- the closest thing in-repo to a general English-prose
-# baseline). Per-doc mean_concreteness across all 7: 2.69-3.02, mean=2.85, stdev=0.099
-# (see PR body for the exact numbers). spread=0.30 here widens that empirical stdev --
-# 7 docs is too few to trust a tight 0.10 as the population spread, and hedge.py's own
-# prior derivation reasons the same way (round toward a plausible order of magnitude
-# rather than overfit a small-n empirical std). strength=2.0, matching hedge's modest
-# pseudo-count: enough for a 5+ doc profile corpus to dominate, while still reporting
-# something sane with zero corpus. PROPOSED -- flagged in the PR body for maintainer
-# confirmation.
+# Mean and spread are derived from two different units, because they answer two
+# different questions and the axis this feeds (concreteness.py:concreteness_stats)
+# scores a whole draft as one averaged number:
+#
+# mean=2.7094: frequency-weighted over individual lemmas in the Brysbaert, Warriner &
+# Kuperman (2014) concreteness norms (src/timbro/norms/concreteness_brysbaert2014.csv.gz,
+# 37,058 lemmas -- see src/timbro/norms/NOTICE.md), weighted by the SUBTLEX-US
+# occurrence count carried in the same team's original distribution file
+# (mean = sum(freq*conc) / sum(freq), all 37,058 vendored lemmas joined).
+#
+# spread=0.2792: population stdev of DOCUMENT-level mean concreteness, not lemma-level
+# -- model.py's z-score divides by this spread, so it has to be in the same unit the
+# z-score consumes (how much a document's average concreteness varies, not how much
+# individual words' ratings vary -- lemma-level spread is ~3.75x wider and would make
+# every draft's z-score silently shrink toward zero). Measured by running the shipped
+# concreteness_stats extractor over 750 x 1000-word chunks of the same 7-book
+# Gutenberg corpus scripts/derive_fw_reference.py (#59) uses, header/footer stripped.
+#
+# scripts/derive_concreteness_prior.py reproduces both numbers (#58; supersedes the
+# earlier 7-doc-sample-derived 2.85/0.30). strength=2.0 unchanged: still a modest
+# pseudo-count, enough for a 5+ doc profile corpus to dominate while reporting
+# something sane with zero corpus.
 CONCRETENESS_REFERENCE = Reference(
-    mean=(2.85,),
-    spread=(0.30,),
+    mean=(2.7094,),
+    spread=(0.2792,),
     strength=2.0,
 )
 
 
-# --- fw.py: function-word axis prior (#45) ----------------------------------------------
+# --- fw.py: function-word axis prior (#45, recomputed #59) ------------------------------
 
-# Empirically derived (unlike hedge.py's #44 hand-reasoned prior): function-word POS
-# rates are high-frequency grammatical categories -- many occurrences per document even
-# in a small corpus -- unlike hedge.py's sparse lexical-choice counts, where a 7-doc
-# sample is too noisy to trust a mean over (that's exactly why hedge.py used
-# order-of-magnitude reasoning instead of a corpus mean). So this prior IS computed from
-# the packaged sample corpus, matching hedge.py's convention in spirit (propose numbers,
-# flag for review, modest strength) but not its literal derivation mechanism.
+# Recomputed from a public-domain corpus (#59) -- the original prior below was a mean
+# over the packaged 7-doc sample, too few documents to trust as a general-English
+# baseline. Empirically derived (function-word POS rates are high-frequency
+# grammatical categories -- many occurrences even within a single ~1000-word chunk --
+# unlike hedge.py's sparse lexical-choice counts, which stayed hand-reasoned for that
+# reason). strength=2.0 kept unchanged (issue spec): matches hedge.py's modest
+# pseudo-count role, no reason found to pick a different number for this axis.
 #
-# Dataset: src/timbro/sample/exemplars/ (3 docs) + src/timbro/sample/contrast/ (4 docs),
-# combined, N=7. Statistic: mean (and population stdev for spread) of the per-doc rate,
-# computed via `function_word_rates` itself (same word-count denominator as the shipped
-# extractor, punctuation excluded).
-#   first_person_sg:   mean=35.30   pstdev=36.01
-#   article_rate:      mean=104.85  pstdev=29.15
-#   preposition_rate:  mean=72.30   pstdev=22.69
-#   conjunction_rate:  mean=50.24   pstdev=20.16
-#   pronoun_rate:      mean=113.21  pstdev=26.22
-# strength=2.0: reuses hedge.py's literal value -- same "modest pseudo-count" role, no
-# documented reason found to pick a different number for this axis.
-# PROPOSED -- flagged in the PR body for maintainer confirmation.
+# Dataset: 7 Project Gutenberg texts (4 fiction + 3 non-fiction, IDs and titles in
+# scripts/derive_fw_reference.py), Gutenberg header/footer stripped, chunked into
+# 750 documents of 1000 word-tokens each (768,906 words total). Statistic: mean (and
+# population stdev for spread) of `function_word_rates` per chunk -- same extractor,
+# same per-1000-word denominator as the shipped metric.
+#   first_person_sg:   mean=27.42   pstdev=25.14   (was 35.30 / 36.01)
+#   article_rate:      mean=80.52   pstdev=20.86   (was 104.85 / 29.15)
+#   preposition_rate:  mean=122.57  pstdev=17.99   (was 72.30 / 22.69)
+#   conjunction_rate:  mean=72.36   pstdev=13.46   (was 50.24 / 20.16)
+#   pronoun_rate:      mean=112.81  pstdev=40.16   (was 113.21 / 26.22)
+# Reproducible via `uv run python scripts/derive_fw_reference.py` (re-downloads the
+# corpus and re-derives; network required at derivation time only).
 FUNCTION_WORD_REFERENCE = Reference(
-    mean=(35.30, 104.85, 72.30, 50.24, 113.21),
-    spread=(36.01, 29.15, 22.69, 20.16, 26.22),
+    mean=(27.42, 80.52, 122.57, 72.36, 112.81),
+    spread=(25.14, 20.86, 17.99, 13.46, 40.16),
     strength=2.0,
 )

@@ -1,0 +1,1 @@
+Because they are n't inherently for smoking marijuana , they are able to be used for smoking tobacco , and some people really do use them for that . And because those people exist and because the problem is largely too small to worry about because there are dozen of work - arounds , no one bothers to change the laws .
