@@ -68,7 +68,7 @@ TELL_PRIOR = {
     "dash": 0.70, "not_x_y": 0.55, "diction": 0.50, "sycophancy": 0.40,
     "signpost": 0.35, "hr_divider": 0.35, "conclusion": 0.30, "emoji": 0.30,
     "rhetorical_opener": 0.30, "bold_leadin": 0.25, "rule_of_three": 0.25,
-    "filler": 0.25, "aphorism": 0.25, "curly_quote": 0.20,
+    "filler": 0.25, "aphorism": 0.25, "self_narration": 0.25, "curly_quote": 0.20,
     "dropped_subject": 0.35, "empty_punch": 0.30, "staccato_run": 0.30,
     "quote_punct": 0.25, "colon_list": 0.22,
 }
