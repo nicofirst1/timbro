@@ -21,8 +21,8 @@ from __future__ import annotations
 import re
 from functools import lru_cache
 
-from timbro.config import TELL_PRIOR, TELL_REFERENCE  # noqa: F401  (TELL_PRIOR re-exported: model.py/checks.py/tests import it from here)
-from timbro.metric import register
+from timbro.config import TELL_PRIOR  # noqa: F401  (re-exported: model.py/checks.py/tests import it from here)
+from timbro.metric import Reference, register
 
 # Plain-English labels so a flagged tell reads as advice, not a feature id.
 TELL_LABEL = {
@@ -245,8 +245,14 @@ def tell_baseline(texts: list[str]) -> dict[str, tuple[float, float]]:
     return out
 
 
-# TELL_REFERENCE lives in config.py now (PR #57 review); re-imported above. (Same
-# shape as ever: mean 0 per axis, unit spread, strength 0 -- see config.py's comment.)
+# Structural zero placeholder, not a tunable prior (those live in config.py): a clean
+# exemplar corpus carries ~0 tells, and strength=0 means a real corpus fully sets the
+# mean/std at fit. Derived from TELL_NAMES so the length can't drift from the detectors.
+TELL_REFERENCE = Reference(
+    mean=tuple(0.0 for _ in TELL_NAMES),
+    spread=tuple(1.0 for _ in TELL_NAMES),
+    strength=0.0,
+)
 
 
 class _TellMetric:

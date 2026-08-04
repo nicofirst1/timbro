@@ -25,10 +25,10 @@ from pathlib import Path
 import numpy as np
 
 from timbro.concreteness import CONCRETENESS_METRIC  # noqa: F401  (import registers the concreteness metric)
-from timbro.config import DEFAULT_CONTRAST, DEFAULT_EXEMPLARS, MARKDOWN_REFERENCE, TELL_PRIOR
+from timbro.config import DEFAULT_CONTRAST, DEFAULT_EXEMPLARS, TELL_PRIOR
 from timbro.fw import FUNCTION_WORD_METRIC  # noqa: F401  (import registers the fw metric)
 from timbro.hedge import HEDGE_BOOSTER_METRIC  # noqa: F401  (import registers the hedge metric)
-from timbro.metric import register
+from timbro.metric import Reference, register
 from timbro.report import (  # dataclasses/axis tuples/labels: report.py formats for humans (PR #57 review)
     CONCRETENESS_AXES, CONCRETENESS_Z_TOL, ConcretenessAxis,
     FW_AXES, FW_Z_TOL, FeatureMove, FwAxis,
@@ -122,9 +122,15 @@ def _struct_vec(text: str) -> tuple[float, ...]:
     return tuple(float(struct.get(name) or 0.0) for name in STRUCT_AXIS_NAMES)
 
 
-# MARKDOWN_REFERENCE lives in config.py now (PR #57 review); re-imported above. (Same
-# neutral placeholder as ever -- this axis group runs only contrastively today; see
-# config.py's comment.)
+# Structural neutral placeholder, not a tunable prior (those live in config.py): this
+# axis group runs only contrastively today -- the reference is corpus-derived at fit
+# (smean/sstd) and `markdown_report` returns [] with no corpus. Derived from
+# STRUCT_AXIS_NAMES so the length can't drift from the axis tuple.
+MARKDOWN_REFERENCE = Reference(
+    mean=tuple(0.0 for _ in STRUCT_AXIS_NAMES),
+    spread=tuple(1.0 for _ in STRUCT_AXIS_NAMES),
+    strength=0.0,
+)
 
 
 class _MarkdownMetric:

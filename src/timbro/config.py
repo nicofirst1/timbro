@@ -8,7 +8,9 @@ it inline (PR #57 review) -- this is a move, not a retune.
 
 What does NOT belong here: detector/extractor code (regexes with matching logic,
 POS predicates, the `_count_*`/`*_rates` functions), scoring weights (`_PENALTY`,
-`_WEIGHTS`), or verdict thresholds in `report.py`. Those stay where they are.
+`_WEIGHTS`), verdict thresholds in `report.py`, or the structural zero-placeholder
+references (`TELL_REFERENCE`, `MARKDOWN_REFERENCE`) -- those derive their length
+from an axis-name tuple and live next to it, so the two can't drift apart.
 """
 
 from __future__ import annotations
@@ -71,36 +73,12 @@ TELL_PRIOR = {
     "quote_punct": 0.25, "colon_list": 0.22,
 }
 
-# The tells were already the prior-shaped axis: `TELL_PRIOR` is a per-tell confidence
-# floor so a tell surfaces with no contrast corpus. This exposes the same extractor
-# through the `Metric` interface. A clean exemplar corpus carries ~0 tells, so the
-# reference MEAN is 0 per axis; `TELL_PRIOR` stays the confidence floor it always was.
-# tell count (len(TELL_LABEL) in tells.py) is fixed at 18 axes.
-TELL_REFERENCE = Reference(
-    mean=tuple(0.0 for _ in range(18)),      # clean prose ~ 0 tells / 1000 words
-    spread=tuple(1.0 for _ in range(18)),    # unit spread; z-scoring uses the corpus std at fit
-    strength=0.0,                              # a real corpus fully sets the mean/std (behaviour today)
-)
-
-
-# --- model.py: packaged-sample corpus defaults + markdown-structure prior --------------
+# --- model.py: packaged-sample corpus defaults ------------------------------------------
 
 # Packaged sample corpus -- makes the plugin run on install (override via env for a real voice).
 _SAMPLE = Path(__file__).parent / "sample"
 DEFAULT_EXEMPLARS = _SAMPLE / "exemplars"
 DEFAULT_CONTRAST = _SAMPLE / "contrast"
-
-# The markdown-structure axes as a `Metric`. `extract` is `_struct_vec` (STRUCT_AXIS_NAMES
-# order); the reference is corpus-derived at fit (smean/sstd), so this axis group runs
-# only contrastively today -- `markdown_report` returns [] with no corpus and the declared
-# prior below is a formal neutral placeholder (mean 0 / spread 1) until a corpus-free
-# markdown default is chosen.
-# 11 struct axes (STRUCT_AXIS_NAMES in model.py).
-MARKDOWN_REFERENCE = Reference(
-    mean=tuple(0.0 for _ in range(11)),
-    spread=tuple(1.0 for _ in range(11)),
-    strength=0.0,
-)
 
 
 # --- concreteness.py: concreteness axis prior (#46) -------------------------------------
