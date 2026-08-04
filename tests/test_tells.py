@@ -91,5 +91,17 @@ class SelfNarrationTest(unittest.TestCase):
         self.assertEqual(r["tell_self_narration"], 0)
 
 
+class ApologeticTest(unittest.TestCase):
+    def test_slop_trips(self):
+        # performed-humility / self-negation frame (#37)
+        r = tell_rates("What I cannot do, with this data, is tell you it is better.")
+        self.assertGreater(r["tell_apologetic"], 0)
+
+    def test_clean_zero(self):
+        # a single flat statement of fact is not the tell
+        r = tell_rates("The result did not hold. I moved on to the next test.")
+        self.assertEqual(r["tell_apologetic"], 0)
+
+
 if __name__ == "__main__":
     unittest.main()
