@@ -2,13 +2,22 @@
 from __future__ import annotations
 
 import math
+import statistics
 import sys
 import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 
-from derive_concreteness_prior import derive, load_vendored_lemmas, parse_original_tsv, weighted_mean_spread
+from derive_concreteness_prior import (
+    chunk_words,
+    derive,
+    derive_document_spread,
+    load_vendored_lemmas,
+    parse_original_tsv,
+    strip_gutenberg_boilerplate,
+    weighted_mean_spread,
+)
 
 
 class WeightedMeanSpreadTest(unittest.TestCase):
@@ -66,6 +75,55 @@ class VendoredLemmaJoinTest(unittest.TestCase):
         lemmas = load_vendored_lemmas()
         self.assertEqual(len(lemmas), 37058)
         self.assertIn("hammer", lemmas)
+
+
+class DeriveDocumentSpreadTest(unittest.TestCase):
+    def test_pstdev_of_per_chunk_means(self):
+        chunks = ["a", "b", "c"]
+        fn = {"a": 1.0, "b": 2.0, "c": 3.0}.get
+        spread = derive_document_spread(chunks, fn)
+        self.assertAlmostEqual(spread, statistics.pstdev([1.0, 2.0, 3.0]))
+
+    def test_identical_chunk_means_give_zero_spread(self):
+        chunks = ["x", "y"]
+        spread = derive_document_spread(chunks, lambda _: 2.5)
+        self.assertAlmostEqual(spread, 0.0)
+
+
+class ChunkingAndBoilerplateTest(unittest.TestCase):
+    def test_strip_gutenberg_boilerplate_keeps_only_body(self):
+        raw = (
+            "Header junk\n"
+            "*** START OF THE PROJECT GUTENBERG EBOOK FOO ***\n"
+            "the actual book text\n"
+            "*** END OF THE PROJECT GUTENBERG EBOOK FOO ***\n"
+            "License footer junk"
+        )
+        body = strip_gutenberg_boilerplate(raw)
+        self.assertIn("the actual book text", body)
+        self.assertNotIn("Header junk", body)
+        self.assertNotIn("License footer junk", body)
+
+    def test_chunk_words_drops_trailing_partial_chunk(self):
+        text = " ".join(f"w{i}" for i in range(25))
+        chunks = chunk_words(text, chunk_words=10)
+        self.assertEqual(len(chunks), 2)
+        self.assertEqual(len(chunks[0].split()), 10)
+        self.assertEqual(len(chunks[1].split()), 10)
+
+
+class SpreadUnitRegressionTest(unittest.TestCase):
+    def test_document_level_spread_is_far_below_lemma_level_spread(self):
+        # Regression guard for the #58 verifier finding: document-level mean
+        # concreteness varies far less than individual lemma concreteness ratings
+        # (a document averages many words together), so the two spreads must not be
+        # interchangeable. The lemma-level weighted spread over the full norms table
+        # is ~1.05; the config's document-level spread must stay well under half of
+        # that, or CONCRETENESS_REFERENCE.spread has silently been fed the wrong unit
+        # again (model.py's z-score divides by it directly).
+        from timbro.config import CONCRETENESS_REFERENCE
+
+        self.assertLess(CONCRETENESS_REFERENCE.spread[0], 0.5)
 
 
 if __name__ == "__main__":
