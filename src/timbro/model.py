@@ -26,10 +26,11 @@ from pathlib import Path
 import numpy as np
 
 from timbro.concreteness import CONCRETENESS_METRIC  # noqa: F401  (import registers the concreteness metric)
+from timbro.config import DEFAULT_CONTRAST, DEFAULT_EXEMPLARS, MARKDOWN_REFERENCE, TELL_PRIOR
 from timbro.fw import FUNCTION_WORD_METRIC  # noqa: F401  (import registers the fw metric)
 from timbro.hedge import HEDGE_BOOSTER_METRIC  # noqa: F401  (import registers the hedge metric)
-from timbro.metric import Reference, register
-from timbro.tells import tell_rates, TELL_LABEL, TELL_PRIOR, TELL_METRIC  # noqa: F401  (import registers the tells metric)
+from timbro.metric import register
+from timbro.tells import tell_rates, TELL_LABEL, TELL_METRIC  # noqa: F401  (import registers the tells metric)
 
 # Markdown-structure axes scored as a SEPARATE group from the embedding/POS composite
 # (issue #28) -- these never feed the distance/direction above, they get their own
@@ -102,10 +103,8 @@ _FRONTMATTER = re.compile(r"\A---\n.*?\n---\n", re.DOTALL)
 _PARA = re.compile(r"\n\s*\n")
 _WORD = re.compile(r"\b\w+\b")
 
-# Packaged sample corpus -- makes the plugin run on install (override via env for a real voice).
-_SAMPLE = Path(__file__).parent / "sample"
-DEFAULT_EXEMPLARS = _SAMPLE / "exemplars"
-DEFAULT_CONTRAST = _SAMPLE / "contrast"
+# DEFAULT_EXEMPLARS / DEFAULT_CONTRAST (packaged sample corpus paths) live in config.py
+# now (PR #57 review); re-imported above.
 
 
 @lru_cache(maxsize=1)
@@ -177,16 +176,9 @@ def _struct_vec(text: str) -> tuple[float, ...]:
     return tuple(float(struct.get(name) or 0.0) for name in STRUCT_AXIS_NAMES)
 
 
-# The markdown-structure axes as a `Metric`. `extract` is `_struct_vec` (STRUCT_AXIS_NAMES
-# order); the reference is corpus-derived at fit (smean/sstd), so this axis group runs
-# only contrastively today -- `markdown_report` returns [] with no corpus and the declared
-# prior below is a formal neutral placeholder (mean 0 / spread 1) until a corpus-free
-# markdown default is chosen.
-MARKDOWN_REFERENCE = Reference(
-    mean=tuple(0.0 for _ in STRUCT_AXIS_NAMES),
-    spread=tuple(1.0 for _ in STRUCT_AXIS_NAMES),
-    strength=0.0,
-)
+# MARKDOWN_REFERENCE lives in config.py now (PR #57 review); re-imported above. (Same
+# neutral placeholder as ever -- this axis group runs only contrastively today; see
+# config.py's comment.)
 
 
 class _MarkdownMetric:

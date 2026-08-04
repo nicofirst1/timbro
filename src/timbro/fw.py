@@ -22,7 +22,8 @@ from __future__ import annotations
 import re
 from functools import lru_cache
 
-from timbro.metric import Reference, parsed_doc, register
+from timbro.config import FUNCTION_WORD_REFERENCE
+from timbro.metric import parsed_doc, register
 
 _WORD = re.compile(r"\b\w+\b")
 
@@ -57,31 +58,7 @@ def function_word_rates(text: str) -> tuple[float, float, float, float, float]:
 
 
 # --- Metric (#43/#45) ----------------------------------------------------------------
-# Empirically derived (unlike hedge.py's #44 hand-reasoned prior): function-word POS
-# rates are high-frequency grammatical categories -- many occurrences per document even
-# in a small corpus -- unlike hedge.py's sparse lexical-choice counts, where a 7-doc
-# sample is too noisy to trust a mean over (that's exactly why hedge.py used
-# order-of-magnitude reasoning instead of a corpus mean). So this prior IS computed from
-# the packaged sample corpus, matching hedge.py's convention in spirit (propose numbers,
-# flag for review, modest strength) but not its literal derivation mechanism.
-#
-# Dataset: src/timbro/sample/exemplars/ (3 docs) + src/timbro/sample/contrast/ (4 docs),
-# combined, N=7. Statistic: mean (and population stdev for spread) of the per-doc rate,
-# computed via `function_word_rates` itself (same word-count denominator as the shipped
-# extractor, punctuation excluded).
-#   first_person_sg:   mean=35.30   pstdev=36.01
-#   article_rate:      mean=104.85  pstdev=29.15
-#   preposition_rate:  mean=72.30   pstdev=22.69
-#   conjunction_rate:  mean=50.24   pstdev=20.16
-#   pronoun_rate:      mean=113.21  pstdev=26.22
-# strength=2.0: reuses hedge.py's literal value -- same "modest pseudo-count" role, no
-# documented reason found to pick a different number for this axis.
-# PROPOSED -- flagged in the PR body for maintainer confirmation.
-FUNCTION_WORD_REFERENCE = Reference(
-    mean=(35.30, 104.85, 72.30, 50.24, 113.21),
-    spread=(36.01, 29.15, 22.69, 20.16, 26.22),
-    strength=2.0,
-)
+# FUNCTION_WORD_REFERENCE lives in config.py now (PR #57 review); re-imported above.
 
 
 class _FunctionWordMetric:

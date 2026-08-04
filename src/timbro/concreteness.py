@@ -23,7 +23,8 @@ import gzip
 from functools import lru_cache
 from pathlib import Path
 
-from timbro.metric import Reference, parsed_doc, register
+from timbro.config import CONCRETENESS_REFERENCE
+from timbro.metric import parsed_doc, register
 
 _CONTENT_POS = {"NOUN", "VERB", "ADJ", "ADV"}
 # Package-relative, same convention as model.py's `_SAMPLE = Path(__file__).parent /
@@ -62,22 +63,7 @@ def concreteness_stats(text: str) -> tuple[float, float]:
 
 
 # --- Metric (#43/#46) -----------------------------------------------------------------
-# Proposed prior, derived (not copied) from the packaged sample voice (src/timbro/sample/
-# exemplars/ + contrast/, 7 short posts covering both a plain-spoken voice and its
-# corporate-jargon contrast -- the closest thing in-repo to a general English-prose
-# baseline). Per-doc mean_concreteness across all 7: 2.69-3.02, mean=2.85, stdev=0.099
-# (see PR body for the exact numbers). spread=0.30 here widens that empirical stdev --
-# 7 docs is too few to trust a tight 0.10 as the population spread, and hedge.py's own
-# prior derivation reasons the same way (round toward a plausible order of magnitude
-# rather than overfit a small-n empirical std). strength=2.0, matching hedge's modest
-# pseudo-count: enough for a 5+ doc profile corpus to dominate, while still reporting
-# something sane with zero corpus. PROPOSED -- flagged in the PR body for maintainer
-# confirmation.
-CONCRETENESS_REFERENCE = Reference(
-    mean=(2.85,),
-    spread=(0.30,),
-    strength=2.0,
-)
+# CONCRETENESS_REFERENCE lives in config.py now (PR #57 review); re-imported above.
 
 
 class _ConcretenessMetric:

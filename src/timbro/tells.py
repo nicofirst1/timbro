@@ -21,7 +21,8 @@ from __future__ import annotations
 import re
 from functools import lru_cache
 
-from timbro.metric import Reference, register
+from timbro.config import TELL_PRIOR, TELL_REFERENCE  # noqa: F401  (TELL_PRIOR re-exported: model.py/checks.py/tests import it from here)
+from timbro.metric import register
 
 # Plain-English labels so a flagged tell reads as advice, not a feature id.
 TELL_LABEL = {
@@ -46,16 +47,8 @@ TELL_LABEL = {
     "staccato_run": "staccato run (3+ consecutive sentences under 8 words)",
 }
 
-# Confidence floor in [0,1], seeded from the Reddit study's citation frequency:
-# em-dash is "the single most reliable tell"; "not X but Y" is the named "AI accent".
-TELL_PRIOR = {
-    "dash": 0.70, "not_x_y": 0.55, "diction": 0.50, "sycophancy": 0.40,
-    "signpost": 0.35, "hr_divider": 0.35, "conclusion": 0.30, "emoji": 0.30,
-    "rhetorical_opener": 0.30, "bold_leadin": 0.25, "rule_of_three": 0.25,
-    "filler": 0.25, "aphorism": 0.25, "curly_quote": 0.20,
-    "dropped_subject": 0.35, "empty_punch": 0.30, "staccato_run": 0.30,
-    "quote_punct": 0.25, "colon_list": 0.22,
-}
+# TELL_PRIOR (confidence floor, seeded from the Reddit study's citation frequency) lives
+# in config.py now (PR #57 review); re-imported above.
 
 _FRONTMATTER = re.compile(r"\A---\n.*?\n---\n", re.DOTALL)
 _WORD = re.compile(r"\b\w+\b")
@@ -252,15 +245,8 @@ def tell_baseline(texts: list[str]) -> dict[str, tuple[float, float]]:
     return out
 
 
-# The tells were already the prior-shaped axis: `TELL_PRIOR` is a per-tell confidence
-# floor so a tell surfaces with no contrast corpus. This exposes the same extractor
-# through the `Metric` interface. A clean exemplar corpus carries ~0 tells, so the
-# reference MEAN is 0 per axis; `TELL_PRIOR` stays the confidence floor it always was.
-TELL_REFERENCE = Reference(
-    mean=tuple(0.0 for _ in TELL_NAMES),      # clean prose ~ 0 tells / 1000 words
-    spread=tuple(1.0 for _ in TELL_NAMES),    # unit spread; z-scoring uses the corpus std at fit
-    strength=0.0,                              # a real corpus fully sets the mean/std (behaviour today)
-)
+# TELL_REFERENCE lives in config.py now (PR #57 review); re-imported above. (Same
+# shape as ever: mean 0 per axis, unit spread, strength 0 -- see config.py's comment.)
 
 
 class _TellMetric:

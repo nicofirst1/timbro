@@ -23,32 +23,16 @@ from __future__ import annotations
 import re
 from functools import lru_cache
 
-from timbro.metric import Reference, parsed_doc, register
+from timbro.config import (
+    BOOSTER_LEMMAS as _BOOSTER_LEMMAS,
+    BOOSTER_PHRASES as _BOOSTER_PHRASES,
+    HEDGE_BOOSTER_REFERENCE,
+    HEDGE_LEMMAS as _HEDGE_LEMMAS,
+    HEDGE_PHRASES as _HEDGE_PHRASES,
+)
+from timbro.metric import parsed_doc, register
 
 _WORD = re.compile(r"\b\w+\b")
-
-# Single-lemma items: lemma -> POS tags that disambiguate it, or None if the lemma has
-# no ordinary-prose reading worth gating (most of them -- POS would only add a false
-# negative). Curated from Hyland's published hedge/booster lists; kept short.
-_HEDGE_LEMMAS: dict[str, set[str] | None] = {
-    "may": {"AUX"}, "might": {"AUX"}, "could": {"AUX"},
-    "perhaps": None, "possibly": None, "seem": None, "appear": None, "suggest": None,
-    "arguably": None, "somewhat": None, "fairly": None, "relatively": None,
-    "likely": None, "presumably": None, "roughly": None,
-}
-# Multi-word hedges: lemma sequence of consecutive tokens.
-_HEDGE_PHRASES: tuple[tuple[str, ...], ...] = (
-    ("I", "think"), ("I", "believe"),
-)
-
-_BOOSTER_LEMMAS: dict[str, set[str] | None] = {
-    "clearly": None, "obviously": None, "certainly": None, "definitely": None,
-    "undoubtedly": None, "always": None, "never": None, "indeed": None,
-    "must": {"AUX"},
-}
-_BOOSTER_PHRASES: tuple[tuple[str, ...], ...] = (
-    ("of", "course"), ("in", "fact"), ("without", "doubt"),
-)
 
 
 def _count_lemmas(doc, lemmas: dict[str, set[str] | None]) -> int:
@@ -87,20 +71,7 @@ def hedge_booster_rates(text: str) -> tuple[float, float]:
 
 
 # --- Metric (#43/#44) ----------------------------------------------------------------
-# Proposed prior, NOT copied from tells.py's "clean prose ~ 0" pattern -- hedges and
-# boosters are a normal feature of English non-fiction prose, not an AI-slop marker.
-# Order-of-magnitude reasoning: a few hedges/boosters per 1000 words is typical running
-# prose (an occasional "might"/"clearly" per paragraph); dozens/1000 would read as
-# either mealy-mouthed or bombastic. mean=6.0 hedge / 4.0 booster, spread=4.0 both,
-# reflects hedges being slightly more common than boosters in careful prose (Hyland's
-# corpora skew the same way). strength=2.0: a modest pseudo-count so a 5+ doc profile
-# corpus dominates, but the axis still reports something sane with zero corpus.
-# PROPOSED -- flagged in the PR body for maintainer confirmation.
-HEDGE_BOOSTER_REFERENCE = Reference(
-    mean=(6.0, 4.0),
-    spread=(4.0, 4.0),
-    strength=2.0,
-)
+# HEDGE_BOOSTER_REFERENCE lives in config.py now (PR #57 review); re-imported above.
 
 
 class _HedgeBoosterMetric:
