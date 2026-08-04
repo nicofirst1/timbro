@@ -22,7 +22,6 @@ from dataclasses import asdict, dataclass
 
 import numpy as np
 
-from timbro.model import read_corpus
 from timbro.text import _model, split_paragraphs
 
 
@@ -106,6 +105,8 @@ def flow_report(text: str) -> FlowReport:
 
 
 if __name__ == "__main__":
+    from timbro.model import read_corpus  # lazy: avoids a model<->report<->flow import cycle
+
     docs = read_corpus(sys.argv[1])
     embs = [embed(paragraphs(d)) for d in docs]
     embs = [e for e in embs if len(e) >= 4]  # need a few paragraphs to test order
