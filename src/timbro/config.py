@@ -83,20 +83,31 @@ DEFAULT_CONTRAST = _SAMPLE / "contrast"
 
 # --- concreteness.py: concreteness axis prior (#46) -------------------------------------
 
-# Derived from the Brysbaert, Warriner & Kuperman (2014) concreteness norms
-# (src/timbro/norms/concreteness_brysbaert2014.csv.gz, 37,058 lemmas -- see
-# src/timbro/norms/NOTICE.md), frequency-weighted by the SUBTLEX-US occurrence count
-# carried in the same team's original distribution file (mean = sum(freq*conc) /
-# sum(freq), spread = weighted population stdev; scripts/derive_concreteness_prior.py
-# reproduces this, all 37,058 vendored lemmas joined). mean=2.7094, spread=1.0486
-# (#58; supersedes the earlier 7-doc-sample-derived 2.85/0.30 -- lemma-level
-# concreteness spans nearly the full 1-5 scale, unlike per-document means, so the
-# population spread is much wider than a handful of document averages suggested).
-# strength=2.0 unchanged: still a modest pseudo-count, enough for a 5+ doc profile
-# corpus to dominate while reporting something sane with zero corpus.
+# Mean and spread are derived from two different units, because they answer two
+# different questions and the axis this feeds (concreteness.py:concreteness_stats)
+# scores a whole draft as one averaged number:
+#
+# mean=2.7094: frequency-weighted over individual lemmas in the Brysbaert, Warriner &
+# Kuperman (2014) concreteness norms (src/timbro/norms/concreteness_brysbaert2014.csv.gz,
+# 37,058 lemmas -- see src/timbro/norms/NOTICE.md), weighted by the SUBTLEX-US
+# occurrence count carried in the same team's original distribution file
+# (mean = sum(freq*conc) / sum(freq), all 37,058 vendored lemmas joined).
+#
+# spread=0.2792: population stdev of DOCUMENT-level mean concreteness, not lemma-level
+# -- model.py's z-score divides by this spread, so it has to be in the same unit the
+# z-score consumes (how much a document's average concreteness varies, not how much
+# individual words' ratings vary -- lemma-level spread is ~3.75x wider and would make
+# every draft's z-score silently shrink toward zero). Measured by running the shipped
+# concreteness_stats extractor over 750 x 1000-word chunks of the same 7-book
+# Gutenberg corpus scripts/derive_fw_reference.py (#59) uses, header/footer stripped.
+#
+# scripts/derive_concreteness_prior.py reproduces both numbers (#58; supersedes the
+# earlier 7-doc-sample-derived 2.85/0.30). strength=2.0 unchanged: still a modest
+# pseudo-count, enough for a 5+ doc profile corpus to dominate while reporting
+# something sane with zero corpus.
 CONCRETENESS_REFERENCE = Reference(
     mean=(2.7094,),
-    spread=(1.0486,),
+    spread=(0.2792,),
     strength=2.0,
 )
 
