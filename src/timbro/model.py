@@ -11,7 +11,7 @@ same-domain contrast):
   tried (added dims add noise faster than signal at this n).
 
 The embedding scalar is opaque (relaxes NFR2 for the distance); the direction stays
-fully named. # ponytail: dropped fw/punct/PCA/LedoitWolf -- all measured worse.
+fully named. fw/punct/PCA/LedoitWolf variants were dropped: all measured worse.
 """
 
 from __future__ import annotations
@@ -19,70 +19,45 @@ from __future__ import annotations
 import os
 import re
 from collections import Counter
-from dataclasses import dataclass, asdict
 from functools import lru_cache
 from pathlib import Path
 
 import numpy as np
 
-from timbro.tells import tell_rates, TELL_LABEL, TELL_PRIOR
-
-# Markdown-structure axes scored as a SEPARATE group from the embedding/POS composite
-# (issue #28) -- these never feed the distance/direction above, they get their own
-# z-score-vs-corpus report. Each axis carries an imperative revision phrase per
-# direction, (raise, lower), matching the "fewer/more <label>" register of the POS
-# direction. Only structural (`struct_*`) numeric axes a writer can actually move are
-# listed; the frontmatter-description (`fm_desc_*`) and string fields are excluded.
-MARKDOWN_AXES: tuple[tuple[str, str, str], ...] = (
-    ("struct_heading_count", "add section headings", "merge section headings"),
-    ("struct_max_heading_depth", "deepen sectioning", "flatten sectioning"),
-    ("struct_code_char_ratio", "add code blocks", "reduce code blocks"),
-    ("struct_inline_code_char_ratio", "add inline code", "reduce inline code"),
-    ("struct_list_item_ratio", "add lists", "reduce list share"),
-    ("struct_bullet_list_ratio", "add bullets", "reduce bullet share"),
-    ("struct_ordered_list_ratio", "add numbered steps", "reduce numbered steps"),
-    ("struct_table_count", "add tables", "remove tables"),
-    ("struct_external_ref_count", "add external references", "trim external references"),
-    ("struct_long_paragraph_ratio", "lengthen paragraphs", "break up long paragraphs"),
-    ("struct_prose_ratio", "add prose", "reduce prose"),
+from timbro.concreteness import CONCRETENESS_METRIC  # noqa: F401  (import registers the concreteness metric)
+from timbro.config import DEFAULT_CONTRAST, DEFAULT_EXEMPLARS, TELL_PRIOR
+from timbro.fw import FUNCTION_WORD_METRIC  # noqa: F401  (import registers the fw metric)
+from timbro.hedge import HEDGE_BOOSTER_METRIC  # noqa: F401  (import registers the hedge metric)
+from timbro.metric import Reference, register
+from timbro.report import (  # dataclasses/axis tuples/labels: report.py formats for humans (PR #57 review)
+    CONCRETENESS_AXES, CONCRETENESS_Z_TOL, ConcretenessAxis,
+    FW_AXES, FW_Z_TOL, FeatureMove, FwAxis,
+    HEDGE_AXES, HEDGE_Z_TOL, HedgeAxis,
+    MARKDOWN_AXES, MARKDOWN_Z_TOL, MarkdownAxis,
+    ScoreResult, _label,
 )
+from timbro.tells import tell_rates, TELL_METRIC  # noqa: F401  (import registers the tells metric)
+
 STRUCT_AXIS_NAMES: tuple[str, ...] = tuple(name for name, _, _ in MARKDOWN_AXES)
-# Within half a corpus std of the mean = on-target; no revision direction named for that
-# axis. ponytail: fixed tolerance, promote to a knob only if a caller needs to tune it.
-MARKDOWN_Z_TOL = 0.5
 
 # Universal POS tags (spaCy `pos_`). Rates over these 17 are length-normalized,
 # so the doc-length confound that plagued raw counts can't arise here.
 POS_TAGS = ("ADJ", "ADP", "ADV", "AUX", "CCONJ", "DET", "INTJ", "NOUN", "NUM",
             "PART", "PRON", "PROPN", "PUNCT", "SCONJ", "SYM", "VERB", "X")
 
-# Plain-English labels so the direction reads as advice, not tag soup.
-POS_LABEL = {
-    "ADJ": "adjectives", "ADP": "prepositions", "ADV": "adverbs",
-    "AUX": "auxiliary verbs", "CCONJ": "conjunctions", "DET": "determiners",
-    "INTJ": "interjections", "NOUN": "nouns", "NUM": "numbers", "PART": "particles",
-    "PRON": "pronouns", "PROPN": "proper nouns", "PUNCT": "punctuation",
-    "SCONJ": "subordinating conjunctions", "SYM": "symbols", "VERB": "verbs", "X": "other tokens",
-}
-
 _FRONTMATTER = re.compile(r"\A---\n.*?\n---\n", re.DOTALL)
 _PARA = re.compile(r"\n\s*\n")
 _WORD = re.compile(r"\b\w+\b")
 
-# Packaged sample corpus -- makes the plugin run on install (override via env for a real voice).
-_SAMPLE = Path(__file__).parent / "sample"
-DEFAULT_EXEMPLARS = _SAMPLE / "exemplars"
-DEFAULT_CONTRAST = _SAMPLE / "contrast"
+# DEFAULT_EXEMPLARS / DEFAULT_CONTRAST (packaged sample corpus paths) live in config.py
+# now (PR #57 review); re-imported above.
 
 
 @lru_cache(maxsize=1)
 def _nlp():
-    import spacy
+    from timbro.spacy_model import load_spacy
 
-    try:
-        return spacy.load("en_core_web_sm", disable=["ner", "lemmatizer", "parser"])
-    except OSError as e:  # model isn't a pip dep; spaCy ships it via a separate download
-        raise OSError("Run: uv run python -m spacy download en_core_web_sm") from e
+    return load_spacy(disable=["ner", "lemmatizer", "parser"])
 
 
 @lru_cache(maxsize=1)
@@ -119,8 +94,8 @@ def read_corpus(directory: str | Path) -> list[str]:
     """All .md/.txt files in a dir, YAML frontmatter stripped."""
     d = Path(directory)
     files = sorted([*d.glob("*.md"), *d.glob("*.txt")])
-    # ponytail: strip frontmatter only; code fences / blockquotes left in as part
-    # of his texture. Strip them too if they prove to be topic noise, not style.
+    # Strip frontmatter only; code fences / blockquotes are left in as part of the
+    # voice's texture. Strip them too if they prove to be topic noise, not style.
     return [_FRONTMATTER.sub("", f.read_text(encoding="utf-8")) for f in files]
 
 
@@ -147,9 +122,30 @@ def _struct_vec(text: str) -> tuple[float, ...]:
     return tuple(float(struct.get(name) or 0.0) for name in STRUCT_AXIS_NAMES)
 
 
-def _label(name: str) -> str:
-    """POS or tell label for a feature, so the hint reads as advice not a feature id."""
-    return POS_LABEL[name[4:]] if name.startswith("pos_") else TELL_LABEL[name[5:]]
+# Structural neutral placeholder, not a tunable prior (those live in config.py): this
+# axis group runs only contrastively today -- the reference is corpus-derived at fit
+# (smean/sstd) and `markdown_report` returns [] with no corpus. Derived from
+# STRUCT_AXIS_NAMES so the length can't drift from the axis tuple.
+MARKDOWN_REFERENCE = Reference(
+    mean=tuple(0.0 for _ in STRUCT_AXIS_NAMES),
+    spread=tuple(1.0 for _ in STRUCT_AXIS_NAMES),
+    strength=0.0,
+)
+
+
+class _MarkdownMetric:
+    """Markdown-structure axis group as a `Metric`. `extract` returns the struct feature
+    vector in `STRUCT_AXIS_NAMES` order for one raw document."""
+
+    name = "markdown"
+    axes = STRUCT_AXIS_NAMES
+    prior = MARKDOWN_REFERENCE
+
+    def extract(self, text: str) -> tuple[float, ...]:
+        return _struct_vec(text)
+
+
+MARKDOWN_METRIC = register(_MarkdownMetric())
 
 
 def features(text: str) -> dict[str, float]:
@@ -173,42 +169,6 @@ def _confidence(exemplar_X: np.ndarray, contrast_X: np.ndarray) -> np.ndarray:
     Xs = (X - X.mean(0)) / (X.std(0) + 1e-9)
     ys = (y - y.mean()) / (y.std() + 1e-9)
     return ((Xs * ys[:, None]).mean(0)) ** 2
-
-
-@dataclass
-class FeatureMove:
-    feature: str
-    current_z: float
-    delta: float        # signed move toward your corpus mean (target z = 0)
-    confidence: float   # R^2: how reliably this feature marks your voice (0-1)
-    hint: str
-
-    def to_dict(self) -> dict:
-        return asdict(self)
-
-
-@dataclass
-class MarkdownAxis:
-    """One markdown-structure axis: where the draft sits vs the corpus (z-score) and the
-    named direction back toward the corpus pole. Separate from FeatureMove -- struct is a
-    standalone axis group, not part of the embedding/POS composite (issue #28)."""
-    axis: str
-    value: float        # the draft's raw feature value on this axis
-    corpus_mean: float
-    z: float            # draft's distance from corpus mean in corpus std units (0 = on-target)
-    direction: str      # imperative phrase toward the corpus mean, "" once |z| is negligible
-
-    def to_dict(self) -> dict:
-        return asdict(self)
-
-
-@dataclass
-class ScoreResult:
-    distance: float           # StyleDistance embedding kNN distance to your voice cloud
-    direction: list[FeatureMove]
-
-    def to_dict(self) -> dict:
-        return {"distance": self.distance, "direction": [m.to_dict() for m in self.direction]}
 
 
 def _knn(train_z: np.ndarray, z: np.ndarray, k: int) -> float:
@@ -252,9 +212,20 @@ class VoiceModel:
                  emean, estd, train_ez, top_k, knn_k,
                  exemplar_count, contrast_count, total_words, total_paragraphs,
                  health, warning, exemplar_floor, exemplar_spread, contrast_ceiling,
-                 smean=None, sstd=None):
+                 smean=None, sstd=None, hmean=None, hstd=None, hn=0,
+                 fmean=None, fstd=None, fn=0,
+                 cmean=None, cstd=None, cn=0):
         self.smean = smean            # struct axis mean / std over the exemplar corpus (#28)
         self.sstd = sstd              # -- separate group, z-scored independently of the composite
+        self.hmean = hmean            # hedge/booster corpus mean / std (#44) -- blended with the
+        self.hstd = hstd              # declared prior via Reference.blend, not used raw like smean/sstd
+        self.hn = hn                  # corpus doc count fed to Reference.blend as n
+        self.fmean = fmean            # function-word corpus mean / std (#45) -- same blend pattern as hedge
+        self.fstd = fstd
+        self.fn = fn                  # corpus doc count fed to Reference.blend as n
+        self.cmean = cmean            # concreteness corpus mean / std (#46) -- blended with the
+        self.cstd = cstd              # declared prior via Reference.blend, same treatment as hedge
+        self.cn = cn                  # corpus doc count fed to Reference.blend as n
         self.names = names            # POS feature names (direction is white-box)
         self.mean = pmean             # POS mean / std for z-scoring the direction
         self.std = pstd
@@ -292,9 +263,21 @@ class VoiceModel:
         # struct path (separate axis group #28): same z-score machinery as the POS path --
         # mean/std over the exemplar corpus, zero-variance axes guarded to std=1 so a
         # degenerate corpus yields z=0 (on-target) instead of inf/NaN.
-        S = np.array([_struct_vec(t) for t in texts], dtype=float)
+        S = np.array([MARKDOWN_METRIC.extract(t) for t in texts], dtype=float)
         smean, sstd = S.mean(0), S.std(0)
         sstd[sstd == 0] = 1.0
+        # hedge/booster path (#44): corpus mean/std, raw material for Reference.blend
+        # (not z-scored here directly -- hedge_report() blends this with the declared
+        # prior, unlike struct which has no prior and z-scores raw).
+        H = np.array([HEDGE_BOOSTER_METRIC.extract(t) for t in texts], dtype=float)
+        hmean, hstd = H.mean(0), H.std(0)
+        # function-word path (#45): same blend-with-prior treatment as hedge/booster.
+        F = np.array([FUNCTION_WORD_METRIC.extract(t) for t in texts], dtype=float)
+        fmean, fstd = F.mean(0), F.std(0)
+        # concreteness path (#46): same treatment as hedge/booster -- raw corpus mean/std,
+        # blended with the declared prior via Reference.blend in concreteness_report().
+        CN = np.array([CONCRETENESS_METRIC.extract(t) for t in texts], dtype=float)
+        cmean, cstd = CN.mean(0), CN.std(0)
         # embedding path (scalar)
         E = np.array([_style_vec(t) for t in texts])
         emean, estd = E.mean(0), E.std(0)
@@ -313,7 +296,9 @@ class VoiceModel:
                    emean, estd, train_ez, top_k, knn_k,
                    len(texts), len(contrast or []), total_words, total_paragraphs,
                    health, warning, exemplar_floor, exemplar_spread, contrast_ceiling,
-                   smean=smean, sstd=sstd)
+                   smean=smean, sstd=sstd, hmean=hmean, hstd=hstd, hn=len(texts),
+                   fmean=fmean, fstd=fstd, fn=len(texts),
+                   cmean=cmean, cstd=cstd, cn=len(texts))
 
     @classmethod
     def from_dir(cls, exemplars: str | Path, contrast: str | Path | None = None,
@@ -404,7 +389,7 @@ class VoiceModel:
         """
         if self.smean is None or self.sstd is None:
             return []
-        vec = np.array(_struct_vec(text), dtype=float)
+        vec = np.array(MARKDOWN_METRIC.extract(text), dtype=float)
         z = (vec - self.smean) / self.sstd
         out = []
         for i, (axis, raise_hint, lower_hint) in enumerate(MARKDOWN_AXES):
@@ -414,6 +399,81 @@ class VoiceModel:
             else:
                 direction = lower_hint if zi > 0 else raise_hint  # move back toward corpus mean
             out.append(MarkdownAxis(axis, float(vec[i]), float(self.smean[i]), zi, direction))
+        return out
+
+    def hedge_report(self, text: str) -> list[HedgeAxis]:
+        """Per-axis hedge/booster distance from the reference (issue #44).
+
+        Unlike `markdown_report`, this axis always has a reference: the declared prior
+        (`HEDGE_BOOSTER_REFERENCE`) blended with the corpus mean/std via `Reference.blend`,
+        weighted by `hn` (the corpus doc count) against the prior's `strength`. With no
+        corpus (hn=0) `blend` passes the prior through unchanged, so this still reports
+        something sane for a `check`-style no-profile call. Never touches the embedding
+        distance or POS direction -- standalone axis group, same as markdown.
+        """
+        vec = np.array(HEDGE_BOOSTER_METRIC.extract(text), dtype=float)
+        prior = HEDGE_BOOSTER_METRIC.prior
+        corpus_mean = self.hmean if self.hmean is not None else prior.mean
+        corpus_std = self.hstd if self.hstd is not None else prior.spread
+        ref_mean, ref_spread = prior.blend(corpus_mean, corpus_std, self.hn)
+        out = []
+        for i, (axis, raise_hint, lower_hint) in enumerate(HEDGE_AXES):
+            spread = ref_spread[i] or 1.0
+            zi = float((vec[i] - ref_mean[i]) / spread)
+            if abs(zi) < HEDGE_Z_TOL:
+                direction = ""
+            else:
+                direction = lower_hint if zi > 0 else raise_hint  # move back toward the reference
+            out.append(HedgeAxis(axis, float(vec[i]), float(ref_mean[i]), zi, direction))
+        return out
+
+    def fw_report(self, text: str) -> list[FwAxis]:
+        """Per-axis function-word distance from the reference (issue #45).
+
+        Same treatment as `hedge_report`: always has a reference (the declared prior,
+        `FUNCTION_WORD_REFERENCE`), blended with the corpus mean/std via `Reference.blend`
+        weighted by `fn` against the prior's `strength`. With no corpus (fn=0) `blend`
+        passes the prior through unchanged. Never touches the embedding distance or POS
+        direction -- standalone axis group, same as markdown/hedge.
+        """
+        vec = np.array(FUNCTION_WORD_METRIC.extract(text), dtype=float)
+        prior = FUNCTION_WORD_METRIC.prior
+        corpus_mean = self.fmean if self.fmean is not None else prior.mean
+        corpus_std = self.fstd if self.fstd is not None else prior.spread
+        ref_mean, ref_spread = prior.blend(corpus_mean, corpus_std, self.fn)
+        out = []
+        for i, (axis, raise_hint, lower_hint) in enumerate(FW_AXES):
+            spread = ref_spread[i] or 1.0
+            zi = float((vec[i] - ref_mean[i]) / spread)
+            if abs(zi) < FW_Z_TOL:
+                direction = ""
+            else:
+                direction = lower_hint if zi > 0 else raise_hint  # move back toward the reference
+            out.append(FwAxis(axis, float(vec[i]), float(ref_mean[i]), zi, direction))
+        return out
+
+    def concreteness_report(self, text: str) -> list[ConcretenessAxis]:
+        """The concreteness axis vs the reference (issue #46). Same blend-with-prior
+        treatment as `hedge_report`: the declared prior (`CONCRETENESS_REFERENCE`)
+        blended with the corpus mean/std via `Reference.blend`, weighted by `cn` against
+        the prior's `strength`. With no corpus (cn=0) `blend` passes the prior through
+        unchanged. Standalone axis group -- never touches the embedding distance or POS
+        direction.
+        """
+        vec = np.array(CONCRETENESS_METRIC.extract(text), dtype=float)
+        prior = CONCRETENESS_METRIC.prior
+        corpus_mean = self.cmean if self.cmean is not None else prior.mean
+        corpus_std = self.cstd if self.cstd is not None else prior.spread
+        ref_mean, ref_spread = prior.blend(corpus_mean, corpus_std, self.cn)
+        out = []
+        for i, (axis, raise_hint, lower_hint) in enumerate(CONCRETENESS_AXES):
+            spread = ref_spread[i] or 1.0
+            zi = float((vec[i] - ref_mean[i]) / spread)
+            if abs(zi) < CONCRETENESS_Z_TOL:
+                direction = ""
+            else:
+                direction = lower_hint if zi > 0 else raise_hint  # move back toward the reference
+            out.append(ConcretenessAxis(axis, float(vec[i]), float(ref_mean[i]), zi, direction))
         return out
 
 

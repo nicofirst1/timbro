@@ -10,7 +10,7 @@ Two gates (PLAN sec 7/8), run per document and averaged:
   - shuffle test: original order should beat >80% of random permutations on coherence.
 
 If insertion ~ chance and shuffle < 60%, order isn't signal here -> drop the flow
-layer entirely. # ponytail: no flow features until these gates earn them.
+layer entirely. No flow features until these gates earn them.
 
 Usage: uv run python -m timbro.flow data/exemplars
 """
@@ -22,13 +22,12 @@ from dataclasses import asdict, dataclass
 
 import numpy as np
 
-from timbro.model import read_corpus
 from timbro.text import _model, split_paragraphs
 
 
 def paragraphs(text: str, min_words: int = 15) -> list[str]:
     # min_words drops markdown headers / one-liners; code fences may survive.
-    # ponytail: accept that noise; strip fences only if the gate is borderline.
+    # Accept that noise; strip fences only if the gate is borderline.
     return split_paragraphs(text, min_words)
 
 
@@ -89,7 +88,7 @@ def novelty_curve(emb: np.ndarray) -> np.ndarray:
 
 
 def flow_report(text: str) -> FlowReport:
-    # ponytail: doc-local geometry, no corpus-mean centering yet -- add when flow is
+    # Doc-local geometry, no corpus-mean centering yet -- add when flow is
     # compared across docs, not just reported for one draft.
     emb = embed(paragraphs(text))
     nov = novelty_curve(emb)
@@ -106,6 +105,8 @@ def flow_report(text: str) -> FlowReport:
 
 
 if __name__ == "__main__":
+    from timbro.model import read_corpus  # lazy: avoids a model<->report<->flow import cycle
+
     docs = read_corpus(sys.argv[1])
     embs = [embed(paragraphs(d)) for d in docs]
     embs = [e for e in embs if len(e) >= 4]  # need a few paragraphs to test order

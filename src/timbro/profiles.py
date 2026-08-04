@@ -1,7 +1,9 @@
 """Manage named Timbro corpus profiles.
 
-Profiles are folder pairs under a root directory, by default `~/.timbro/profiles/`
-(override with `TIMBRO_PROFILE_ROOT`):
+Profiles are folder pairs under a root directory. Root resolution precedence
+(highest first): the `root` argument, `TIMBRO_PROFILE_ROOT` env var, an existing
+legacy `~/.timbro/profiles/` directory, then the XDG default
+`$XDG_DATA_HOME/timbro/profiles` (`$XDG_DATA_HOME` falls back to `~/.local/share`):
 
     <root>/<name>/exemplars/
     <root>/<name>/contrast/
@@ -67,11 +69,15 @@ class Profile:
 
 
 def profile_root(root: str | Path | None = None) -> Path:
-    # ponytail: default to ~/.timbro/profiles so profiles are user-global, not CWD-relative
-    base = Path(root) if root is not None else Path(
-        os.environ.get("TIMBRO_PROFILE_ROOT", Path.home() / ".timbro" / "profiles")
-    ).expanduser()
-    return base.resolve()
+    if root is not None:
+        return Path(root).expanduser().resolve()
+    if "TIMBRO_PROFILE_ROOT" in os.environ:
+        return Path(os.environ["TIMBRO_PROFILE_ROOT"]).expanduser().resolve()
+    legacy = Path.home() / ".timbro" / "profiles"
+    if legacy.exists():
+        return legacy.resolve()
+    xdg_data_home = os.environ.get("XDG_DATA_HOME") or str(Path.home() / ".local" / "share")
+    return (Path(xdg_data_home).expanduser() / "timbro" / "profiles").resolve()
 
 
 def normalize_profile_name(name: str) -> str:

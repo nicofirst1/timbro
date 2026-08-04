@@ -6,7 +6,6 @@ Measures a draft's distance from a target voice and returns a named revision dir
 
 All planned work lives in GitHub issues (`gh issue list`), grouped into milestones. **Before starting anything substantive, read the relevant issue and work within it** — don't invent parallel work; if something is missing, add an issue to the right milestone instead.
 
-
 ### Implementer guardrails
 
 Issues are labeled by required capability: `agent:mechanical` = fully specified, follow the "Implementer spec" section literally; `agent:judgment` = has open taste/decision surface — ask the user before deviating or deciding, don't guess.
@@ -23,7 +22,7 @@ Issues are labeled by required capability: `agent:mechanical` = fully specified,
 - `uv run timbro-mcp` — MCP server (stdio)
 - `uv run python -m timbro.model` — core smoke test
 - `uv run ruff check src/` — lint
-- Corpus: `TIMBRO_EXEMPLARS` (toward) / `TIMBRO_CONTRAST` (away). Named profiles live in `~/.timbro/profiles/<name>/{exemplars,contrast}/` by default (override with `TIMBRO_PROFILE_ROOT`).
+- Corpus: `TIMBRO_EXEMPLARS` (toward) / `TIMBRO_CONTRAST` (away). Named profiles live under `$XDG_DATA_HOME/timbro/profiles/<name>/{exemplars,contrast}/` by default (`$XDG_DATA_HOME` falls back to `~/.local/share`); an existing `~/.timbro/profiles/` is used instead if present (legacy installs); `TIMBRO_PROFILE_ROOT` overrides both.
 
 ## Releasing an update
 

@@ -31,7 +31,7 @@ _TABLE_SEPARATOR = re.compile(r"(?m)^[ \t]*:?-{2,}:?(?:[ \t]*\|[ \t]*:?-{2,}:?)+
 _BULLET_LIST = re.compile(r"^[ \t]*[-*+][ \t]+")
 _ORDERED_LIST = re.compile(r"^[ \t]*\d+\.[ \t]+")
 _BLANK_LINE = re.compile(r"\n[ \t]*\n")
-_SENTENCE_END = re.compile(r"[.!?]+")  # ponytail: naive sentence count, no spaCy in _struct
+_SENTENCE_END = re.compile(r"[.!?]+")  # naive sentence count; _struct runs without spaCy
 
 # Folk-advice exploratory features (#21).
 _INLINE_CODE_SPAN = re.compile(r"`([^`\n]+)`")
@@ -142,12 +142,9 @@ _TD_RENAME = {
 
 @lru_cache(maxsize=1)
 def _analyze_nlp():
-    import spacy
+    from timbro.spacy_model import load_spacy
 
-    try:
-        nlp = spacy.load("en_core_web_sm", disable=["ner"])
-    except OSError as e:  # pragma: no cover
-        raise OSError("Run: uv run python -m spacy download en_core_web_sm") from e
+    nlp = load_spacy(disable=["ner"])
     for name in ("descriptive_stats", "readability", "dependency_distance", "coherence"):
         nlp.add_pipe(f"textdescriptives/{name}")
     return nlp

@@ -209,6 +209,30 @@ def main():
                 print(f"  - {ax['direction']:26s} (z {ax['z']:+.2f}, {ax['axis'][7:]})")
         else:
             print("  - on-target: every structure axis within corpus spread")
+    if not args.quiet and payload.get("hedge"):
+        hoff = [ax for ax in payload["hedge"] if ax["direction"]]
+        print("hedge/booster stance:")
+        if hoff:
+            for ax in sorted(hoff, key=lambda a: -abs(a["z"])):
+                print(f"  - {ax['direction']:38s} (z {ax['z']:+.2f}, {ax['axis']})")
+        else:
+            print("  - on-target: within the reference spread")
+    if not args.quiet and payload.get("fw"):
+        foff = [ax for ax in payload["fw"] if ax["direction"]]
+        print("function words vs reference:")
+        if foff:
+            for ax in sorted(foff, key=lambda a: -abs(a["z"])):
+                print(f"  - {ax['direction']:38s} (z {ax['z']:+.2f}, {ax['axis']})")
+        else:
+            print("  - on-target: within the reference spread")
+    if not args.quiet and payload.get("concreteness"):
+        coff = [ax for ax in payload["concreteness"] if ax["direction"]]
+        print("concreteness:")
+        if coff:
+            for ax in sorted(coff, key=lambda a: -abs(a["z"])):
+                print(f"  - {ax['direction']:38s} (z {ax['z']:+.2f}, {ax['axis']})")
+        else:
+            print("  - on-target: within the reference spread")
     if not args.quiet and payload.get("spans"):
         print("highest-leverage paragraphs:")
         for span in payload["spans"]:

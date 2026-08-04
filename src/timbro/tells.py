@@ -21,6 +21,9 @@ from __future__ import annotations
 import re
 from functools import lru_cache
 
+from timbro.config import TELL_PRIOR  # noqa: F401  (re-exported: model.py/checks.py/tests import it from here)
+from timbro.metric import Reference, register
+
 # Plain-English labels so a flagged tell reads as advice, not a feature id.
 TELL_LABEL = {
     "dash": "em/en dashes",
@@ -44,16 +47,8 @@ TELL_LABEL = {
     "staccato_run": "staccato run (3+ consecutive sentences under 8 words)",
 }
 
-# Confidence floor in [0,1], seeded from the Reddit study's citation frequency:
-# em-dash is "the single most reliable tell"; "not X but Y" is the named "AI accent".
-TELL_PRIOR = {
-    "dash": 0.70, "not_x_y": 0.55, "diction": 0.50, "sycophancy": 0.40,
-    "signpost": 0.35, "hr_divider": 0.35, "conclusion": 0.30, "emoji": 0.30,
-    "rhetorical_opener": 0.30, "bold_leadin": 0.25, "rule_of_three": 0.25,
-    "filler": 0.25, "aphorism": 0.25, "curly_quote": 0.20,
-    "dropped_subject": 0.35, "empty_punch": 0.30, "staccato_run": 0.30,
-    "quote_punct": 0.25, "colon_list": 0.22,
-}
+# TELL_PRIOR (confidence floor, seeded from the Reddit study's citation frequency) lives
+# in config.py now (PR #57 review); re-imported above.
 
 _FRONTMATTER = re.compile(r"\A---\n.*?\n---\n", re.DOTALL)
 _WORD = re.compile(r"\b\w+\b")
@@ -131,15 +126,12 @@ TELL_NAMES = tuple(TELL_LABEL)  # stable order for the feature vector
 
 @lru_cache(maxsize=1)
 def _nlp():
-    # ponytail: a second spaCy load (separate from model.py's, which disables the
+    # A second spaCy load (separate from model.py's, which disables the
     # parser and can't give sentence boundaries). Deliberately kept as its own
     # lru_cache(size=1) loader rather than threading a Doc through every call site.
-    import spacy
+    from timbro.spacy_model import load_spacy
 
-    try:
-        nlp = spacy.load("en_core_web_sm", disable=["ner", "lemmatizer", "parser"])
-    except OSError as e:  # model isn't a pip dep; spaCy ships it via a separate download
-        raise OSError("Run: uv run python -m spacy download en_core_web_sm") from e
+    nlp = load_spacy(disable=["ner", "lemmatizer", "parser"])
     nlp.add_pipe("sentencizer")  # rule-based boundaries; no statistical parser
     return nlp
 
@@ -251,6 +243,32 @@ def tell_baseline(texts: list[str]) -> dict[str, tuple[float, float]]:
         std = (sum((v - mean) ** 2 for v in vals) / len(vals)) ** 0.5
         out[name] = (mean, std)
     return out
+
+
+# Structural zero placeholder, not a tunable prior (those live in config.py): a clean
+# exemplar corpus carries ~0 tells, and strength=0 means a real corpus fully sets the
+# mean/std at fit. Derived from TELL_NAMES so the length can't drift from the detectors.
+TELL_REFERENCE = Reference(
+    mean=tuple(0.0 for _ in TELL_NAMES),
+    spread=tuple(1.0 for _ in TELL_NAMES),
+    strength=0.0,
+)
+
+
+class _TellMetric:
+    """The AI-tell axis group as a `Metric`. `extract` returns the per-1000-word rates in
+    `TELL_NAMES` order; the reference declares the clean-prose mean (~0)."""
+
+    name = "tells"
+    axes = tuple(f"tell_{n}" for n in TELL_NAMES)
+    prior = TELL_REFERENCE
+
+    def extract(self, text: str) -> tuple[float, ...]:
+        r = tell_rates(text)
+        return tuple(r[f"tell_{n}"] for n in TELL_NAMES)
+
+
+TELL_METRIC = register(_TellMetric())
 
 
 if __name__ == "__main__":
