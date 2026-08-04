@@ -1,0 +1,1 @@
+In the typical sequence of color phases:the green light allows traffic to proceed in the direction denoted, if it is safe to do sothe yellow/amber light denoting prepare to stop short of the intersection, if it is safe to do sothe red signal prohibits any traffic from proceeding

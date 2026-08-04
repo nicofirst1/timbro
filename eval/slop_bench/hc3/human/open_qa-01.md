@@ -1,0 +1,1 @@
+Camping suggested that it would occur at 6 pm local time, with the rapture sweeping the globe time zone by time zone, while some of his supporters claimed that around 200 million people (approximately 3% of the world's population) would be 'raptured'.

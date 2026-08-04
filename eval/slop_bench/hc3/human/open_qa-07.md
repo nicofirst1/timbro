@@ -1,0 +1,1 @@
+The data stored in the warehouse are uploaded from the operational systems (such as marketing, sales etc., shown in the figure to the right).The data may pass through an operational data store for additional operations before they are used in the DW for reporting.The access layer helps users retrieve data.

@@ -1,0 +1,1 @@
+The standard gold bar held as gold reserves by central banks and traded among bullion dealers is the 400-troy-ounce (12.4 kg or 438.9 ounces) Good Delivery gold bar.The kilobar, which is to say 1000 grams in mass, is the bar that is more manageable and is used extensively for trading and investment.

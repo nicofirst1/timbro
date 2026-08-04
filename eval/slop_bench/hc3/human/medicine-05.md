@@ -1,0 +1,1 @@
+hello, If you are getting periods on time but no ovulation test positive .It can be due to anovulation or results of ovulation strips are not reliable. You should  go for follicular studies usg from 10 th day of cycle to rule out ovulation problem .If follicular studies reports are normal go for Hysterosalpingography  to check tubal patency .

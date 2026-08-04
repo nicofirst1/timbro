@@ -1,0 +1,1 @@
+Doctor of Osteopathic Medicine (D.O. or DO) is a professional doctoral degree for physicians offered by medical schools in the United States .Holders of the D.O. degree are known as osteopathic physicians and have the same rights, privileges, and responsibilities as physicians with a Doctor of Medicine degree (M.D.).
