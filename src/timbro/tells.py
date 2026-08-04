@@ -34,6 +34,7 @@ TELL_LABEL = {
     "sycophancy": "sycophantic / collaborative filler (great question, hope this helps)",
     "filler": "filler phrases (in order to, due to the fact that)",
     "aphorism": "authority-trope aphorisms (at its core, the real question is)",
+    "self_narration": "essay self-narration / meta-framing (which brings us to, here the story stops)",
     "rule_of_three": "rule-of-three triads",
     "emoji": "emoji",
     "curly_quote": "curly quotation marks",
@@ -99,6 +100,22 @@ _PATTERNS: dict[str, re.Pattern] = {
     "aphorism": re.compile(
         r"\b(?:at its core|the real question is|what really matters|"
         r"at the end of the day|the key takeaway)\b",
+        re.IGNORECASE,
+    ),
+    # Essay self-narration / meta-framing (#34): the piece announcing its own moves
+    # or performing a mood about them. Function-defined and open-ended, so this is a
+    # curated high-precision family (seeded from real draft-review flags), not a
+    # closed set; the low prior + rate normalisation carry the "overuse" judgment.
+    # Kept disjoint from signpost/aphorism/conclusion so it doesn't double-count.
+    "self_narration": re.compile(
+        r"\b(?:worth (?:stating|saying) plainly|no wonder|"
+        r"here the story|the story (?:stops|starts|keeps|picks up)|"
+        r"the thread (?:i|we) (?:pull|pick up|follow)|"
+        r"which brings (?:me|us) to|let me back up|"
+        r"before we (?:go|move on|continue)|"
+        r"as (?:i|we) (?:said|noted|mentioned) (?:above|earlier|before)|"
+        r"more on (?:that|this) later|we'?ll (?:come back|return) to (?:that|this)|"
+        r"bear with me|stay with me)\b",
         re.IGNORECASE,
     ),
     # Triadic list: "A, B, and C" — a tell only in overuse, so it earns a low prior.
