@@ -101,30 +101,30 @@ CONCRETENESS_REFERENCE = Reference(
 )
 
 
-# --- fw.py: function-word axis prior (#45) ----------------------------------------------
+# --- fw.py: function-word axis prior (#45, recomputed #59) ------------------------------
 
-# Empirically derived (unlike hedge.py's #44 hand-reasoned prior): function-word POS
-# rates are high-frequency grammatical categories -- many occurrences per document even
-# in a small corpus -- unlike hedge.py's sparse lexical-choice counts, where a 7-doc
-# sample is too noisy to trust a mean over (that's exactly why hedge.py used
-# order-of-magnitude reasoning instead of a corpus mean). So this prior IS computed from
-# the packaged sample corpus, matching hedge.py's convention in spirit (propose numbers,
-# flag for review, modest strength) but not its literal derivation mechanism.
+# Recomputed from a public-domain corpus (#59) -- the original prior below was a mean
+# over the packaged 7-doc sample, too few documents to trust as a general-English
+# baseline. Empirically derived (function-word POS rates are high-frequency
+# grammatical categories -- many occurrences even within a single ~1000-word chunk --
+# unlike hedge.py's sparse lexical-choice counts, which stayed hand-reasoned for that
+# reason). strength=2.0 kept unchanged (issue spec): matches hedge.py's modest
+# pseudo-count role, no reason found to pick a different number for this axis.
 #
-# Dataset: src/timbro/sample/exemplars/ (3 docs) + src/timbro/sample/contrast/ (4 docs),
-# combined, N=7. Statistic: mean (and population stdev for spread) of the per-doc rate,
-# computed via `function_word_rates` itself (same word-count denominator as the shipped
-# extractor, punctuation excluded).
-#   first_person_sg:   mean=35.30   pstdev=36.01
-#   article_rate:      mean=104.85  pstdev=29.15
-#   preposition_rate:  mean=72.30   pstdev=22.69
-#   conjunction_rate:  mean=50.24   pstdev=20.16
-#   pronoun_rate:      mean=113.21  pstdev=26.22
-# strength=2.0: reuses hedge.py's literal value -- same "modest pseudo-count" role, no
-# documented reason found to pick a different number for this axis.
-# PROPOSED -- flagged in the PR body for maintainer confirmation.
+# Dataset: 7 Project Gutenberg texts (4 fiction + 3 non-fiction, IDs and titles in
+# scripts/derive_fw_reference.py), Gutenberg header/footer stripped, chunked into
+# 750 documents of 1000 word-tokens each (768,906 words total). Statistic: mean (and
+# population stdev for spread) of `function_word_rates` per chunk -- same extractor,
+# same per-1000-word denominator as the shipped metric.
+#   first_person_sg:   mean=27.42   pstdev=25.14   (was 35.30 / 36.01)
+#   article_rate:      mean=80.52   pstdev=20.86   (was 104.85 / 29.15)
+#   preposition_rate:  mean=122.57  pstdev=17.99   (was 72.30 / 22.69)
+#   conjunction_rate:  mean=72.36   pstdev=13.46   (was 50.24 / 20.16)
+#   pronoun_rate:      mean=112.81  pstdev=40.16   (was 113.21 / 26.22)
+# Reproducible via `uv run python scripts/derive_fw_reference.py` (re-downloads the
+# corpus and re-derives; network required at derivation time only).
 FUNCTION_WORD_REFERENCE = Reference(
-    mean=(35.30, 104.85, 72.30, 50.24, 113.21),
-    spread=(36.01, 29.15, 22.69, 20.16, 26.22),
+    mean=(27.42, 80.52, 122.57, 72.36, 112.81),
+    spread=(25.14, 20.86, 17.99, 13.46, 40.16),
     strength=2.0,
 )
