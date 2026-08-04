@@ -177,12 +177,11 @@ def _struct_vec(text: str) -> tuple[float, ...]:
     return tuple(float(struct.get(name) or 0.0) for name in STRUCT_AXIS_NAMES)
 
 
-# --- Metric port (#43) --------------------------------------------------------------
 # The markdown-structure axes as a `Metric`. `extract` is `_struct_vec` (STRUCT_AXIS_NAMES
 # order); the reference is corpus-derived at fit (smean/sstd), so this axis group runs
 # only contrastively today -- `markdown_report` returns [] with no corpus and the declared
 # prior below is a formal neutral placeholder (mean 0 / spread 1) until a corpus-free
-# markdown default is chosen. `markdown_report` keeps using smean/sstd; no number moves.
+# markdown default is chosen.
 MARKDOWN_REFERENCE = Reference(
     mean=tuple(0.0 for _ in STRUCT_AXIS_NAMES),
     spread=tuple(1.0 for _ in STRUCT_AXIS_NAMES),

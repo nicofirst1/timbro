@@ -252,12 +252,10 @@ def tell_baseline(texts: list[str]) -> dict[str, tuple[float, float]]:
     return out
 
 
-# --- Metric port (#43) --------------------------------------------------------------
 # The tells were already the prior-shaped axis: `TELL_PRIOR` is a per-tell confidence
 # floor so a tell surfaces with no contrast corpus. This exposes the same extractor
 # through the `Metric` interface. A clean exemplar corpus carries ~0 tells, so the
-# reference MEAN is 0 per axis; `TELL_PRIOR` stays the confidence floor it always was
-# (consumed in model.py unchanged -- no number moves).
+# reference MEAN is 0 per axis; `TELL_PRIOR` stays the confidence floor it always was.
 TELL_REFERENCE = Reference(
     mean=tuple(0.0 for _ in TELL_NAMES),      # clean prose ~ 0 tells / 1000 words
     spread=tuple(1.0 for _ in TELL_NAMES),    # unit spread; z-scoring uses the corpus std at fit

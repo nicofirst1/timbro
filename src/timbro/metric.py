@@ -1,17 +1,14 @@
-"""One interface for every scalar style axis: an extractor plus a declared prior (#43).
+"""One interface for every scalar style axis: an extractor plus a declared prior.
 
 A metric is the same two-part machine everywhere: an `extract` pulls raw scalars off
 *one* draft (hedge rate, sentence length, tell rate), and a `Reference` says what those
 scalars are expected to be. "Absolute vs contrastive" stops being two code paths and
 becomes one runtime question -- was a corpus supplied? No corpus: judge against the
 declared `prior`. Corpus present: blend the prior with the corpus mean/std, weighted by
-`strength`. `Reference` is `TELL_PRIOR` generalised.
+`strength`.
 
-The tells and the markdown-structure axes are ported onto this here to prove the shape
-holds; new language axes (#44/#45/#46) implement `Metric` and register, nothing else.
-This module moves structure, not numbers: the ported metrics resolve their reference
-exactly as before (see model.py), so scores are unchanged. `Reference.blend` is the
-prior->posterior formula the new axes use.
+Every style axis (tells, markdown structure, and new language axes) implements `Metric`
+and registers. `Reference.blend` is the prior->posterior formula they all share.
 """
 
 from __future__ import annotations
@@ -32,12 +29,10 @@ class Reference:
     strength: float
 
     def blend(self, corpus_mean, corpus_std, n: int) -> tuple[tuple[float, ...], tuple[float, ...]]:
-        """Precision-weighted posterior of prior + corpus (open question #1, the confirmed
-        formula): `strength` is the prior's pseudo-count, the corpus mean wins in proportion
-        to how many documents it has. With `n == 0` the prior passes through unchanged; as
-        `n` grows the corpus dominates. Returns (mean, spread) per axis. Used by the new
-        axes (#44/#45/#46); the ported tells/markdown keep their existing reference path so
-        this refactor changes no numbers.
+        """Precision-weighted posterior of prior + corpus: `strength` is the prior's
+        pseudo-count, the corpus mean wins in proportion to how many documents it has.
+        With `n == 0` the prior passes through unchanged; as `n` grows the corpus
+        dominates. Returns (mean, spread) per axis.
 
         ponytail: pooled by document count, not inverse-variance -- `strength` IS the knob
         the spec asked for. A full inverse-variance pool is only worth it if a corpus needs
@@ -68,7 +63,7 @@ class Metric(Protocol):
         """Raw scalars on ONE draft, one per entry in `axes`. Cacheable: pure function of
         the text. Takes raw text, not a pre-parsed spaCy doc -- markdown axes need the raw
         markup and text is the common denominator; a metric that needs POS parses internally
-        via the shared cached loader. (Interpretation note in the #43 PR.)"""
+        via the shared cached loader."""
         ...
 
 
@@ -86,15 +81,12 @@ def register(metric: Metric) -> Metric:
 
 @lru_cache(maxsize=1)
 def _nlp():
-    # Shared lemma+POS pipeline for axes that need more than tells.py's tagger-only
-    # parse (#44 hedge/booster; future #45/#46). Separate loader/cache from tells.py's
-    # `_nlp()` (tagger only, no lemmatizer) and model.py's `_nlp()` (POS rates, no
-    # lemmatizer/sentencizer) -- each caller enables only what it needs, and spaCy
-    # doesn't let you re-enable a disabled component after load, so three call sites
-    # want three pipelines. tagger + attribute_ruler + lemmatizer stay enabled (the
-    # lemmatizer needs the tagger's output); ner/parser disabled for speed, same as
-    # tells.py. sentencizer is added (cheap, rule-based, not the statistical parser) so
-    # sentence-boundary axes (#45/#46 candidates) don't need a second parse.
+    # Shared lemma+POS pipeline for axes that need more than a tagger-only parse.
+    # Separate loader/cache from the other `_nlp()` variants in this codebase -- each
+    # caller enables only what it needs, and spaCy doesn't let you re-enable a disabled
+    # component after load. tagger + attribute_ruler + lemmatizer stay enabled (the
+    # lemmatizer needs the tagger's output); ner/parser disabled for speed. sentencizer
+    # is added (cheap, rule-based, not the statistical parser) for sentence-boundary axes.
     import spacy
 
     try:
