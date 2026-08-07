@@ -34,6 +34,8 @@ TELL_LABEL = {
     "sycophancy": "sycophantic / collaborative filler (great question, hope this helps)",
     "filler": "filler phrases (in order to, due to the fact that)",
     "aphorism": "authority-trope aphorisms (at its core, the real question is)",
+    "self_narration": "essay self-narration / meta-framing (which brings us to, here the story stops)",
+    "apologetic": "apologetic / over-hedged stance (I want to be careful, what I cannot do, read this as X not Y)",
     "rule_of_three": "rule-of-three triads",
     "emoji": "emoji",
     "curly_quote": "curly quotation marks",
@@ -99,6 +101,41 @@ _PATTERNS: dict[str, re.Pattern] = {
     "aphorism": re.compile(
         r"\b(?:at its core|the real question is|what really matters|"
         r"at the end of the day|the key takeaway)\b",
+        re.IGNORECASE,
+    ),
+    # Essay self-narration / meta-framing (#34): the piece announcing its own moves
+    # or performing a mood about them. Function-defined and open-ended, so this is a
+    # curated high-precision family (seeded from real draft-review flags), not a
+    # closed set; the low prior + rate normalisation carry the "overuse" judgment.
+    # Kept disjoint from signpost/aphorism/conclusion so it doesn't double-count.
+    "self_narration": re.compile(
+        r"\b(?:worth (?:stating|saying) plainly|no wonder|"
+        r"here the story|the story (?:stops|starts|keeps|picks up)|"
+        r"the thread (?:i|we) (?:pull|pick up|follow)|"
+        r"which brings (?:me|us) to|let me back up|"
+        r"before we (?:go|move on|continue)|"
+        r"as (?:i|we) (?:said|noted|mentioned) (?:above|earlier|before)|"
+        r"more on (?:that|this) later|we'?ll (?:come back|return) to (?:that|this)|"
+        r"bear with me|stay with me)\b",
+        re.IGNORECASE,
+    ),
+    # Apologetic / over-hedged *stance* (#37): performed humility and self-negation
+    # frames, distinct from the `hedge` density metric (that counts hedge words; this
+    # catches the apology). A single flat caveat is correct prose, so like the other
+    # curated families this earns a low prior and lets the per-1k rate judge overuse.
+    # ponytail: only the frame *phrases* are reachable here; paragraph-level
+    # null-result mourning (an entire self-pitying paragraph) is a function of a whole
+    # passage, not a substring, so it is deliberately out of scope for this lexical tell.
+    "apologetic": re.compile(
+        r"\bi want to be careful\b"
+        r"|\bwhat i cannot (?:do|say|tell|claim|prove)\b"
+        r"|\bread this as\b[^.?!]{1,60}\bnot as\b"
+        r"|\bi don'?t want to overstate\b"
+        r"|\b(?:please )?don'?t read this as\b"
+        r"|\bthis is not to say\b"
+        r"|\bi could be wrong\b"
+        r"|\bfor what it'?s worth\b"
+        r"|\btake this with a grain of salt\b",
         re.IGNORECASE,
     ),
     # Triadic list: "A, B, and C" — a tell only in overuse, so it earns a low prior.

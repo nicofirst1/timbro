@@ -79,5 +79,29 @@ class StaccatoRunTest(unittest.TestCase):
         self.assertEqual(r["tell_staccato_run"], 0)
 
 
+class SelfNarrationTest(unittest.TestCase):
+    def test_slop_trips(self):
+        # essay announcing its own move (#34)
+        r = tell_rates("Which brings me to the second point. Here the story stops.")
+        self.assertGreater(r["tell_self_narration"], 0)
+
+    def test_clean_zero(self):
+        # plain narrative prose that does not talk about itself
+        r = tell_rates("The parser dropped a row so I added a guard and a test.")
+        self.assertEqual(r["tell_self_narration"], 0)
+
+
+class ApologeticTest(unittest.TestCase):
+    def test_slop_trips(self):
+        # performed-humility / self-negation frame (#37)
+        r = tell_rates("What I cannot do, with this data, is tell you it is better.")
+        self.assertGreater(r["tell_apologetic"], 0)
+
+    def test_clean_zero(self):
+        # a single flat statement of fact is not the tell
+        r = tell_rates("The result did not hold. I moved on to the next test.")
+        self.assertEqual(r["tell_apologetic"], 0)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -19,6 +19,7 @@ DIMENSION = {
     "rule_of_three": "diction",
     "not_x_y": "construction", "signpost": "construction", "conclusion": "construction",
     "sycophancy": "construction", "rhetorical_opener": "construction",
+    "self_narration": "construction", "apologetic": "construction",
     "empty_punch": "rhythm", "dropped_subject": "rhythm", "staccato_run": "rhythm",
     "dash": "formatting", "emoji": "formatting", "curly_quote": "formatting",
     "bold_leadin": "formatting", "hr_divider": "formatting", "quote_punct": "formatting",
