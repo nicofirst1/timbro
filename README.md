@@ -21,6 +21,10 @@
 
 ---
 
+<p align="center">
+  <img src="assets/demo.gif" alt="timbro slop catching AI-writing tells, then re-scoring PASS after the flagged text is cut" width="720">
+</p>
+
 **LLM prose has a tell.** Em/en dashes everywhere, "it's not X, it's Y", the _delve / tapestry / seamless_ vocabulary, a tidy wrap-up about the future. A reader feels it, but "sounds AI-written" is not something you can put in CI.
 
 Timbro makes it one. `timbro slop` runs ~19 deterministic detectors (regex + part-of-speech, no model, no network) and returns a verdict, four dimension scores, and the exact markers it found:
