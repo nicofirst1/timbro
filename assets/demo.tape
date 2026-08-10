@@ -22,14 +22,15 @@ Sleep 500ms
 Show
 
 # uvx cold-venv-resolve + spaCy load takes ~4-5s wall-clock; sleep past it
-# so typing doesn't race the command's still-streaming output (#11 rerender).
+# (so typing doesn't race the command's still-streaming output, #11 rerender)
+# plus ~4s of hold so the WARN result is actually readable before moving on.
 Type "uvx timbro slop draft.md"
 Enter
-Sleep 6s
+Sleep 9s
 
 Type "# cut the dash, the diction, the wrap-up"
 Enter
-Sleep 800ms
+Sleep 1500ms
 
 Hide
 Type "cp $REPO/assets/demo/draft.after.md draft.md && clear"
@@ -39,4 +40,4 @@ Show
 
 Type "uvx timbro slop draft.md"
 Enter
-Sleep 5s
+Sleep 7s
