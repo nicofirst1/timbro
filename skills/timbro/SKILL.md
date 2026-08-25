@@ -18,19 +18,21 @@ Timbro is pointed at a corpus via two env vars:
 
 If unset, Timbro falls back to a small packaged sample voice so it runs, but that is **not** the user's voice — never silently score a real draft against the sample.
 
+This skill is pinned to `timbro@0.7.1`. Every command below runs `uvx timbro@<version>` against that exact CLI release, no repo clone needed. `npx skills update` pulls newer instructions together with an updated pin, so instructions and CLI version can never drift apart.
+
 ## Pick a direction first — always ask
 
 Before scoring, **discover the available example/contrast pairs and let the user choose**:
 
-1. List the profiles with `uvx timbro@0.7.1 profiles list`.
+1. List the profiles with `uvx timbro@<version> profiles list`.
 2. Tell the user what's available and **ask which direction to align**: which set to move _toward_ (exemplars) and which to move _away from_ (contrast). Do not assume — the same draft pulls differently toward "academic" vs "clear" vs "casual".
-3. If nothing relevant exists, scaffold one with `uvx timbro@0.7.1 profiles init <name> --about "..."`, then add files with `uvx timbro@0.7.1 profiles add-file <name> <file> --to exemplars` or `--to contrast`.
+3. If nothing relevant exists, scaffold one with `uvx timbro@<version> profiles init <name> --about "..."`, then add files with `uvx timbro@<version> profiles add-file <name> <file> --to exemplars` or `--to contrast`.
 4. `.tex` files are acceptable in `add-file`: if `detex` is installed, Timbro converts them to cleaned Markdown on ingest.
 
 Prefer profile-native scoring over manual env setup:
 
 ```bash
-uvx timbro@0.7.1 score draft.md --profile <name>
+uvx timbro@<version> score draft.md --profile <name>
 ```
 
 ## Workflow
@@ -38,13 +40,13 @@ uvx timbro@0.7.1 score draft.md --profile <name>
 1. **Score the draft.** Write the draft to a file (or pipe via stdin) and run:
 
    ```bash
-   uvx timbro@0.7.1 score draft.md --profile <name>
+   uvx timbro@<version> score draft.md --profile <name>
    ```
 
    To compare multiple directions in one run:
 
    ```bash
-   uvx timbro@0.7.1 score draft.md --profile academic,clear,casual
+   uvx timbro@<version> score draft.md --profile academic,clear,casual
    ```
 
    You get a `distance` (smaller = more on-voice) and a `direction` — a ranked list of named, confidence-weighted moves like `fewer verbs`, `more conjunctions`, `more nouns`. Higher `confidence` = a more reliable signal; act on those first.
@@ -62,12 +64,12 @@ uvx timbro@0.7.1 score draft.md --profile <name>
 
 3. **Re-score.** Run `timbro score` on your revision. Confirm `distance` dropped. If it rose, you over-rotated — back off the lowest-confidence edits.
 
-4. **(Optional) verify content was preserved.** Save the original and revised text to files and run `uvx timbro@0.7.1 accept original.md revised.md` — it returns `accepted: true` only when the rewrite moved closer to the voice **and** kept the meaning (semantic similarity > 0.85). Use it as the stop condition.
+4. **(Optional) verify content was preserved.** Save the original and revised text to files and run `uvx timbro@<version> accept original.md revised.md` — it returns `accepted: true` only when the rewrite moved closer to the voice **and** kept the meaning (semantic similarity > 0.85). Use it as the stop condition.
 
 5. **Close the loop — teach the profile (offer, don't assume).** Once the loop converges on an accepted final, offer to save the pair into the profile — never do this silently. Ask the user to confirm first. On confirmation:
 
    ```bash
-   uvx timbro@0.7.1 profiles learn <name> --draft <original-draft> --final <accepted-final> --title <short-descriptive-slug>
+   uvx timbro@<version> profiles learn <name> --draft <original-draft> --final <accepted-final> --title <short-descriptive-slug>
    ```
 
    The final becomes an exemplar (move-toward), the raw draft becomes contrast (move-away). Because the two are topic-matched, this pair is an unusually clean voice signal, and the profile sharpens with each one you add.
@@ -85,8 +87,8 @@ Use Timbro whenever consistency with an _established_ body of writing matters: a
 When the question is _"does this read AI-generated?"_ rather than _"does this sound like the target?"_, run the corpus-free tells rubric:
 
 ```bash
-uvx timbro@0.7.1 slop draft.md          # human-readable verdict + ranked tells
-uvx timbro@0.7.1 slop draft.md --json   # {verdict, dimensions, findings}
+uvx timbro@<version> slop draft.md          # human-readable verdict + ranked tells
+uvx timbro@<version> slop draft.md --json   # {verdict, dimensions, findings}
 ```
 
 (`slop` is an alias for `timbro check --rubric slop`.) It flags the mechanical LLM fingerprints — em/en dashes, "it's not X, it's Y", delve/tapestry/leverage diction, signposting and wrap-up phrases, emoji, curly quotes, bold lead-in bullets, colon-lists, and uniform/staccato rhythm — grouped into four dimensions (diction, construction, rhythm, formatting). Pure regex + POS, offline, **no LLM judging LLM prose**. Reach for it on "check for AI slop", "de-slop this", "does this sound like an LLM wrote it". Each flagged tell is a marker to delete or vary, not a style dial — removing it only helps.
@@ -94,7 +96,7 @@ uvx timbro@0.7.1 slop draft.md --json   # {verdict, dimensions, findings}
 **Corpus-relative mode.** By default `slop` measures against zero — any em-dash is a tell. If a voice legitimately uses some tells (an em-dash habit, say), add `--profile <name>` to baseline against that profile's exemplar corpus instead: a tell is flagged only where the draft _overuses_ it relative to your own norm.
 
 ```bash
-uvx timbro@0.7.1 slop draft.md --profile <name>   # flag only tells you overuse vs your corpus
+uvx timbro@<version> slop draft.md --profile <name>   # flag only tells you overuse vs your corpus
 ```
 
 Use absolute mode (no profile) to answer "is this AI-generated?"; use `--profile` to answer "is this driftier than my own writing?".

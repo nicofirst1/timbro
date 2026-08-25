@@ -171,19 +171,12 @@ The two sentence-transformer models download from Hugging Face on first use. Eve
 
 ## Using Timbro with other coding agents
 
-The Claude Code skill also works in ~40 other coding agents (Cursor, Codex, Zed, aider, Cline, etc.) via `skills`, a distribution tool that copies `skills/timbro/SKILL.md` and its sibling files into the target agent's convention directory:
+Works in ~40 non-Claude agents (Cursor, Codex, Zed, aider, Cline, ...) via `skills`, which copies `skills/timbro/SKILL.md` into the target agent's convention dir, pinned to an exact CLI version so it runs with no repo clone:
 
 ```bash
-npx skills@latest add nicofirst1/timbro
+npx skills@latest add nicofirst1/timbro   # installs the skill, pinned to uvx timbro@0.7.1
+npx skills update                          # later: pulls newer instructions + CLI pin together
 ```
-
-The installed instructions invoke the CLI as `uvx timbro@0.7.1 ...` — an exact version pin, not a floating version — so it runs with no repo clone and always references a real, resolvable CLI version:
-
-```bash
-uvx timbro@0.7.1 check draft.md
-```
-
-Run `npx skills update` later to pull updated instructions — and with them, an updated pinned CLI version. The two channels move in lockstep because the version is embedded inside the instructions themselves.
 
 ## FAQ
 
