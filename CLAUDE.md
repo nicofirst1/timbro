@@ -35,6 +35,7 @@ The plugin updater compares by **version string** — without a bump it won't pi
 - `en_core_web_sm` is pinned as a direct-URL wheel dep (needs `tool.hatch.metadata.allow-direct-references`). No manual `spacy download`.
 - Defaults resolve relative to the package dir (`src/timbro/sample/`), not CWD — so the plugin works inside its cache sandbox.
 - `data/` is gitignored (private corpora); the shipped `src/timbro/sample/` is the only corpus that publishes.
+- `TIMBRO_NO_LOG=1` disables the per-profile learn-event log (`<profile>/runs.jsonl`, appended by `profiles.learn()` via `profilelog.log_learn`). Unset by default (logging on); it's a user/test opt-out, read from the env, not set anywhere in code.
 
 ## Agent skills
 

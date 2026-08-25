@@ -27,6 +27,7 @@ from sklearn.metrics import silhouette_score
 
 from timbro.cleanup import tex_to_markdown
 from timbro.model import VoiceModel, _style_vec
+from timbro.profilelog import log_learn
 from timbro.rewrite import evaluate_rewrite
 
 
@@ -318,6 +319,7 @@ def learn(
             )
         exemplar_path = add_text(profile_name, final_text, bucket="exemplars", title=title, root=root, overwrite=force)
         contrast_path = add_text(profile_name, draft_text, bucket="contrast", title=title, root=root, overwrite=force)
+        log_learn(profile, model, draft_text, final_text, title=title, outcome="bootstrap", guard=None)
         return {
             "saved": True,
             "exemplar": str(exemplar_path),
@@ -346,12 +348,14 @@ def learn(
                 f"meaning drifted (similarity {res['similarity']:.2f} < 0.85) — draft and final "
                 "aren't the same content, so this isn't a clean voice pair. Pass force=True to override."
             )
+        log_learn(profile, model, draft_text, final_text, title=title, outcome="refused", guard=res)
         return {"saved": False, "reason": " ".join(reasons), **res}
 
     if not force:
         _check_pair_slots_free(profile, title)
     exemplar_path = add_text(profile_name, final_text, bucket="exemplars", title=title, root=root, overwrite=force)
     contrast_path = add_text(profile_name, draft_text, bucket="contrast", title=title, root=root, overwrite=force)
+    log_learn(profile, model, draft_text, final_text, title=title, outcome="saved", guard=res)
     return {
         "saved": True,
         "exemplar": str(exemplar_path),
