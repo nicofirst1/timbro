@@ -174,7 +174,7 @@ The two sentence-transformer models download from Hugging Face on first use. Eve
 Works in ~40 non-Claude agents (Cursor, Codex, Zed, aider, Cline, ...) via `skills`, which copies `skills/timbro/SKILL.md` into the target agent's convention dir, pinned to an exact CLI version so it runs with no repo clone:
 
 ```bash
-npx skills@latest add nicofirst1/timbro   # installs the skill, pinned to uvx timbro@0.7.1
+npx skills@latest add nicofirst1/timbro   # installs the skill (pinned CLI version lives in SKILL.md)
 npx skills update                          # later: pulls newer instructions + CLI pin together
 ```
 

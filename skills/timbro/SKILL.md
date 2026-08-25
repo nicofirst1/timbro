@@ -5,6 +5,8 @@ description: Detect deterministic AI-writing tells ("check for AI slop", "does t
 
 # Timbro — voice alignment
 
+Pinned CLI version: `timbro@0.7.1` (kept in sync with the release tag by `scripts/release.sh` — never hand-edit this line). Every command below runs `uvx timbro@<version>` against that exact release, no repo clone needed.
+
 LLM prose drifts: today's draft sounds different from last week's, and neither sounds like the human (or company) it's published under. Timbro fixes the _consistency_ problem. It scores a draft against a corpus of writing you've accepted as "your voice" and tells you, in named features, which way to revise — without changing what the text says.
 
 You (the agent) are the rewriter. Timbro is the measurer. Run the loop: **score → edit toward the direction → re-score → repeat until the distance stops dropping.**
@@ -17,8 +19,6 @@ Timbro is pointed at a corpus via two env vars:
 - `TIMBRO_CONTRAST` → the "not-this-voice" set (move AWAY FROM). Optional but sharpens the direction.
 
 If unset, Timbro falls back to a small packaged sample voice so it runs, but that is **not** the user's voice — never silently score a real draft against the sample.
-
-This skill is pinned to `timbro@0.7.1`. Every command below runs `uvx timbro@<version>` against that exact CLI release, no repo clone needed. `npx skills update` pulls newer instructions together with an updated pin, so instructions and CLI version can never drift apart.
 
 ## Pick a direction first — always ask
 
