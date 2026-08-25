@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "timbro",
-  "description": "Keep your writing sounding like you — even when an LLM is writing.",
+  "description": "Catch AI slop with deterministic, offline checks that never call an LLM. Then keep what's left sounding like you.",
   "owner": {
     "name": "Nicolo' Brandizzi",
     "url": "https://github.com/nicofirst1"
@@ -9,7 +9,7 @@
   "plugins": [
     {
       "name": "timbro",
-      "description": "Score a draft against your voice and get named, content-preserving edits to align it. Ships as a Claude Code skill driving the local `timbro` CLI.",
+      "description": "Catch AI slop with deterministic, offline checks that never call an LLM, then score a draft against your voice for named, content-preserving edits. Ships as a Claude Code skill driving the local `timbro` CLI.",
       "source": "./",
       "category": "productivity"
     }
