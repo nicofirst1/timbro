@@ -17,6 +17,7 @@ Issues are labeled by required capability: `agent:mechanical` = fully specified,
 - Before declaring done, run `uv run pytest` and `uv run ruff check src/` and quote the output in the PR.
 - Never retune the tuned constants — `_PENALTY` and the verdict cutoffs in `rubrics/report.py`, `_WEIGHTS` in `rubrics/*/rubric.py`, the curated lexicons/priors in `config.py` — and don't add a dependency, unless the issue explicitly says so.
 - Respect issue dependencies. If your issue is blocked, say so instead of working around it.
+- New `check` rules are **benchmark-gated**: a semantic-leaning check earns a first-class (Tier A) claim only by beating dumb baselines (position, length, centrality) on a real labelled benchmark; no benchmark caps it at optional/experimental (Tier B) or manual (Tier C). See `docs/adr/0005-benchmark-gated-check-development.md` and `eval/benchmarks/`.
 
 ## Commands
 
