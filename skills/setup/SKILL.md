@@ -20,7 +20,7 @@ List existing profiles:
 uvx timbro@<version> profiles list
 ```
 
-If one already fits the user's purpose, stop here and point them at `skills/timbro/SKILL.md`'s "Match a voice" section for everyday use. Otherwise continue -- this run scaffolds a new one.
+If one already fits the user's purpose, stop here and point them at `skills/timbro/PROFILE.md` for everyday use. Otherwise continue -- this run scaffolds a new one.
 
 ### 2. Ask purpose
 
@@ -54,7 +54,7 @@ for f in 01-synergy.md 02-revolutionize.md 03-paradigm.md; do
 done
 ```
 
-This makes the profile usable on day one with no curation from the user. Then explicitly nudge: ask if they have a couple of drafts they'd call _off-voice_ -- topic-matched contrast sharpens the profile far more than the generic seed. Point them at `profiles learn` (`skills/timbro/SKILL.md`, step 6) for accumulating pairs over time as they keep using Timbro.
+This makes the profile usable on day one with no curation from the user. Then explicitly nudge: ask if they have a couple of drafts they'd call _off-voice_ -- topic-matched contrast sharpens the profile far more than the generic seed. Point them at `profiles learn` (`skills/timbro/PROFILE.md`, step 6) for accumulating pairs over time as they keep using Timbro.
 
 ### 6. Report readiness -- no numeric gate
 
@@ -70,4 +70,4 @@ From one exemplar up, there's no cutoff -- score if asked, but relay `diagnose`'
 
 ### 7. Done
 
-Tell the user the profile is ready, and that `skills/timbro/SKILL.md`'s "Match a voice" workflow now uses it via `--profile <name>`. Re-running this skill scaffolds another profile for a different purpose -- it doesn't touch this one.
+Tell the user the profile is ready, and that `skills/timbro/PROFILE.md`'s workflow now uses it via `--profile <name>`. Re-running this skill scaffolds another profile for a different purpose -- it doesn't touch this one.
