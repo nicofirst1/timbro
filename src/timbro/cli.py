@@ -13,7 +13,7 @@ import json
 import sys
 
 from timbro.model import VoiceModel, default_model
-from timbro.profiles import add_file, diagnose_profile, get_profile, init_profile, list_profiles
+from timbro.profiles import add_file, diagnose_profile, get_profile, init_profile, learn, list_profiles
 from timbro.report import voice_report
 from timbro.rubrics import check_text
 from timbro.rubrics.report import render_text
@@ -68,6 +68,17 @@ def main():
     pd = psub.add_parser("diagnose", help="diagnose profile coherence and outliers")
     pd.add_argument("name")
     pd.add_argument("--json", action="store_true", help="raw JSON payload")
+
+    pn = psub.add_parser(
+        "learn",
+        help="save a (draft, final) editing pair into a profile — final→exemplars, draft→contrast, guarded",
+    )
+    pn.add_argument("name")
+    pn.add_argument("--draft", required=True, help="path to the raw/first-pass draft (goes to contrast)")
+    pn.add_argument("--final", required=True, help="path to the polished final (goes to exemplars)")
+    pn.add_argument("--title", default=None, help="optional shared slug for both saved files (default: final's stem)")
+    pn.add_argument("--force", action="store_true", help="skip the guard / overwrite existing / bootstrap an empty profile")
+    pn.add_argument("--json", action="store_true", help="raw JSON payload")
 
     args = ap.parse_args()
 
@@ -133,6 +144,35 @@ def main():
                 print(f"warning: {payload['warning']}")
             for row in payload['files']:
                 print(f"- {row['file']}: {row['words']} words, {row['paragraphs']} paragraphs, nn-dist {row['nearest_neighbor_distance']:.2f}")
+            return
+
+        if args.profiles_cmd == "learn":
+            try:
+                result = learn(
+                    args.name,
+                    args.draft,
+                    args.final,
+                    title=args.title,
+                    force=args.force,
+                )
+            except (FileExistsError, FileNotFoundError, ValueError) as exc:
+                print(f"error: {exc}", file=sys.stderr)
+                sys.exit(1)
+
+            if args.json:
+                print(json.dumps(result))
+                return
+
+            if not result["saved"]:
+                print(result["reason"], file=sys.stderr)
+                sys.exit(1)
+
+            print(f"learned pair into '{args.name}': exemplar {result['exemplar']}, contrast {result['contrast']}")
+            if result["distance_before"] is not None:
+                print(
+                    f"distance draft={result['distance_before']:.1f} -> final={result['distance_after']:.1f} "
+                    f"(similarity {result['similarity']:.2f})"
+                )
             return
 
     if args.cmd in ("check", "slop"):

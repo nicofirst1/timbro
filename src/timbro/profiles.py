@@ -26,7 +26,8 @@ from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
 
 from timbro.cleanup import tex_to_markdown
-from timbro.model import _style_vec
+from timbro.model import VoiceModel, _style_vec
+from timbro.rewrite import evaluate_rewrite
 
 
 _VALID_NAME = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
@@ -251,3 +252,94 @@ def add_file(
     else:
         shutil.copy2(src, dst)
     return dst
+
+
+def _read_pair_text(path: str | Path, label: str) -> str:
+    p = Path(path)
+    if not p.exists():
+        raise FileNotFoundError(p)
+    text = p.read_text(encoding="utf-8", errors="ignore")
+    if not text.strip():
+        raise ValueError(f"{label} file is empty: {p}")
+    return text
+
+
+def learn(
+    profile_name: str,
+    draft: str | Path,
+    final: str | Path,
+    *,
+    title: str | None = None,
+    force: bool = False,
+    root: str | Path | None = None,
+) -> dict:
+    """Save a (raw draft, polished final) editing pair into a profile.
+
+    The final goes to `exemplars/` (move-toward), the raw draft to `contrast/`
+    (move-away) -- but only when the pair is worth learning from. The guard is
+    the same acceptance check the rewrite loop uses (`evaluate_rewrite`): the
+    final must have moved closer to the profile's own voice AND preserved the
+    draft's meaning. Scoring is always against the target profile's corpus,
+    never the ambient/default model.
+    """
+    draft_text = _read_pair_text(draft, "draft")
+    final_text = _read_pair_text(final, "final")
+
+    profile = get_profile(profile_name, root)
+    title = title or Path(final).stem
+
+    model = None
+    if _corpus_files(profile.exemplars_dir):
+        try:
+            model = VoiceModel.from_dir(profile.exemplars_dir, contrast=profile.contrast_dir)
+        except FileNotFoundError:
+            model = None
+
+    if model is None:
+        if not force:
+            raise ValueError(
+                f"Profile '{profile.name}' has no exemplars to measure against yet, so the "
+                "guard can't run. Seed it first (`profiles add-file`) or pass force=True to "
+                "bootstrap it with this pair."
+            )
+        exemplar_path = add_text(profile_name, final_text, bucket="exemplars", title=title, root=root, overwrite=force)
+        contrast_path = add_text(profile_name, draft_text, bucket="contrast", title=title, root=root, overwrite=force)
+        return {
+            "saved": True,
+            "exemplar": str(exemplar_path),
+            "contrast": str(contrast_path),
+            "title": title,
+            "accepted": None,
+            "content_ok": None,
+            "similarity": None,
+            "distance_before": None,
+            "distance_after": None,
+            "improved": None,
+        }
+
+    res = evaluate_rewrite(model, draft_text, final_text)
+
+    if not res["accepted"] and not force:
+        reasons = []
+        if not res["improved"]:
+            reasons.append(
+                f"final (distance {res['distance_after']:.1f}) is not closer to the voice than "
+                f"the draft (distance {res['distance_before']:.1f}) — nothing to learn. "
+                "Pass force=True to save anyway."
+            )
+        if not res["content_ok"]:
+            reasons.append(
+                f"meaning drifted (similarity {res['similarity']:.2f} < 0.85) — draft and final "
+                "aren't the same content, so this isn't a clean voice pair. Pass force=True to override."
+            )
+        return {"saved": False, "reason": " ".join(reasons), **res}
+
+    exemplar_path = add_text(profile_name, final_text, bucket="exemplars", title=title, root=root, overwrite=force)
+    contrast_path = add_text(profile_name, draft_text, bucket="contrast", title=title, root=root, overwrite=force)
+    return {
+        "saved": True,
+        "exemplar": str(exemplar_path),
+        "contrast": str(contrast_path),
+        "title": title,
+        **res,
+    }
