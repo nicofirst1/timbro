@@ -24,7 +24,8 @@ from timbro.profiles import (
 from timbro.report import voice_report
 from timbro.rewrite import evaluate_rewrite
 from timbro.rubrics import check_text
-from timbro.rubrics.report import render_text
+from timbro.rubrics.registry import RUBRIC_NAMES
+from timbro.rubrics.report import combine_verdicts, render_text
 
 
 def main():
@@ -36,16 +37,11 @@ def main():
     s.add_argument("--profile", help="named profile, or comma-separated profiles to compare")
     s.add_argument("--quiet", action="store_true", help="suppress explanatory prose")
 
-    c = sub.add_parser("check", help="run a deterministic writing rubric")
+    c = sub.add_parser("check", help="run one or more deterministic writing rubrics (default: all)")
     c.add_argument("file", help="path to the draft, or - for stdin")
-    c.add_argument("--rubric", default="schimel", help="rubric name")
-    c.add_argument("--profile", help="for --rubric slop: baseline tells against this profile's corpus")
+    c.add_argument("--rubric", help=f"comma-separated rubric names ({', '.join(RUBRIC_NAMES)}); default: all")
+    c.add_argument("--profile", help="for the slop rubric: baseline tells against this profile's corpus")
     c.add_argument("--json", action="store_true", help="raw JSON payload")
-
-    sl = sub.add_parser("slop", help="detect AI-writing tells (alias for check --rubric slop)")
-    sl.add_argument("file", help="path to the draft, or - for stdin")
-    sl.add_argument("--profile", help="baseline tells against this profile's corpus (relative mode)")
-    sl.add_argument("--json", action="store_true", help="raw JSON payload")
 
     ac = sub.add_parser("accept", help="judge a candidate rewrite: closer to voice + meaning preserved?")
     ac.add_argument("original", help="path to the original draft")
@@ -190,18 +186,41 @@ def main():
                 )
             return
 
-    if args.cmd in ("check", "slop"):
-        rubric = "slop" if args.cmd == "slop" else args.rubric
+    if args.cmd == "check":
+        if args.rubric:
+            names = [name.strip() for name in args.rubric.split(",") if name.strip()]
+        else:
+            names = list(RUBRIC_NAMES)
+        unknown = [name for name in names if name not in RUBRIC_NAMES]
+        if unknown:
+            print(
+                f"error: unknown rubric(s) {', '.join(unknown)}; available rubrics: {', '.join(RUBRIC_NAMES)}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
         if args.file == "-":
             text = sys.stdin.read()
         else:
             with open(args.file, encoding="utf-8") as f:
                 text = f.read()
-        result = check_text(text, rubric=rubric, profile=args.profile)
+        try:
+            results = check_text(text, rubrics=names, profile=args.profile)
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            sys.exit(1)
+
         if args.json:
-            print(json.dumps(result.to_dict(), indent=2))
+            payload = {
+                "verdict": combine_verdicts(results),
+                "rubrics": {result.rubric: result.to_dict() for result in results},
+            }
+            print(json.dumps(payload, indent=2))
             return
-        print(render_text(result))
+        print(f"verdict: {combine_verdicts(results).upper()}")
+        for result in results:
+            print()
+            print(render_text(result))
         return
 
     if args.cmd == "accept":

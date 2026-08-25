@@ -26,10 +26,10 @@
 
 **LLM prose has a tell.** Em/en dashes everywhere, "it's not X, it's Y", the _delve / tapestry / seamless_ vocabulary, a tidy wrap-up about the future. A reader feels it, but "sounds AI-written" is not something you can put in CI.
 
-Timbro makes it one. `timbro slop` runs ~19 deterministic detectors (regex + part-of-speech, no model, no network) and returns a verdict, four dimension scores, and the exact markers it found:
+Timbro makes it one. `timbro check --rubric slop` runs ~19 deterministic detectors (regex + part-of-speech, no model, no network) and returns a verdict, four dimension scores, and the exact markers it found:
 
 ```
-$ timbro slop draft.md
+$ timbro check draft.md --rubric slop
 slop: WARN (0.69)
 
 diction      0.70
@@ -91,11 +91,12 @@ Each score is three legible layers plus a guard:
 
 ## The writing rubric (`check`)
 
-Voice alignment answers _"does this sound like me?"_. The rubric answers a separate question — _"is this good prose?"_ — and needs **no voice corpus**. `timbro check` runs ~30 deterministic checks distilled from Joshua Schimel's _Writing Science_, all linguistic/structural (spaCy dependency parse + POS + counting), **no LLM-as-judge**: buried subject–verb core, passive voice, comma splices, expletive openings, preposition chains, nominalizations, long Latinate words, word-echo repetition, inconsistent terminology, metadiscourse and citation-as-subject frames, caveat/defensive closings, unearned claim words, significance-without-magnitude, and more. It returns a per-dimension score and a ranked findings list — recall-first, so a model consumer filters the occasional false positive. Rubrics are pluggable via a registry (`--rubric <name>`); `schimel` ships today. `uv run python eval/rubric_dashboard.py` prints each rule's findings-per-1000-words on known-good prose, so noisy rules can be spotted and demoted rather than deleted.
+Voice alignment answers _"does this sound like me?"_. The rubric answers a separate question — _"is this good prose?"_ — and needs **no voice corpus**. `timbro check` runs three deterministic rubrics as peers — `schimel` (~30 checks distilled from Joshua Schimel's _Writing Science_: buried subject–verb core, passive voice, comma splices, expletive openings, preposition chains, nominalizations, long Latinate words, word-echo repetition, inconsistent terminology, metadiscourse and citation-as-subject frames, caveat/defensive closings, unearned claim words, significance-without-magnitude, and more), `slop` (AI-writing tells), and `density` (jargon/padding) — all linguistic/structural (spaCy dependency parse + POS + counting), **no LLM-as-judge**. Bare `check` runs all three with a combined worst-of verdict; narrow to one or more with `--rubric <name>[,<name>...]`. Each rubric returns a per-dimension score and a ranked findings list — recall-first, so a model consumer filters the occasional false positive. `uv run python eval/rubric_dashboard.py` prints each rule's findings-per-1000-words on known-good prose, so noisy rules can be spotted and demoted rather than deleted.
 
 ```bash
-uv run timbro check draft.md            # human-readable
-uv run timbro check draft.md --json     # {verdict, overall, dimensions, findings}
+uv run timbro check draft.md                       # human-readable, all rubrics
+uv run timbro check draft.md --rubric schimel       # just the prose-quality rubric
+uv run timbro check draft.md --json                 # {verdict, rubrics: {<name>: {...}}}
 ```
 
 ## Install
@@ -141,11 +142,11 @@ Now ask Claude the same way — it runs Timbro, reads the direction, and propose
 No server, no agent — just score a file:
 
 ```bash
-uv run timbro slop draft.md                 # deterministic AI-slop / tells report
+uv run timbro check draft.md --rubric slop  # deterministic AI-slop / tells report
 uv run timbro score draft.md                # distance from your voice + revision direction
 cat draft.md | uv run timbro score -        # stdin
 uv run timbro score draft.md --json         # raw payload
-uv run timbro check draft.md                # Schimel prose-quality rubric (below)
+uv run timbro check draft.md                # all rubrics: Schimel + slop + density (above)
 ```
 
 ### From source (required for the CLI options above)
@@ -180,7 +181,7 @@ npx skills update                          # later: pulls newer instructions + C
 
 ## FAQ
 
-**My voice legitimately uses em-dashes — won't `slop` nag me?** By default it flags against zero, so yes. Add `timbro slop draft.md --profile <name>` to baseline the tells against your own corpus instead: a tell is flagged only where the draft _overuses_ it relative to how you normally write. Absolute mode answers "is this AI-generated?"; `--profile` answers "is this driftier than my own writing?".
+**My voice legitimately uses em-dashes — won't the `slop` rubric nag me?** By default it flags against zero, so yes. Add `timbro check draft.md --rubric slop --profile <name>` to baseline the tells against your own corpus instead: a tell is flagged only where the draft _overuses_ it relative to how you normally write. Absolute mode answers "is this AI-generated?"; `--profile` answers "is this driftier than my own writing?".
 
 **Do I need the contrast set?** No, but it sharpens the direction — without it, every feature looks equally informative.
 
@@ -237,9 +238,9 @@ src/timbro/
 ├── rewrite.py       # content-preservation guard + accept-rewrite loop
 ├── report.py        # the shared {distance, direction, flow} payload
 ├── tells.py         # AI-tell detectors (regex + POS); feed the `slop` rubric and the score direction
-├── rubrics/         # `check` (schimel/density) + `slop` (tells) rubrics: features + rules + registry
+├── rubrics/         # `check` rubrics (schimel/slop/density): features + rules + registry
 ├── cleanup/         # ingest-time corpus prep (LaTeX/paper extraction — not markdown)
-└── cli.py           # `timbro score` + `timbro check` + `timbro slop`
+└── cli.py           # `timbro score` + `timbro check`
 skills/timbro/       # Claude Code skill
 eval/harness.py           # LOO-AUC, permutation baseline, direction sign test
 eval/rubric_dashboard.py  # per-rule findings-per-1000-words on known-good prose
