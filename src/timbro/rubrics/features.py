@@ -310,10 +310,6 @@ class DocumentView:
         sims = [_cos(emb[j], emb[j + 1]) for j in range(len(emb) - 1)]
         return float(np.mean(sims)) if sims else 1.0
 
-    def citation_density(self, paragraph: str) -> float:
-        words = max(1, len(paragraph.split()))
-        return len(_CITATION.findall(paragraph)) / words
-
     def fuzzy_verb_density(self) -> float:
         words = max(1, len(self.text.split()))
         return len(_FUZZY.findall(self.text)) * 1000 / words
