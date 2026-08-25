@@ -25,9 +25,17 @@ from functools import lru_cache
 
 from timbro.config import (
     BOOSTER_LEMMAS as _BOOSTER_LEMMAS,
+)
+from timbro.config import (
     BOOSTER_PHRASES as _BOOSTER_PHRASES,
+)
+from timbro.config import (
     HEDGE_BOOSTER_REFERENCE,
+)
+from timbro.config import (
     HEDGE_LEMMAS as _HEDGE_LEMMAS,
+)
+from timbro.config import (
     HEDGE_PHRASES as _HEDGE_PHRASES,
 )
 from timbro.metric import parsed_doc, register

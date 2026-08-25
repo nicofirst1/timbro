@@ -11,8 +11,8 @@ from __future__ import annotations
 
 import re
 
-_ABSTRACT = re.compile(r"^abstract\b[:.]?\s*", re.I)
-_INTRO = re.compile(r"^(?:\d+(?:\.\d+)*)?\s*introduction\b[:.]?\s*", re.I)
+_ABSTRACT = re.compile(r"^abstract\b[:.]?\s*", re.IGNORECASE)
+_INTRO = re.compile(r"^(?:\d+(?:\.\d+)*)?\s*introduction\b[:.]?\s*", re.IGNORECASE)
 _HEADING = re.compile(r"^(?:\d+(?:\.\d+)*)?\s*[A-Z][A-Za-z0-9\-&,/() ]{1,80}$")
 _METADATA_PREFIXES = (
     "edited by:",
@@ -70,9 +70,8 @@ def _looks_like_metadata_line(line: str) -> bool:
         return True
     if len(line) < 120 and re.fullmatch(r"[A-Za-z0-9*†‡◁⋄ ,()\-:/&.]+", line):
         words = line.split()
-        if words and sum(word[:1].isupper() for word in words) >= max(2, len(words) * 0.6):
-            if not line.endswith("."):
-                return True
+        if words and sum(word[:1].isupper() for word in words) >= max(2, len(words) * 0.6) and not line.endswith("."):
+            return True
     return False
 
 
@@ -82,13 +81,13 @@ def _normalize_paragraph(paragraph: str) -> str:
         lines.pop(0)
     lines = [line for line in lines if not _looks_like_metadata_line(line)]
     paragraph = " ".join(lines)
-    paragraph = re.sub(r"\bShared first authorship\.\s*", "", paragraph, flags=re.I)
-    paragraph = re.sub(r"\bKeywords:\s*[^.]+\.?", "", paragraph, flags=re.I)
-    paragraph = re.sub(r"[∗*†‡]+\s*Equal contribution\.\s*", "", paragraph, flags=re.I)
-    paragraph = re.sub(r"[∗*†‡]+\s*Corresponding author:.*", "", paragraph, flags=re.I)
-    paragraph = re.sub(r"^\d+(?:\.\d+)*\.\s+Introduction\s+", "", paragraph, flags=re.I)
-    paragraph = re.sub(r"\b\d+\s+The workshop(?:['’]s)? website is available at https?://\S+\.?", "", paragraph, flags=re.I)
-    paragraph = re.sub(r"\b\d+\s+Meta restricts commercial use[^.]*\.\s*", "", paragraph, flags=re.I)
+    paragraph = re.sub(r"\bShared first authorship\.\s*", "", paragraph, flags=re.IGNORECASE)
+    paragraph = re.sub(r"\bKeywords:\s*[^.]+\.?", "", paragraph, flags=re.IGNORECASE)
+    paragraph = re.sub(r"[∗*†‡]+\s*Equal contribution\.\s*", "", paragraph, flags=re.IGNORECASE)
+    paragraph = re.sub(r"[∗*†‡]+\s*Corresponding author:.*", "", paragraph, flags=re.IGNORECASE)
+    paragraph = re.sub(r"^\d+(?:\.\d+)*\.\s+Introduction\s+", "", paragraph, flags=re.IGNORECASE)
+    paragraph = re.sub(r"\b\d+\s+The workshop(?:['’]s)? website is available at https?://\S+\.?", "", paragraph, flags=re.IGNORECASE)
+    paragraph = re.sub(r"\b\d+\s+Meta restricts commercial use[^.]*\.\s*", "", paragraph, flags=re.IGNORECASE)
     paragraph = re.sub(r"\s+\*\s*$", "", paragraph)
     paragraph = paragraph.replace("plug-andplay", "plug-and-play")
     if not re.search(r"[.!?][\]\)\"']?$", paragraph):
@@ -123,9 +122,7 @@ def _looks_like_prose(paragraph: str) -> bool:
     if letters / chars < 0.6:
         return False
     short_tokens = sum(1 for tok in paragraph.split() if len(tok) == 1)
-    if short_tokens > max(12, len(paragraph.split()) // 5):
-        return False
-    return True
+    return short_tokens <= max(12, len(paragraph.split()) // 5)
 
 
 def _looks_like_metadata(paragraph: str) -> bool:
@@ -149,9 +146,7 @@ def _looks_like_metadata(paragraph: str) -> bool:
     institutions = ("university", "department", "institute", "school", "center", "centre", "laboratory")
     if sum(word in lower for word in institutions) >= 3 and paragraph.count(",") >= 4:
         return True
-    if re.fullmatch(r"[A-Za-z0-9*†‡◁⋄ ,()\-]+", paragraph) and len(paragraph.split()) < 30:
-        return True
-    return False
+    return bool(re.fullmatch(r"[A-Za-z0-9*†‡◁⋄ ,()\-]+", paragraph) and len(paragraph.split()) < 30)
 
 
 def _strip_title_and_author_preamble(paragraph: str, title: str) -> str:
@@ -159,7 +154,7 @@ def _strip_title_and_author_preamble(paragraph: str, title: str) -> str:
         return paragraph
     if title:
         title_pattern = re.escape(title.strip())
-        paragraph = re.sub(rf"^{title_pattern}\s*", "", paragraph, flags=re.I)
+        paragraph = re.sub(rf"^{title_pattern}\s*", "", paragraph, flags=re.IGNORECASE)
     abstract_pos = paragraph.lower().find("abstract ")
     if abstract_pos > 0:
         return paragraph[abstract_pos:]
@@ -244,7 +239,7 @@ def extract_prose_excerpt(text: str, title: str = "", max_intro_paragraphs: int 
 
 def cleanup_paper_markdown(text: str) -> str:
     frontmatter, body = split_frontmatter(text)
-    title_match = re.search(r"^title:\s*(.+)$", frontmatter, flags=re.M)
+    title_match = re.search(r"^title:\s*(.+)$", frontmatter, flags=re.MULTILINE)
     title = title_match.group(1).strip() if title_match else ""
     excerpt = extract_prose_excerpt(body, title=title)
     if not excerpt:

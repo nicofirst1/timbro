@@ -45,7 +45,7 @@ def _install_model() -> None:
     subprocess.run(cmd, check=True)
 
 
-def load_spacy(**kwargs) -> "spacy.language.Language":  # noqa: F821
+def load_spacy(**kwargs) -> spacy.language.Language:  # noqa: F821
     """spacy.load(_MODEL, **kwargs), downloading the model first if missing."""
     import spacy
 

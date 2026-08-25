@@ -43,7 +43,7 @@ def _normalize_detex_output(text: str) -> str:
 def _strip_latex_source_noise(text: str) -> str:
     text = re.sub(r"(?m)^\s*%.*$", "", text)
     for env in _DROP_ENVS:
-        text = re.sub(rf"\\begin\{{{re.escape(env)}\}}.*?\\end\{{{re.escape(env)}\}}", "\n", text, flags=re.S)
+        text = re.sub(rf"\\begin\{{{re.escape(env)}\}}.*?\\end\{{{re.escape(env)}\}}", "\n", text, flags=re.DOTALL)
     text = re.sub(r"\\(?:label|ref|eqref|autoref|cref|Cref|pageref|cite|citet|citep|citealt|citealp|footnote)\*?(?:\[[^\]]*\])?\{[^}]*\}", " ", text)
     text = re.sub(r"\\(?:begin|end)\{(?:itemize|enumerate|description)\}", "\n", text)
     text = re.sub(r"\\item(?:\[[^\]]*\])?", "\n- ", text)

@@ -10,7 +10,13 @@ like every rubric: prefer false positives and let the consumer filter — see CL
 from __future__ import annotations
 
 from timbro.rubrics.base import RubricFinding
-from timbro.tells import TELL_LABEL, TELL_NAMES, TELL_PRIOR, tell_occurrences, tell_rates
+from timbro.tells import (
+    TELL_LABEL,
+    TELL_NAMES,
+    TELL_PRIOR,
+    tell_occurrences,
+    tell_rates,
+)
 
 # Each tell rolls up under one report dimension. Grouped by what the reader would fix:
 # word choice, phrase templates, sentence cadence, surface markup.

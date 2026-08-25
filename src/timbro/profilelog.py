@@ -18,7 +18,7 @@ import hashlib
 import json
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -37,7 +37,7 @@ def _axis_z(entries: list[dict]) -> dict:
     return {e["axis"]: e["z"] for e in entries}
 
 
-def _summary(model: "VoiceModel", text: str) -> dict:
+def _summary(model: VoiceModel, text: str) -> dict:
     report = voice_report(model, text)
     return {
         "sha": _sha12(text),
@@ -57,8 +57,8 @@ def _summary(model: "VoiceModel", text: str) -> dict:
 
 
 def log_learn(
-    profile: "Profile",
-    model: "VoiceModel | None",
+    profile: Profile,
+    model: VoiceModel | None,
     draft_text: str,
     final_text: str,
     *,
@@ -75,7 +75,7 @@ def log_learn(
         return None
     try:
         record = {
-            "ts": datetime.now(timezone.utc).isoformat(),
+            "ts": datetime.now(UTC).isoformat(),
             "profile": profile.name,
             "title": title,
             "outcome": outcome,
@@ -90,6 +90,6 @@ def log_learn(
         with log_path.open("a", encoding="utf-8") as f:
             f.write(json.dumps(record) + "\n")
         return log_path
-    except Exception as exc:  # best-effort: never break learn()
+    except Exception as exc:  # noqa: BLE001 -- best-effort: never break learn()
         print(f"timbro: run log skipped ({exc})", file=sys.stderr)
         return None

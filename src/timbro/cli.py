@@ -13,7 +13,14 @@ import json
 import sys
 
 from timbro.model import VoiceModel, default_model
-from timbro.profiles import add_file, diagnose_profile, get_profile, init_profile, learn, list_profiles
+from timbro.profiles import (
+    add_file,
+    diagnose_profile,
+    get_profile,
+    init_profile,
+    learn,
+    list_profiles,
+)
 from timbro.report import voice_report
 from timbro.rewrite import evaluate_rewrite
 from timbro.rubrics import check_text
@@ -185,7 +192,11 @@ def main():
 
     if args.cmd in ("check", "slop"):
         rubric = "slop" if args.cmd == "slop" else args.rubric
-        text = sys.stdin.read() if args.file == "-" else open(args.file, encoding="utf-8").read()
+        if args.file == "-":
+            text = sys.stdin.read()
+        else:
+            with open(args.file, encoding="utf-8") as f:
+                text = f.read()
         result = check_text(text, rubric=rubric, profile=args.profile)
         if args.json:
             print(json.dumps(result.to_dict(), indent=2))
@@ -194,8 +205,10 @@ def main():
         return
 
     if args.cmd == "accept":
-        original = open(args.original, encoding="utf-8").read()
-        revised = open(args.revised, encoding="utf-8").read()
+        with open(args.original, encoding="utf-8") as f:
+            original = f.read()
+        with open(args.revised, encoding="utf-8") as f:
+            revised = f.read()
         if args.profile:
             prof = get_profile(args.profile)
             model = VoiceModel.from_dir(prof.exemplars_dir, contrast=prof.contrast_dir)
@@ -218,7 +231,11 @@ def main():
 
         sys.exit(run_analyze(args.paths, fmt=args.format, out_path=args.out))
 
-    text = sys.stdin.read() if args.file == "-" else open(args.file, encoding="utf-8").read()
+    if args.file == "-":
+        text = sys.stdin.read()
+    else:
+        with open(args.file, encoding="utf-8") as f:
+            text = f.read()
 
     if args.profile:
         names = [name.strip() for name in args.profile.split(",") if name.strip()]

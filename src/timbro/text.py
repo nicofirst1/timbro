@@ -46,15 +46,15 @@ def split_sentences(text: str, min_words: int = 1) -> list[str]:
 # the span text, not a line lookup against the original file).
 
 # 1. YAML frontmatter: `---` at the very start of the doc through the closing `---` line.
-_FRONTMATTER = re.compile(r"\A---[ \t]*\n.*?\n---[ \t]*\n?", re.S)
+_FRONTMATTER = re.compile(r"\A---[ \t]*\n.*?\n---[ \t]*\n?", re.DOTALL)
 
 # 2. Fenced code blocks: ``` or ~~~, with or without a language tag. Non-greedy match
 # between two occurrences of the same fence handles both the standard multi-line block
 # and a malformed same-line open/close.
-_FENCE = re.compile(r"(```|~~~).*?\1", re.S)
+_FENCE = re.compile(r"(```|~~~).*?\1", re.DOTALL)
 
 # 3. HTML comments (possibly multiline).
-_HTML_COMMENT = re.compile(r"<!--.*?-->", re.S)
+_HTML_COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
 
 # 4. Inline code spans: single backticks, content included, bounded to one line so a
 # stray unmatched backtick can't swallow the rest of the document.
@@ -81,9 +81,9 @@ _HEADING = re.compile(r"(?m)^[ \t]*#{1,6}[ \t]+.*$\n?")
 _BLOCKQUOTE = re.compile(r"(?m)^[ \t]*>+[ \t]?")
 _BULLET_LIST = re.compile(r"(?m)^[ \t]*[-*+][ \t]+")
 _ORDERED_LIST = re.compile(r"(?m)^[ \t]*\d+\.[ \t]+")
-_BOLD_STAR = re.compile(r"\*\*(.+?)\*\*", re.S)
-_BOLD_UNDERSCORE = re.compile(r"__(.+?)__", re.S)
-_STRIKE = re.compile(r"~~(.+?)~~", re.S)
+_BOLD_STAR = re.compile(r"\*\*(.+?)\*\*", re.DOTALL)
+_BOLD_UNDERSCORE = re.compile(r"__(.+?)__", re.DOTALL)
+_STRIKE = re.compile(r"~~(.+?)~~", re.DOTALL)
 # Italic marks follow the usual markdown emphasis rule: the opening mark must not be
 # preceded by a word character and must be followed by non-space; the closing mark must
 # be preceded by non-space and not followed by a word character. This keeps prose
@@ -101,7 +101,7 @@ _TABLE_SEPARATOR = re.compile(
 
 # 11. Collapse 3+ consecutive newlines to a paragraph boundary (2).
 _EXCESS_BLANK_LINES = re.compile(r"\n{3,}")
-_TRAILING_LINE_WHITESPACE = re.compile(r"[ \t]+$", re.M)
+_TRAILING_LINE_WHITESPACE = re.compile(r"[ \t]+$", re.MULTILINE)
 
 
 def strip_markup(text: str) -> str:
@@ -146,14 +146,15 @@ def _model():
         from transformers.utils import logging as tlog
 
         tlog.set_verbosity_error()
-    except Exception:
+    except Exception:  # noqa: BLE001, S110 -- best-effort optional-lib logging setup, must not block model load
         pass
     try:
-        from huggingface_hub.utils import disable_progress_bars, logging as hlog
+        from huggingface_hub.utils import disable_progress_bars
+        from huggingface_hub.utils import logging as hlog
 
         disable_progress_bars()
         hlog.set_verbosity_error()
-    except Exception:
+    except Exception:  # noqa: BLE001, S110 -- best-effort optional-lib logging setup, must not block model load
         pass
     from sentence_transformers import SentenceTransformer
 

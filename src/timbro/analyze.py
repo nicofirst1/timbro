@@ -9,11 +9,13 @@ isolated via the #16 markup stripper (`timbro.text.strip_markup`).
 from __future__ import annotations
 
 import csv
+import itertools
 import json
+import math
 import re
 import sys
 from collections import Counter
-from functools import lru_cache
+from functools import cache, lru_cache
 from pathlib import Path
 
 import textdescriptives as td
@@ -24,8 +26,8 @@ from wordfreq import zipf_frequency
 from timbro.model import POS_TAGS
 from timbro.text import strip_markup
 
-_FRONTMATTER = re.compile(r"\A---[ \t]*\n(.*?)\n---[ \t]*\n?", re.S)
-_FENCE = re.compile(r"(```|~~~).*?\1", re.S)
+_FRONTMATTER = re.compile(r"\A---[ \t]*\n(.*?)\n---[ \t]*\n?", re.DOTALL)
+_FENCE = re.compile(r"(```|~~~).*?\1", re.DOTALL)
 _HEADING = re.compile(r"(?m)^[ \t]*(#{1,6})[ \t]+.*$")
 _TABLE_SEPARATOR = re.compile(r"(?m)^[ \t]*:?-{2,}:?(?:[ \t]*\|[ \t]*:?-{2,}:?)+[ \t]*$")
 _BULLET_LIST = re.compile(r"^[ \t]*[-*+][ \t]+")
@@ -42,12 +44,12 @@ _NAMED_SECTIONS = (
 )
 _NAME_FORMAT = re.compile(r"[a-z0-9-]{1,64}")
 _HEADING_MARK = re.compile(r"^[ \t]*#{1,6}[ \t]+")
-_FM_WHEN_CLAUSE = re.compile(r"\b(when|use (this|it) (when|for|to)|whenever|if you)\b", re.I)
-_FM_OR_WORD = re.compile(r"\bor\b", re.I)
-_FM_WILDCARD = re.compile(r"\b(any|all|every|always|whenever|anything|everything)\b", re.I)
+_FM_WHEN_CLAUSE = re.compile(r"\b(when|use (this|it) (when|for|to)|whenever|if you)\b", re.IGNORECASE)
+_FM_OR_WORD = re.compile(r"\bor\b", re.IGNORECASE)
+_FM_WILDCARD = re.compile(r"\b(any|all|every|always|whenever|anything|everything)\b", re.IGNORECASE)
 _ALLCAPS = re.compile(r"\b[A-Z][A-Z']+\b")
 _ALLCAPS_DIRECTIVES = {"ALWAYS", "NEVER", "MUST", "NOT", "DON'T", "DO"}
-_CONTRASTIVE = re.compile(r"^(do|don'?t|correct|incorrect|good|bad)\s*:", re.I)
+_CONTRASTIVE = re.compile(r"^(do|don'?t|correct|incorrect|good|bad)\s*:", re.IGNORECASE)
 _CONTRASTIVE_SYMBOLS = ("✅", "❌", "✓", "✗")
 
 _CONTENT_POS = {"NOUN", "PROPN", "VERB", "ADJ", "ADV"}
@@ -56,19 +58,19 @@ _CLAUSAL_DEPS = {"ccomp", "xcomp", "advcl", "acl", "relcl"}
 _CONDITIONAL_MARKS = {"if", "unless", "when"}
 _SECOND_PERSON = {"you", "your", "yours", "you're", "yourself"}
 _CROSS_REFERENCE = re.compile(
-    r"\b(?:see also|see below|see above|refer to|as described in|cf\.)", re.I
+    r"\b(?:see also|see below|see above|refer to|as described in|cf\.)", re.IGNORECASE
 )
 _LEXICON_DIR = Path(__file__).parent / "lexicons"
 
 
-@lru_cache(maxsize=None)
+@cache
 def _lexicon(name: str) -> tuple[tuple[str, ...], ...]:
     lines = (_LEXICON_DIR / name).read_text(encoding="utf-8").splitlines()
     entries = (ln.strip() for ln in lines if ln.strip() and not ln.startswith("#"))
     return tuple(tuple(entry.lower().split()) for entry in entries)
 
 
-@lru_cache(maxsize=None)
+@cache
 def _plain_pairs() -> tuple[tuple[tuple[str, ...], str], ...]:
     lines = (_LEXICON_DIR / "plain_wording.txt").read_text(encoding="utf-8").splitlines()
     pairs = []
@@ -80,7 +82,7 @@ def _plain_pairs() -> tuple[tuple[tuple[str, ...], str], ...]:
     return tuple(pairs)
 
 
-@lru_cache(maxsize=None)
+@cache
 def _hype_entries() -> tuple[tuple[str, ...], ...]:
     # Hype is matched on surface FORM, not lemma: en_core_web_sm mangles participial adjectives
     # ("groundbreaking" -> "groundbreake") and splits hyphenated compounds into three tokens
@@ -157,7 +159,7 @@ def _dep_labels() -> tuple[str, ...]:
 
 def _clean(value):
     """NaN -> None so JSON/CSV output is valid; everything else passes through."""
-    if isinstance(value, float) and value != value:  # NaN != NaN
+    if isinstance(value, float) and math.isnan(value):
         return None
     return value
 
@@ -392,7 +394,7 @@ def _nlp_features(prose: str) -> dict:
             {t.lemma_.lower() for t in sent if t.pos_ in _COH_CONTENT_POS} for sent in sentences
         ]
         overlaps = []
-        for a, b in zip(sent_lemma_sets, sent_lemma_sets[1:]):
+        for a, b in itertools.pairwise(sent_lemma_sets):
             union = a | b
             overlaps.append(len(a & b) / len(union) if union else 0.0)
         out["coh_lemma_overlap_adj"] = sum(overlaps) / len(overlaps)

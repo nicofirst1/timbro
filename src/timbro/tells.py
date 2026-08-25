@@ -21,7 +21,9 @@ from __future__ import annotations
 import re
 from functools import lru_cache
 
-from timbro.config import TELL_PRIOR  # noqa: F401  (re-exported: model.py/checks.py/tests import it from here)
+from timbro.config import (
+    TELL_PRIOR,  # noqa: F401  (re-exported: model.py/checks.py/tests import it from here)
+)
 from timbro.metric import Reference, register
 
 # Plain-English labels so a flagged tell reads as advice, not a feature id.

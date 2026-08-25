@@ -9,7 +9,7 @@ _CHALLENGE = re.compile(
     r"\b(?:we (?:ask|test|hypothesi[sz]e|predict)|our (?:question|hypothesis)|"
     r"remains unclear|unknown|knowledge gap|objective(?:s)? (?:was|were|is|are)|"
     r"to determine|to test whether|whether)\b",
-    re.I,
+    re.IGNORECASE,
 )
 
 

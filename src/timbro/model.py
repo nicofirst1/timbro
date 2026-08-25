@@ -24,19 +24,38 @@ from pathlib import Path
 
 import numpy as np
 
-from timbro.concreteness import CONCRETENESS_METRIC  # noqa: F401  (import registers the concreteness metric)
+from timbro.concreteness import (
+    CONCRETENESS_METRIC,
+)
 from timbro.config import DEFAULT_CONTRAST, DEFAULT_EXEMPLARS, TELL_PRIOR
-from timbro.fw import FUNCTION_WORD_METRIC  # noqa: F401  (import registers the fw metric)
-from timbro.hedge import HEDGE_BOOSTER_METRIC  # noqa: F401  (import registers the hedge metric)
+from timbro.fw import (
+    FUNCTION_WORD_METRIC,
+)
+from timbro.hedge import (
+    HEDGE_BOOSTER_METRIC,
+)
 from timbro.metric import Reference, register
 from timbro.report import (  # dataclasses/axis tuples/labels: report.py formats for humans (PR #57 review)
-    CONCRETENESS_AXES, CONCRETENESS_Z_TOL, ConcretenessAxis,
-    FW_AXES, FW_Z_TOL, FeatureMove, FwAxis,
-    HEDGE_AXES, HEDGE_Z_TOL, HedgeAxis,
-    MARKDOWN_AXES, MARKDOWN_Z_TOL, MarkdownAxis,
-    ScoreResult, _label,
+    CONCRETENESS_AXES,
+    CONCRETENESS_Z_TOL,
+    FW_AXES,
+    FW_Z_TOL,
+    HEDGE_AXES,
+    HEDGE_Z_TOL,
+    MARKDOWN_AXES,
+    MARKDOWN_Z_TOL,
+    ConcretenessAxis,
+    FeatureMove,
+    FwAxis,
+    HedgeAxis,
+    MarkdownAxis,
+    ScoreResult,
+    _label,
 )
-from timbro.tells import tell_rates, TELL_METRIC  # noqa: F401  (import registers the tells metric)
+from timbro.tells import (  # noqa: F401  (import registers the tells metric)
+    TELL_METRIC,
+    tell_rates,
+)
 
 STRUCT_AXIS_NAMES: tuple[str, ...] = tuple(name for name, _, _ in MARKDOWN_AXES)
 
@@ -68,14 +87,15 @@ def _style_model():
         from transformers.utils import logging as tlog
 
         tlog.set_verbosity_error()
-    except Exception:
+    except Exception:  # noqa: BLE001, S110 -- best-effort optional-lib logging setup, must not block model load
         pass
     try:
-        from huggingface_hub.utils import disable_progress_bars, logging as hlog
+        from huggingface_hub.utils import disable_progress_bars
+        from huggingface_hub.utils import logging as hlog
 
         disable_progress_bars()
         hlog.set_verbosity_error()
-    except Exception:
+    except Exception:  # noqa: BLE001, S110 -- best-effort optional-lib logging setup, must not block model load
         pass
     from sentence_transformers import SentenceTransformer
 
@@ -116,7 +136,9 @@ def _struct_vec(text: str) -> tuple[float, ...]:
     scoring and analysis never drift. Ratio axes are None on empty input; coerce to 0.0
     (no structure == zero structure) so a draft with no markdown never breaks z-scoring.
     """
-    from timbro.analyze import _struct_features  # lazy: analyze imports POS_TAGS from here
+    from timbro.analyze import (
+        _struct_features,  # lazy: analyze imports POS_TAGS from here
+    )
 
     struct, _ = _struct_features(text)
     return tuple(float(struct.get(name) or 0.0) for name in STRUCT_AXIS_NAMES)
@@ -248,7 +270,7 @@ class VoiceModel:
 
     @classmethod
     def fit(cls, texts: list[str], contrast: list[str] | None = None,
-            top_k: int = 6, knn_k: int = 1) -> "VoiceModel":
+            top_k: int = 6, knn_k: int = 1) -> VoiceModel:
         total_words, total_paragraphs, health, warning = _profile_evidence(texts)
         # POS path (direction)
         X, names = feature_matrix(texts)
@@ -302,7 +324,7 @@ class VoiceModel:
 
     @classmethod
     def from_dir(cls, exemplars: str | Path, contrast: str | Path | None = None,
-                 top_k: int = 6, knn_k: int = 1) -> "VoiceModel":
+                 top_k: int = 6, knn_k: int = 1) -> VoiceModel:
         texts = read_corpus(exemplars)
         if not texts:  # plugin-friendly: name the env var AND the absolute path actually checked
             raise FileNotFoundError(
@@ -477,7 +499,7 @@ class VoiceModel:
         return out
 
 
-def default_model() -> "VoiceModel":
+def default_model() -> VoiceModel:
     """Env-overridable corpus, falling back to the packaged sample."""
     exemplars = os.environ.get("TIMBRO_EXEMPLARS") or DEFAULT_EXEMPLARS
     contrast = os.environ.get("TIMBRO_CONTRAST") or DEFAULT_CONTRAST
