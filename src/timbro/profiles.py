@@ -264,6 +264,20 @@ def _read_pair_text(path: str | Path, label: str) -> str:
     return text
 
 
+def _check_pair_slots_free(profile: Profile, title: str) -> None:
+    # ponytail: pre-flight existence check, not a temp-write+rename transaction --
+    # covers the realistic case (stale title collides with one bucket) without
+    # a real fs transaction; upgrade only if concurrent writers to the same
+    # profile become a real concern.
+    slug = _slug_filename(title)
+    exemplar_path = profile.exemplars_dir / f"{slug}.md"
+    contrast_path = profile.contrast_dir / f"{slug}.md"
+    if exemplar_path.exists():
+        raise FileExistsError(f"Destination already exists: {exemplar_path}. Pass force=True or a different title.")
+    if contrast_path.exists():
+        raise FileExistsError(f"Destination already exists: {contrast_path}. Pass force=True or a different title.")
+
+
 def learn(
     profile_name: str,
     draft: str | Path,
@@ -334,6 +348,8 @@ def learn(
             )
         return {"saved": False, "reason": " ".join(reasons), **res}
 
+    if not force:
+        _check_pair_slots_free(profile, title)
     exemplar_path = add_text(profile_name, final_text, bucket="exemplars", title=title, root=root, overwrite=force)
     contrast_path = add_text(profile_name, draft_text, bucket="contrast", title=title, root=root, overwrite=force)
     return {

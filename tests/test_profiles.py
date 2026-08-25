@@ -138,6 +138,30 @@ class ProfileLearnTests(unittest.TestCase):
             self.assertTrue((root / "demo" / "exemplars" / "forced.md").exists())
             self.assertTrue((root / "demo" / "contrast" / "forced.md").exists())
 
+    def test_learn_refuses_atomically_on_partial_title_collision(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td) / "profiles"
+            self._seed(root)
+
+            # Pre-existing contrast file for the title, but no exemplar file yet --
+            # the collision must block BOTH writes, not just the second one.
+            contrast_path = root / "demo" / "contrast" / "budget-memo.md"
+            contrast_path.parent.mkdir(parents=True, exist_ok=True)
+            stale_contrast = "pre-existing contrast content"
+            contrast_path.write_text(stale_contrast, encoding="utf-8")
+
+            draft_path = Path(td) / "draft.md"
+            final_path = Path(td) / "final.md"
+            draft_path.write_text(DRAFT_TEXT, encoding="utf-8")
+            final_path.write_text(FINAL_TEXT, encoding="utf-8")
+
+            with self.assertRaises(FileExistsError):
+                learn("demo", draft_path, final_path, title="budget-memo", root=root)
+
+            exemplar_path = root / "demo" / "exemplars" / "budget-memo.md"
+            self.assertFalse(exemplar_path.exists())
+            self.assertEqual(contrast_path.read_text(encoding="utf-8"), stale_contrast)
+
     def test_learn_cold_start_requires_force(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td) / "profiles"
