@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# PostToolUse hook (Edit|Write): warn when the CLI/MCP surface changed but
+# PostToolUse hook (Edit|Write): warn when the CLI surface changed but
 # skills/timbro/SKILL.md and .claude-plugin/plugin.json -- which document
 # that surface -- weren't also touched in this working tree.
 set -euo pipefail
@@ -7,7 +7,7 @@ set -euo pipefail
 f=$(jq -r '.tool_input.file_path // .tool_response.filePath // empty')
 
 case "$f" in
-  *src/timbro/cli.py | *src/timbro/mcp_server.py | *src/timbro/rubrics/*) ;;
+  *src/timbro/cli.py | *src/timbro/rubrics/*) ;;
   *) exit 0 ;;
 esac
 
@@ -16,10 +16,10 @@ changed=$(git -C "$root" status --porcelain -- skills/timbro/SKILL.md .claude-pl
 
 if [ -z "$changed" ]; then
   jq -n --arg f "$f" '{
-    systemMessage: ("CLI/MCP surface changed (" + $f + ") but skills/timbro/SKILL.md and .claude-plugin/plugin.json are untouched in this working tree -- check they still describe it."),
+    systemMessage: ("CLI surface changed (" + $f + ") but skills/timbro/SKILL.md and .claude-plugin/plugin.json are untouched in this working tree -- check they still describe it."),
     hookSpecificOutput: {
       hookEventName: "PostToolUse",
-      additionalContext: ("skills/timbro/SKILL.md and .claude-plugin/plugin.json document the CLI/MCP surface and may now be stale after editing " + $f + ".")
+      additionalContext: ("skills/timbro/SKILL.md and .claude-plugin/plugin.json document the CLI surface and may now be stale after editing " + $f + ".")
     }
   }'
 fi

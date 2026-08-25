@@ -9,7 +9,7 @@
   "plugins": [
     {
       "name": "timbro",
-      "description": "Score a draft against your voice and get named, content-preserving edits to align it. Bundles the skill + the score_voice / accept_rewrite / check_voice MCP tools.",
+      "description": "Score a draft against your voice and get named, content-preserving edits to align it. Ships as a Claude Code skill driving the local `timbro` CLI.",
       "source": "./",
       "category": "productivity"
     }

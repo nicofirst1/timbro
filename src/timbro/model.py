@@ -478,7 +478,7 @@ class VoiceModel:
 
 
 def default_model() -> "VoiceModel":
-    """Env-overridable corpus, falling back to the packaged sample. Shared by CLI + MCP."""
+    """Env-overridable corpus, falling back to the packaged sample."""
     exemplars = os.environ.get("TIMBRO_EXEMPLARS") or DEFAULT_EXEMPLARS
     contrast = os.environ.get("TIMBRO_CONTRAST") or DEFAULT_CONTRAST
     model = VoiceModel.from_dir(

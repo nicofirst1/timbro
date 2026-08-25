@@ -15,7 +15,6 @@
   <a href="https://github.com/nicofirst1/timbro/actions/workflows/ci.yml"><img src="https://github.com/nicofirst1/timbro/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <img src="https://img.shields.io/badge/python-3.11%2B-111111?style=flat-square" alt="Python 3.11+">
   <img src="https://img.shields.io/badge/inference-local%20·%20CPU--only-111111?style=flat-square" alt="Local CPU-only inference">
-  <img src="https://img.shields.io/badge/MCP-ready-111111?style=flat-square" alt="MCP ready">
   <img src="https://img.shields.io/badge/license-MIT-111111?style=flat-square" alt="MIT license">
 </p>
 
@@ -92,7 +91,7 @@ Each score is three legible layers plus a guard:
 
 ## The writing rubric (`check`)
 
-Voice alignment answers _"does this sound like me?"_. The rubric answers a separate question — _"is this good prose?"_ — and needs **no voice corpus**. `timbro check` (and the `check_voice` MCP tool) runs ~30 deterministic checks distilled from Joshua Schimel's _Writing Science_, all linguistic/structural (spaCy dependency parse + POS + counting), **no LLM-as-judge**: buried subject–verb core, passive voice, comma splices, expletive openings, preposition chains, nominalizations, long Latinate words, word-echo repetition, inconsistent terminology, metadiscourse and citation-as-subject frames, caveat/defensive closings, unearned claim words, significance-without-magnitude, and more. It returns a per-dimension score and a ranked findings list — recall-first, so a model consumer filters the occasional false positive. Rubrics are pluggable via a registry (`--rubric <name>`); `schimel` ships today. `uv run python eval/rubric_dashboard.py` prints each rule's findings-per-1000-words on known-good prose, so noisy rules can be spotted and demoted rather than deleted.
+Voice alignment answers _"does this sound like me?"_. The rubric answers a separate question — _"is this good prose?"_ — and needs **no voice corpus**. `timbro check` runs ~30 deterministic checks distilled from Joshua Schimel's _Writing Science_, all linguistic/structural (spaCy dependency parse + POS + counting), **no LLM-as-judge**: buried subject–verb core, passive voice, comma splices, expletive openings, preposition chains, nominalizations, long Latinate words, word-echo repetition, inconsistent terminology, metadiscourse and citation-as-subject frames, caveat/defensive closings, unearned claim words, significance-without-magnitude, and more. It returns a per-dimension score and a ranked findings list — recall-first, so a model consumer filters the occasional false positive. Rubrics are pluggable via a registry (`--rubric <name>`); `schimel` ships today. `uv run python eval/rubric_dashboard.py` prints each rule's findings-per-1000-words on known-good prose, so noisy rules can be spotted and demoted rather than deleted.
 
 ```bash
 uv run timbro check draft.md            # human-readable
@@ -114,16 +113,16 @@ uvx timbro check draft.md   # first run downloads the spaCy POS model, then scor
 /plugin install timbro@timbro
 ```
 
-This installs the **skill** _and_ wires up the **MCP tools** (`score_voice`, `accept_rewrite`, `check_voice`) in one shot. It works immediately on a small **packaged sample voice** — ask Claude _"score this against the Timbro sample voice"_ to see it run.
+This installs the **skill** — it works immediately on a small **packaged sample voice** — ask Claude _"score this against the Timbro sample voice"_ to see it run.
 
-To use **your** voice, point the MCP server at your own corpus. Edit the `timbro` entry in your MCP config (or the plugin's `plugin.json`) to set absolute paths:
+To use **your** voice, scaffold a named profile and tell Claude which one to use — the skill drives everything through `uv run timbro ... --profile <name>`, no config file to edit:
 
-```json
-"env": {
-  "TIMBRO_EXEMPLARS": "/abs/path/to/your/exemplars",
-  "TIMBRO_CONTRAST":  "/abs/path/to/your/contrast"
-}
+```bash
+uv run timbro profiles init myvoice --about "..."
+uv run timbro profiles add-file myvoice posts/example.md --to exemplars
 ```
+
+Or set `TIMBRO_EXEMPLARS` / `TIMBRO_CONTRAST` in your shell before launching Claude Code, if you'd rather point at raw folders than a managed profile.
 
 The POS model and the sample corpus both ship with the plugin — no manual download step.
 
@@ -137,41 +136,6 @@ cp -r skills/timbro ~/.claude/skills/        # personal, or .claude/skills/ per-
 
 Now ask Claude the same way — it runs Timbro, reads the direction, and proposes content-preserving edits.
 
-### As an MCP server (Claude Code, Cursor, Windsurf, Claude Desktop, …)
-
-```bash
-# Claude Code
-claude mcp add timbro \
-  -e TIMBRO_EXEMPLARS=$PWD/data/exemplars \
-  -e TIMBRO_CONTRAST=$PWD/data/contrast \
-  -- uv run --directory $PWD timbro-mcp
-```
-
-Or drop this into any agent's `.mcp.json` / MCP settings:
-
-```json
-{
-  "mcpServers": {
-    "timbro": {
-      "command": "uv",
-      "args": ["run", "--directory", "/abs/path/to/timbro", "timbro-mcp"],
-      "env": {
-        "TIMBRO_EXEMPLARS": "/abs/path/to/timbro/data/exemplars",
-        "TIMBRO_CONTRAST": "/abs/path/to/timbro/data/contrast"
-      }
-    }
-  }
-}
-```
-
-The agent gets three tools:
-
-| Tool                                | Returns                                                                               |
-| ----------------------------------- | ------------------------------------------------------------------------------------- |
-| `score_voice(text)`                 | `{distance, direction, flow}`                                                         |
-| `accept_rewrite(original, revised)` | `{accepted, content_ok, similarity, distance_before, distance_after, improved}`       |
-| `check_voice(text)`                 | `{verdict, overall, dimensions, findings}` — the deterministic writing rubric (below) |
-
 ### As a one-shot CLI
 
 No server, no agent — just score a file:
@@ -184,7 +148,7 @@ uv run timbro score draft.md --json         # raw payload
 uv run timbro check draft.md                # Schimel prose-quality rubric (below)
 ```
 
-### From source (required for the MCP and CLI options above)
+### From source (required for the CLI options above)
 
 Requires Python ≥ 3.11 and [`uv`](https://docs.astral.sh/uv/).
 
@@ -266,8 +230,7 @@ src/timbro/
 ├── tells.py         # AI-tell detectors (regex + POS); feed the `slop` rubric and the score direction
 ├── rubrics/         # `check` (schimel/density) + `slop` (tells) rubrics: features + rules + registry
 ├── cleanup/         # ingest-time corpus prep (LaTeX/paper extraction — not markdown)
-├── cli.py           # `timbro score` + `timbro check` + `timbro slop`
-└── mcp_server.py    # MCP wrapper: score_voice, accept_rewrite, check_voice
+└── cli.py           # `timbro score` + `timbro check` + `timbro slop`
 skills/timbro/       # Claude Code skill
 eval/harness.py           # LOO-AUC, permutation baseline, direction sign test
 eval/rubric_dashboard.py  # per-rule findings-per-1000-words on known-good prose
