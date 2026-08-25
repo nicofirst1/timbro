@@ -46,8 +46,16 @@ fi
 echo "==> uv lock"
 uv lock
 
+echo "==> rewriting uvx pin in instruction files"
+pin_files=()
+for f in skills/timbro/SKILL.md skills/setup/SKILL.md; do
+  [[ -f "$f" ]] || continue
+  sed -E "s/timbro@[0-9]+\.[0-9]+\.[0-9]+/timbro@$VERSION/g" "$f" > "$f.tmp" && mv "$f.tmp" "$f"
+  pin_files+=("$f")
+done
+
 echo "==> commit + push"
-git add pyproject.toml uv.lock .claude-plugin/plugin.json
+git add pyproject.toml uv.lock .claude-plugin/plugin.json "${pin_files[@]}"
 git commit -m "chore: bump to $VERSION"
 read -p "push to main? [y/N] " confirm
 if [[ "$confirm" != "y" ]]; then

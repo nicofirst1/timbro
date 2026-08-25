@@ -115,11 +115,11 @@ uvx timbro check draft.md   # first run downloads the spaCy POS model, then scor
 
 This installs the **skill** — it works immediately on a small **packaged sample voice** — ask Claude _"score this against the Timbro sample voice"_ to see it run.
 
-To use **your** voice, scaffold a named profile and tell Claude which one to use — the skill drives everything through `uv run timbro ... --profile <name>`, no config file to edit:
+To use **your** voice, ask Claude to run the `timbro-setup` skill for a guided walkthrough, or scaffold a named profile yourself — the skill drives everything through `uvx timbro ... --profile <name>`, no config file to edit and no repo clone needed:
 
 ```bash
-uv run timbro profiles init myvoice --about "..."
-uv run timbro profiles add-file myvoice posts/example.md --to exemplars
+uvx timbro profiles init myvoice --about "..."
+uvx timbro profiles add-file myvoice posts/example.md --to exemplars
 ```
 
 Or set `TIMBRO_EXEMPLARS` / `TIMBRO_CONTRAST` in your shell before launching Claude Code, if you'd rather point at raw folders than a managed profile.
@@ -168,6 +168,15 @@ uv run python eval/harness.py data/exemplars data/contrast   # confirm it separa
 ```
 
 The two sentence-transformer models download from Hugging Face on first use. Everything runs **local and CPU-only** at inference — no API calls.
+
+## Using Timbro with other coding agents
+
+Works in ~40 non-Claude agents (Cursor, Codex, Zed, aider, Cline, ...) via `skills`, which copies `skills/timbro/SKILL.md` into the target agent's convention dir, pinned to an exact CLI version so it runs with no repo clone:
+
+```bash
+npx skills@latest add nicofirst1/timbro   # installs the skill (pinned CLI version lives in SKILL.md)
+npx skills update                          # later: pulls newer instructions + CLI pin together
+```
 
 ## FAQ
 
