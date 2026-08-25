@@ -13,8 +13,11 @@ wheels/
 # Local corpora (private / third-party content) -- bring your own
 data/
 
+# Private research / experiments (kept local, not published)
+paper/
+
+# DVC local cache/tmp (not init'd in this repo)
+.dvc/
+
 # Local agent config
 .claude/
-
-# Internal build spec / thinking record (kept local, not published)
-PLAN.md

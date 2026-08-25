@@ -3,7 +3,7 @@
 The non-negotiable on any rewrite is that it changes *how* the text reads, never
 *what* it says. This guard makes that falsifiable: semantic cosine between original
 and revised via a general (content-bearing) sentence model -- NOT the style model,
-which is trained to ignore content. Gate: similarity > 0.85 (PLAN sec 7/8).
+which is trained to ignore content. Gate: similarity > 0.85.
 
 The rewrite *engine* (TinyStyler / a local model) plugs in separately; this guard
 is what validates whatever it produces.
