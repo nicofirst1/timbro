@@ -1,43 +1,38 @@
 ---
 name: voice-alignment
-description: Detect deterministic AI-writing tells ("check for AI slop", "does this read AI-generated", "de-slop this") and align a draft to a target writing voice. Use when the user asks to check whether text sounds LLM-written, strip AI-slop markers (em-dashes, "it's not X, it's Y", delve/tapestry diction), or to "make this sound like me/us", "match our blog voice", "keep my writing style consistent". Timbro measures the draft mechanically (no LLM-as-judge) and returns named, content-preserving edits; you do the rewriting.
+description: Detect deterministic AI-writing tells ("check for AI slop", "does this read AI-generated", "de-slop this"); check prose quality independent of voice ("check my writing", "run a Schimel pass"); align a draft to a target writing voice ("make this sound like me/us", "match our blog voice", "keep my writing style consistent"). Timbro measures mechanically (no LLM-as-judge) and returns named, content-preserving edits — you do the rewriting.
 ---
 
 # Timbro — voice alignment
 
-Pinned CLI version: `timbro@0.7.1` (kept in sync with the release tag by `scripts/release.sh` — never hand-edit this line). Every command below runs `uvx timbro@<version>` against that exact release, no repo clone needed.
+Pinned CLI version: `timbro@0.7.1`. Commands below substitute `<version>` for it.
+
+Three independent capabilities — jump to the one that matches the request:
+
+- **Match a voice** (needs a corpus) → keep reading below (Setup, then Every run).
+- **Detect AI slop, no corpus** → skip to "Detect AI slop".
+- **Check prose quality, no corpus, no voice** → skip to "Check prose quality".
+
+## Match a voice
 
 LLM prose drifts: today's draft sounds different from last week's, and neither sounds like the human (or company) it's published under. Timbro fixes the _consistency_ problem. It scores a draft against a corpus of writing you've accepted as "your voice" and tells you, in named features, which way to revise — without changing what the text says.
 
 You (the agent) are the rewriter. Timbro is the measurer. Run the loop: **score → edit toward the direction → re-score → repeat until the distance stops dropping.**
 
-## Prerequisites (one-time)
+### Setup (one-time per corpus)
 
-Timbro is pointed at a corpus via two env vars:
+Point Timbro at a corpus either way:
 
-- `TIMBRO_EXEMPLARS` → a folder of posts that _define_ the voice (move TOWARD). 6+ pieces is enough.
-- `TIMBRO_CONTRAST` → the "not-this-voice" set (move AWAY FROM). Optional but sharpens the direction.
+- **Managed profile** (preferred): `uvx timbro@<version> profiles init <name> --about "..."`, then add files with `uvx timbro@<version> profiles add-file <name> <file> --to exemplars` (or `--to contrast`). `.tex` files are accepted — Timbro converts them to cleaned Markdown on ingest if `detex` is installed.
+- **Env vars**: `TIMBRO_EXEMPLARS` → a folder of posts that _define_ the voice (move TOWARD, 6+ pieces is enough); `TIMBRO_CONTRAST` → the "not-this-voice" set (move AWAY FROM, optional but sharpens the direction).
 
-If unset, Timbro falls back to a small packaged sample voice so it runs, but that is **not** the user's voice — never silently score a real draft against the sample.
+If neither is set, Timbro falls back to a small packaged sample voice so it runs, but that is **not** the user's voice — never silently score a real draft against the sample.
 
-## Pick a direction first — always ask
+### Every run
 
-Before scoring, **discover the available example/contrast pairs and let the user choose**:
+1. **Pick a direction — always ask.** List profiles with `uvx timbro@<version> profiles list`, tell the user what's available, and ask which set to move _toward_ (exemplars) and which to move _away from_ (contrast). Do not assume — the same draft pulls differently toward "academic" vs "clear" vs "casual".
 
-1. List the profiles with `uvx timbro@<version> profiles list`.
-2. Tell the user what's available and **ask which direction to align**: which set to move _toward_ (exemplars) and which to move _away from_ (contrast). Do not assume — the same draft pulls differently toward "academic" vs "clear" vs "casual".
-3. If nothing relevant exists, scaffold one with `uvx timbro@<version> profiles init <name> --about "..."`, then add files with `uvx timbro@<version> profiles add-file <name> <file> --to exemplars` or `--to contrast`.
-4. `.tex` files are acceptable in `add-file`: if `detex` is installed, Timbro converts them to cleaned Markdown on ingest.
-
-Prefer profile-native scoring over manual env setup:
-
-```bash
-uvx timbro@<version> score draft.md --profile <name>
-```
-
-## Workflow
-
-1. **Score the draft.** Write the draft to a file (or pipe via stdin) and run:
+2. **Score the draft.** Write the draft to a file (or pipe via stdin) and run:
 
    ```bash
    uvx timbro@<version> score draft.md --profile <name>
@@ -53,7 +48,7 @@ uvx timbro@<version> score draft.md --profile <name>
 
    If the draft itself is raw LaTeX source, Timbro will normalize it automatically before scoring when `detex` is installed.
 
-2. **Turn each hint into a concrete edit, preserving meaning.** Hints are POS habits or named AI-tells — translate them:
+3. **Turn each hint into a concrete edit, preserving meaning.** Hints are POS habits or named AI-tells — translate them:
    - _fewer verbs / more nouns_ → nominalize where natural ("we decided to" → "our decision to"); tighten verb-heavy sentences.
    - _more conjunctions_ → join short choppy clauses into longer compound sentences.
    - _fewer adjectives / adverbs_ → cut intensifiers and hedges.
@@ -62,11 +57,11 @@ uvx timbro@<version> score draft.md --profile <name>
 
    Never change the claims, facts, or argument — only _how_ it reads. If the prose is published under a persona with its own style rules (a "voice" skill, a brand guide), apply those rules as you rewrite — Timbro gives the distance, the rulebook gives the words.
 
-3. **Re-score.** Run `timbro score` on your revision. Confirm `distance` dropped. If it rose, you over-rotated — back off the lowest-confidence edits.
+4. **Re-score.** Run `timbro score` on your revision. Confirm `distance` dropped. If it rose, you over-rotated — back off the lowest-confidence edits.
 
-4. **(Optional) verify content was preserved.** Save the original and revised text to files and run `uvx timbro@<version> accept original.md revised.md` — it returns `accepted: true` only when the rewrite moved closer to the voice **and** kept the meaning (semantic similarity > 0.85). Use it as the stop condition.
+5. **(Optional) verify content was preserved.** Save the original and revised text to files and run `uvx timbro@<version> accept original.md revised.md` — it returns `accepted: true` only when the rewrite moved closer to the voice **and** kept the meaning (semantic similarity > 0.85). Use it as the stop condition.
 
-5. **Close the loop — teach the profile (offer, don't assume).** Once the loop converges on an accepted final, offer to save the pair into the profile — never do this silently. Ask the user to confirm first. On confirmation:
+6. **Close the loop — teach the profile (offer, don't assume).** Once the loop converges on an accepted final, offer to save the pair into the profile — never do this silently. Ask the user to confirm first. On confirmation:
 
    ```bash
    uvx timbro@<version> profiles learn <name> --draft <original-draft> --final <accepted-final> --title <short-descriptive-slug>
@@ -74,7 +69,7 @@ uvx timbro@<version> score draft.md --profile <name>
 
    The final becomes an exemplar (move-toward), the raw draft becomes contrast (move-away). Because the two are topic-matched, this pair is an unusually clean voice signal, and the profile sharpens with each one you add.
 
-   `learn` reuses the same guard as `timbro accept`: it refuses to save unless the final actually scored closer to the voice **and** preserved meaning. A rejected `learn` is a sign the loop didn't really converge — go back to step 2.
+   `learn` reuses the same guard as `timbro accept`: it refuses to save unless the final actually scored closer to the voice **and** preserved meaning. A rejected `learn` is a sign the loop didn't really converge — go back to step 3.
 
    Only save finals a human has approved. That human gate is what keeps the profile from drifting toward generic LLM-polished prose over time.
 
@@ -101,8 +96,8 @@ uvx timbro@<version> slop draft.md --profile <name>   # flag only tells you over
 
 Use absolute mode (no profile) to answer "is this AI-generated?"; use `--profile` to answer "is this driftier than my own writing?".
 
-## Related: the writing rubric (`check`)
+## Check prose quality (`check`) — no corpus, no voice
 
-Voice alignment answers _"does this sound like the target?"_ (needs a corpus); the slop rubric answers _"does this read AI-generated?"_. A third, corpus-free capability answers _"is this good prose?"_ — `timbro check <file>` runs ~30 deterministic Schimel _Writing Science_ checks (buried subject–verb core, passive voice, comma splices, expletive openings, preposition chains, nominalizations, word-echo repetition, metadiscourse frames, caveat/defensive closings, and more), no model, no voice corpus. Reach for it when the user asks to "check my writing", "run a Schimel pass", or clean up prose quality rather than match a specific voice.
+Voice alignment answers _"does this sound like the target?"_ (needs a corpus); the slop rubric answers _"does this read AI-generated?"_. This third, corpus-free capability answers _"is this good prose?"_ — `timbro check <file>` runs ~30 deterministic Schimel _Writing Science_ checks (buried subject–verb core, passive voice, comma splices, expletive openings, preposition chains, nominalizations, word-echo repetition, metadiscourse frames, caveat/defensive closings, and more), no model, no voice corpus. Reach for it when the user asks to "check my writing", "run a Schimel pass", or clean up prose quality rather than match a specific voice.
 
 The rubric is deliberately **recall-first**: it over-flags rather than stay silent, and you (the agent) are the precision filter. Treat every finding as "worth a look", not "definitely wrong" — judge each against the text, fix the real ones, and silently drop the false positives instead of contorting good prose to satisfy a flag. Severity is the confidence signal: act on `high` findings first; `low` findings are hints.
