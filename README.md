@@ -169,6 +169,22 @@ uv run python eval/harness.py data/exemplars data/contrast   # confirm it separa
 
 The two sentence-transformer models download from Hugging Face on first use. Everything runs **local and CPU-only** at inference — no API calls.
 
+## Using Timbro with other coding agents
+
+The Claude Code skill also works in ~40 other coding agents (Cursor, Codex, Zed, aider, Cline, etc.) via `skills`, a distribution tool that copies `skills/timbro/SKILL.md` and its sibling files into the target agent's convention directory:
+
+```bash
+npx skills@latest add nicofirst1/timbro
+```
+
+The installed instructions invoke the CLI as `uvx timbro@0.7.1 ...` — an exact version pin, not a floating version — so it runs with no repo clone and always references a real, resolvable CLI version:
+
+```bash
+uvx timbro@0.7.1 check draft.md
+```
+
+Run `npx skills update` later to pull updated instructions — and with them, an updated pinned CLI version. The two channels move in lockstep because the version is embedded inside the instructions themselves.
+
 ## FAQ
 
 **My voice legitimately uses em-dashes — won't `slop` nag me?** By default it flags against zero, so yes. Add `timbro slop draft.md --profile <name>` to baseline the tells against your own corpus instead: a tell is flagged only where the draft _overuses_ it relative to how you normally write. Absolute mode answers "is this AI-generated?"; `--profile` answers "is this driftier than my own writing?".
