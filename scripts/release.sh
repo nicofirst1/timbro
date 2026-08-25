@@ -56,6 +56,10 @@ if [[ "$confirm" != "y" ]]; then
 fi
 git push
 
+echo "==> tag + push v$VERSION"
+git tag "v$VERSION"
+git push origin "v$VERSION"
+
 echo "==> refreshing plugin install"
 claude plugin marketplace update timbro
 claude plugin update timbro@timbro
