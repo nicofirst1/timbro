@@ -21,6 +21,8 @@ You (the agent) are the rewriter. Timbro is the measurer. Run the loop: **score 
 
 ### Setup (one-time per corpus)
 
+No profiles yet (`profiles list` is empty)? Use the `timbro-setup` skill for a guided walkthrough (purpose → profile → exemplars → contrast) instead of guessing — never silently score a real draft against the packaged sample. The below is quick reference once a profile already exists.
+
 Point Timbro at a corpus either way:
 
 - **Managed profile** (preferred): `uvx timbro@<version> profiles init <name> --about "..."`, then add files with `uvx timbro@<version> profiles add-file <name> <file> --to exemplars` (or `--to contrast`). `.tex` files are accepted — Timbro converts them to cleaned Markdown on ingest if `detex` is installed.

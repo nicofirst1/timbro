@@ -115,11 +115,11 @@ uvx timbro check draft.md   # first run downloads the spaCy POS model, then scor
 
 This installs the **skill** — it works immediately on a small **packaged sample voice** — ask Claude _"score this against the Timbro sample voice"_ to see it run.
 
-To use **your** voice, scaffold a named profile and tell Claude which one to use — the skill drives everything through `uv run timbro ... --profile <name>`, no config file to edit:
+To use **your** voice, ask Claude to run the `timbro-setup` skill for a guided walkthrough, or scaffold a named profile yourself — the skill drives everything through `uvx timbro ... --profile <name>`, no config file to edit and no repo clone needed:
 
 ```bash
-uv run timbro profiles init myvoice --about "..."
-uv run timbro profiles add-file myvoice posts/example.md --to exemplars
+uvx timbro profiles init myvoice --about "..."
+uvx timbro profiles add-file myvoice posts/example.md --to exemplars
 ```
 
 Or set `TIMBRO_EXEMPLARS` / `TIMBRO_CONTRAST` in your shell before launching Claude Code, if you'd rather point at raw folders than a managed profile.

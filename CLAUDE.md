@@ -28,7 +28,7 @@ Issues are labeled by required capability: `agent:mechanical` = fully specified,
 
 ## Releasing an update
 
-The plugin updater compares by **version string** — without a bump it won't pick up code changes (`already at latest version`). Run `scripts/release.sh <new-version>`; it bumps `plugin.json` + `pyproject.toml` in lockstep, rewrites the pinned `uvx timbro@<version>` reference in `skills/timbro/SKILL.md`, commits, then tags + pushes `v<version>` (after confirming) to fire `publish.yml`'s PyPI publish. Read the script for the rest (marketplace clone, cache venv).
+The plugin updater compares by **version string** — without a bump it won't pick up code changes (`already at latest version`). Run `scripts/release.sh <new-version>`; it bumps `plugin.json` + `pyproject.toml` in lockstep, rewrites the pinned `uvx timbro@<version>` reference in `skills/timbro/SKILL.md` and `skills/setup/SKILL.md`, commits, then tags + pushes `v<version>` (after confirming) to fire `publish.yml`'s PyPI publish. Read the script for the rest (marketplace clone, cache venv).
 
 One-time prerequisite (already done for this repo, not part of `release.sh`): this repo/workflow must be registered as a PyPI trusted publisher at https://pypi.org/manage/project/timbro/settings/publishing/ — if that registration is ever lost, redo it before the next release or `publish.yml`'s publish step will fail with no OIDC token to authenticate.
 

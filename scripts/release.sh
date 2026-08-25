@@ -48,7 +48,7 @@ uv lock
 
 echo "==> rewriting uvx pin in instruction files"
 pin_files=()
-for f in skills/timbro/SKILL.md skills/timbro/onboarding.md; do
+for f in skills/timbro/SKILL.md skills/setup/SKILL.md; do
   [[ -f "$f" ]] || continue
   sed -E "s/timbro@[0-9]+\.[0-9]+\.[0-9]+/timbro@$VERSION/g" "$f" > "$f.tmp" && mv "$f.tmp" "$f"
   pin_files+=("$f")
