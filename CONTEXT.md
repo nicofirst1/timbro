@@ -23,7 +23,7 @@ Why the architecture is what it is: `docs/adr/`.
 - **Profile** — a named exemplars + contrast pair on disk under the profile root.
 - **Content guard** — the semantic-cosine check (a _general_ model, all-MiniLM) that meaning held; independent of voice ([ADR 0004](docs/adr/0004-no-rewrite-engine-timbro-judges.md)).
 - **Rubric** — a pluggable set of deterministic prose checks (`--rubric <name>`; `schimel` ships today) that feeds `check`.
-- **Check** — the corpus-free prose-quality command / tool (`timbro check`, `check_voice` MCP tool).
+- **Check** — the corpus-free prose-quality command (`timbro check`).
 - **Finding** — one detected prose problem from a rubric run (passive voice, nominalization, buried subject, …), returned recall-first.
 - **Move** (`FeatureMove`) — one named item in a direction: current z, target, delta, confidence.
 

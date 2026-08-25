@@ -1,5 +1,5 @@
 """Formats VoiceModel results for humans: axis dataclasses, hint labels, and the
-one payload both the CLI and the MCP server return (score + flow).
+one payload the CLI returns (score + flow).
 
 Split from model.py (PR #57 review) -- model.py keeps the statistical model
 (corpus loading, spaCy pipeline, feature extraction, z-scores/distances, Metric

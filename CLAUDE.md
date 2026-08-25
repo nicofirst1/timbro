@@ -21,7 +21,6 @@ Issues are labeled by required capability: `agent:mechanical` = fully specified,
 ## Commands
 
 - `uv run timbro score draft.md` — score a file (runs on the packaged sample voice if no corpus env vars set)
-- `uv run timbro-mcp` — MCP server (stdio)
 - `uv run python -m timbro.model` — core smoke test
 - `uv run ruff check src/` — lint
 - Corpus env: `TIMBRO_EXEMPLARS` (toward) / `TIMBRO_CONTRAST` (away). Named profiles resolve in precedence order: `TIMBRO_PROFILE_ROOT` → legacy `~/.timbro/profiles/` (if present) → `$XDG_DATA_HOME/timbro/profiles/` (XDG defaults to `~/.local/share`), each holding `<name>/{exemplars,contrast}/`.

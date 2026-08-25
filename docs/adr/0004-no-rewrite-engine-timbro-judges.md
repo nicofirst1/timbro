@@ -20,3 +20,7 @@ Timbro ships **no rewrite engine**. It scores (distance + named direction) and g
 ## Summary (ASD-STE100 Simplified Technical English)
 
 The plan included a rewrite engine in Phase 4. The engine used TinyStyler and a content guard. TinyStyler did not install with pip. TinyStyler did not work well on long essays. An LLM agent rewrites text better than a small model. Timbro measures text. Timbro does not make new text. For this reason, Timbro has no rewrite engine. Timbro gives a score and a direction. Timbro also guards the content. The agent rewrites the text. The agent uses a loop: score, edit, and score again. The content guard uses a semantic cosine. The guard makes sure the meaning stays the same.
+
+---
+
+**Update (2026-08-25):** the "delivered as an MCP accept-rewrite loop" consequence above is superseded by [ADR-0006](0006-mcp-server-removed.md) — the loop is now delivered via the CLI (`timbro accept`), not MCP.
