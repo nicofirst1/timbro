@@ -1,11 +1,11 @@
 {
   "name": "timbro",
   "version": "0.7.1",
-  "description": "Keep your writing sounding like you — even when an LLM is writing. Scores a draft's distance from your voice and runs a deterministic Schimel writing rubric. Returns named, content-preserving edits. Local, white-box, CLI-driven.",
+  "description": "Catch AI slop with deterministic, offline checks that never call an LLM. Then keep what's left sounding like you. Scores a draft's distance from your voice and runs a Schimel writing rubric, returning named, content-preserving edits. Local, white-box, CLI-driven.",
   "author": {
     "name": "Nicolo' Brandizzi",
     "url": "https://nicolobrandizzi.com"
   },
   "homepage": "https://github.com/nicofirst1/timbro",
-  "keywords": ["writing", "style", "voice", "consistency", "ai-agents"]
+  "keywords": ["slop", "ai-tells", "deterministic", "voice", "writing", "style", "consistency", "ai-agents"]
 }
