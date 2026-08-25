@@ -239,6 +239,15 @@ def schimel_findings(doc: DocumentView) -> list[RubricFinding]:
         message="A paragraph shift appears somewhat abrupt or weakly connected.",
     )
 
+    _emit(
+        findings,
+        severity="low",
+        dimension="flow",
+        rule="paragraph_opener_dangling_reference",
+        occurrences=doc.dangling_paragraph_openers(),
+        message="Paragraph opens with a pronoun, demonstrative, or connective whose referent isn't established in the prior paragraph.",
+    )
+
     nowhere = [
         i
         for i, para in enumerate(doc.paragraphs, start=1)

@@ -25,7 +25,7 @@ import sys
 from collections import Counter, defaultdict
 from pathlib import Path
 
-from timbro.core import DEFAULT_EXEMPLARS, read_corpus
+from timbro.model import DEFAULT_EXEMPLARS, read_corpus
 from timbro.rubrics.registry import get_rubric
 
 # Candidate rubric names to try. Not every name is registered yet (e.g. `density`

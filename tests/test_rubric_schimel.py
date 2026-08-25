@@ -69,6 +69,25 @@ class AuditCheckTests(unittest.TestCase):
             ).orphan_pronoun_spans()
         )
 
+    def test_dangling_paragraph_opener_detected(self):
+        connective_cold_open = DocumentView(
+            "We ran three experiments across different setups and measured outcomes broadly.\n\n"
+            "But this means we must act differently."
+        )
+        self.assertTrue(connective_cold_open.dangling_paragraph_openers())
+
+        pronoun_no_antecedent = DocumentView(
+            "Several reviewers flagged different concerns across the drafts.\n\n"
+            "This broke everything downstream in the pipeline."
+        )
+        self.assertTrue(pronoun_no_antecedent.dangling_paragraph_openers())
+
+        pronoun_with_antecedent = DocumentView(
+            "We designed a new pricing model for the subscription tier.\n\n"
+            "This model reduces churn across every cohort we tested."
+        )
+        self.assertFalse(pronoun_with_antecedent.dangling_paragraph_openers())
+
     def test_overclaim_words_surfaced_but_not_polysemous_ones(self):
         self.assertTrue(
             DocumentView(
