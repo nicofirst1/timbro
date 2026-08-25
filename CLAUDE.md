@@ -1,6 +1,8 @@
-# Timbro — agent notes
+# Timbro
 
 Measures a draft's distance from a target voice and returns a named revision direction. Does not rewrite — the agent does. Local, CPU-only.
+
+`README.md` — user-facing docs. `docs/adr/` — why the architecture is what it is. `CONTEXT.md` — the domain glossary. Read on demand; nothing here is imported.
 
 ## Active plan — follow the GitHub milestones
 
@@ -13,7 +15,7 @@ Issues are labeled by required capability: `agent:mechanical` = fully specified,
 - One issue per branch/PR. Don't fold in drive-by refactors.
 - The "Implementer spec" sections are decisions, not suggestions. If a number or approach in one looks wrong, comment on the issue and stop — do not silently substitute your own.
 - Before declaring done, run `uv run pytest` and `uv run ruff check src/` and quote the output in the PR.
-- Never touch `_PENALTY` / `_WEIGHTS` values, the verdict thresholds in `report.py`, or add a dependency, unless the issue explicitly says so.
+- Never retune the tuned constants — `_PENALTY` and the verdict cutoffs in `rubrics/report.py`, `_WEIGHTS` in `rubrics/*/rubric.py`, the curated lexicons/priors in `config.py` — and don't add a dependency, unless the issue explicitly says so.
 - Respect issue dependencies. If your issue is blocked, say so instead of working around it.
 
 ## Commands
@@ -22,16 +24,28 @@ Issues are labeled by required capability: `agent:mechanical` = fully specified,
 - `uv run timbro-mcp` — MCP server (stdio)
 - `uv run python -m timbro.model` — core smoke test
 - `uv run ruff check src/` — lint
-- Corpus: `TIMBRO_EXEMPLARS` (toward) / `TIMBRO_CONTRAST` (away). Named profiles live under `$XDG_DATA_HOME/timbro/profiles/<name>/{exemplars,contrast}/` by default (`$XDG_DATA_HOME` falls back to `~/.local/share`); an existing `~/.timbro/profiles/` is used instead if present (legacy installs); `TIMBRO_PROFILE_ROOT` overrides both.
+- Corpus env: `TIMBRO_EXEMPLARS` (toward) / `TIMBRO_CONTRAST` (away). Named profiles resolve in precedence order: `TIMBRO_PROFILE_ROOT` → legacy `~/.timbro/profiles/` (if present) → `$XDG_DATA_HOME/timbro/profiles/` (XDG defaults to `~/.local/share`), each holding `<name>/{exemplars,contrast}/`.
 
 ## Releasing an update
 
-The plugin updater compares by **version string**, so without a bump it will not pick up code changes (`already at latest version`).
-
-Run `scripts/release.sh <new-version>` — it bumps both `.claude-plugin/plugin.json` and `pyproject.toml` (and fails loud if they end up mismatched), `uv lock`s, commits, confirms before pushing to `main`, then refreshes the marketplace clone, updates the plugin, and syncs the new cache venv.
+The plugin updater compares by **version string** — without a bump it won't pick up code changes (`already at latest version`). Run `scripts/release.sh <new-version>`; it bumps `plugin.json` + `pyproject.toml` in lockstep, commits, and confirms before pushing to `main`. Read the script for the rest (marketplace clone, cache venv).
 
 ## Gotchas
 
 - `en_core_web_sm` is pinned as a direct-URL wheel dep (needs `tool.hatch.metadata.allow-direct-references`). No manual `spacy download`.
 - Defaults resolve relative to the package dir (`src/timbro/sample/`), not CWD — so the plugin works inside its cache sandbox.
 - `data/` is gitignored (private corpora); the shipped `src/timbro/sample/` is the only corpus that publishes.
+
+## Agent skills
+
+### Issue tracker
+
+Issues and specs live as GitHub issues in `nicofirst1/timbro`, via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+Single-context: a root `CONTEXT.md` (created lazily by `/domain-modeling`) plus `docs/adr/` record decisions. See `docs/agents/domain.md`.
+
+### Project history
+
+No CHANGELOG — history lives in git tags (`git tag`), the commit log, closed GitHub milestones, and `docs/adr/` (why the architecture is what it is). Check these before assuming how a subsystem got here.
