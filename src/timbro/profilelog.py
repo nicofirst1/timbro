@@ -7,6 +7,9 @@ stored, only a content hash for correlation.
 
 Logging must never break `learn()`: any failure here is swallowed and reported
 as `None`, not raised.
+
+Opt out with `TIMBRO_NO_LOG=1` in the environment (a user/test switch, read here,
+not set anywhere in code).
 """
 
 from __future__ import annotations
@@ -18,6 +21,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+from timbro.report import voice_report
 
 if TYPE_CHECKING:
     from timbro.model import VoiceModel
@@ -33,8 +38,6 @@ def _axis_z(entries: list[dict]) -> dict:
 
 
 def _summary(model: "VoiceModel", text: str) -> dict:
-    from timbro.report import voice_report  # lazy: avoid profiles<->report import cycle
-
     report = voice_report(model, text)
     return {
         "sha": _sha12(text),
