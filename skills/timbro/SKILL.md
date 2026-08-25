@@ -64,6 +64,18 @@ uv run timbro score draft.md --profile <name>
 
 4. **(Optional) verify content was preserved.** If the Timbro MCP server is registered, call `accept_rewrite(original, revised)` — it returns `accepted: true` only when the rewrite moved closer to the voice **and** kept the meaning (semantic similarity > 0.85). Use it as the stop condition.
 
+5. **Close the loop — teach the profile (offer, don't assume).** Once the loop converges on an accepted final, offer to save the pair into the profile — never do this silently. Ask the user to confirm first. On confirmation:
+
+   ```bash
+   uv run timbro profiles learn <name> --draft <original-draft> --final <accepted-final> --title <short-descriptive-slug>
+   ```
+
+   The final becomes an exemplar (move-toward), the raw draft becomes contrast (move-away). Because the two are topic-matched, this pair is an unusually clean voice signal, and the profile sharpens with each one you add.
+
+   `learn` reuses the same guard as `accept_rewrite`: it refuses to save unless the final actually scored closer to the voice **and** preserved meaning. A rejected `learn` is a sign the loop didn't really converge — go back to step 2.
+
+   Only save finals a human has approved. That human gate is what keeps the profile from drifting toward generic LLM-polished prose over time.
+
 ## When to use this vs. just rewriting
 
 Use Timbro whenever consistency with an _established_ body of writing matters: a personal blog, a company's content, a newsletter persona, anything where "does this sound like us?" is a real question. For one-off prose with no reference voice, plain rewriting is fine — Timbro needs a corpus to measure against.
