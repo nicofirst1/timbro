@@ -33,6 +33,32 @@ jobs:
             exit 1
           fi
 
+      - name: Assert uvx pins in shipped instructions match tag
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          for f in skills/timbro/SKILL.md README.md skills/timbro/onboarding.md; do
+            if [ ! -f "$f" ]; then
+              echo "skipping $f (not present)"
+              continue
+            fi
+            PINS=$(grep -ohE 'timbro@[0-9]+\.[0-9]+\.[0-9]+' "$f" | sed 's/^timbro@//' | sort -u)
+            if [ -z "$PINS" ]; then
+              case "$f" in
+                skills/timbro/SKILL.md|README.md)
+                  echo "::error::$f has no timbro@X.Y.Z pins"
+                  exit 1
+                  ;;
+              esac
+              continue
+            fi
+            for v in $PINS; do
+              if [ "$v" != "$TAG_VERSION" ]; then
+                echo "::error::$f pins timbro@$v, expected timbro@$TAG_VERSION"
+                exit 1
+              fi
+            done
+          done
+
       - name: Build
         run: uv build
 
