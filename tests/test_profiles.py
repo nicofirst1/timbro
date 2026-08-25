@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from timbro.cleanup.latex import has_detex
-from timbro.profiles import add_file, diagnose_profile, init_profile, profile_root
+from timbro.profiles import add_file, diagnose_profile, init_profile, learn, profile_root
 
 
 @unittest.skipUnless(has_detex(), "detex is required for .tex ingestion tests")
@@ -61,6 +61,125 @@ class ProfileDiagnosticsTests(unittest.TestCase):
             self.assertEqual(result["exemplars"], 6)
             self.assertIn("doc5.md", result["outliers"])
             self.assertTrue(result["warning"])
+
+
+FINAL_TEXT = (
+    "The committee reviewed the annual budget with care. Members raised concerns about "
+    "research funding and asked for a revised proposal. After careful deliberation, the "
+    "board approved the plan and scheduled a follow-up meeting for next quarter. Staff "
+    "will circulate the finalized figures before the next session begins."
+)
+
+DRAFT_TEXT = (
+    "The committee reviewed the annual budget. Members raised concerns about research "
+    "funding and asked for a revised proposal. After a lot of back and forth, the board "
+    "agreed to the plan and scheduled a follow-up meeting for next quarter. Staff will "
+    "send out the finalized figures before the next session begins."
+)
+
+
+class ProfileLearnTests(unittest.TestCase):
+    def _seed(self, root: Path, name: str = "demo") -> None:
+        init_profile(name, root=root)
+        exemplars_dir = root / name / "exemplars"
+        for i in range(3):
+            (exemplars_dir / f"seed{i}.md").write_text(FINAL_TEXT, encoding="utf-8")
+
+    def test_learn_saves_when_final_is_closer_and_content_preserved(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td) / "profiles"
+            self._seed(root)
+
+            draft_path = Path(td) / "draft.md"
+            final_path = Path(td) / "final.md"
+            draft_path.write_text(DRAFT_TEXT, encoding="utf-8")
+            final_path.write_text(FINAL_TEXT, encoding="utf-8")
+
+            result = learn("demo", draft_path, final_path, title="budget-memo", root=root)
+
+            self.assertTrue(result["saved"])
+            exemplar_path = root / "demo" / "exemplars" / "budget-memo.md"
+            contrast_path = root / "demo" / "contrast" / "budget-memo.md"
+            self.assertTrue(exemplar_path.exists())
+            self.assertTrue(contrast_path.exists())
+            self.assertEqual(exemplar_path.read_text(encoding="utf-8"), FINAL_TEXT)
+            self.assertEqual(contrast_path.read_text(encoding="utf-8"), DRAFT_TEXT)
+
+    def test_learn_refuses_when_not_improved_and_writes_nothing(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td) / "profiles"
+            self._seed(root)
+
+            draft_path = Path(td) / "draft.md"
+            final_path = Path(td) / "final.md"
+            draft_path.write_text(FINAL_TEXT, encoding="utf-8")
+            final_path.write_text(FINAL_TEXT, encoding="utf-8")
+
+            result = learn("demo", draft_path, final_path, title="identical", root=root)
+
+            self.assertFalse(result["saved"])
+            self.assertIn("distance", result["reason"])
+            self.assertFalse((root / "demo" / "exemplars" / "identical.md").exists())
+            self.assertFalse((root / "demo" / "contrast" / "identical.md").exists())
+
+    def test_learn_force_overrides_refusal(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td) / "profiles"
+            self._seed(root)
+
+            draft_path = Path(td) / "draft.md"
+            final_path = Path(td) / "final.md"
+            draft_path.write_text(FINAL_TEXT, encoding="utf-8")
+            final_path.write_text(FINAL_TEXT, encoding="utf-8")
+
+            result = learn("demo", draft_path, final_path, title="forced", force=True, root=root)
+
+            self.assertTrue(result["saved"])
+            self.assertTrue((root / "demo" / "exemplars" / "forced.md").exists())
+            self.assertTrue((root / "demo" / "contrast" / "forced.md").exists())
+
+    def test_learn_refuses_atomically_on_partial_title_collision(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td) / "profiles"
+            self._seed(root)
+
+            # Pre-existing contrast file for the title, but no exemplar file yet --
+            # the collision must block BOTH writes, not just the second one.
+            contrast_path = root / "demo" / "contrast" / "budget-memo.md"
+            contrast_path.parent.mkdir(parents=True, exist_ok=True)
+            stale_contrast = "pre-existing contrast content"
+            contrast_path.write_text(stale_contrast, encoding="utf-8")
+
+            draft_path = Path(td) / "draft.md"
+            final_path = Path(td) / "final.md"
+            draft_path.write_text(DRAFT_TEXT, encoding="utf-8")
+            final_path.write_text(FINAL_TEXT, encoding="utf-8")
+
+            with self.assertRaises(FileExistsError):
+                learn("demo", draft_path, final_path, title="budget-memo", root=root)
+
+            exemplar_path = root / "demo" / "exemplars" / "budget-memo.md"
+            self.assertFalse(exemplar_path.exists())
+            self.assertEqual(contrast_path.read_text(encoding="utf-8"), stale_contrast)
+
+    def test_learn_cold_start_requires_force(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td) / "profiles"
+            init_profile("empty", root=root)
+
+            draft_path = Path(td) / "draft.md"
+            final_path = Path(td) / "final.md"
+            draft_path.write_text(DRAFT_TEXT, encoding="utf-8")
+            final_path.write_text(FINAL_TEXT, encoding="utf-8")
+
+            with self.assertRaises(ValueError):
+                learn("empty", draft_path, final_path, root=root)
+
+            result = learn("empty", draft_path, final_path, force=True, root=root)
+            self.assertTrue(result["saved"])
+            self.assertIsNone(result["accepted"])
+            self.assertTrue((root / "empty" / "exemplars" / "final.md").exists())
+            self.assertTrue((root / "empty" / "contrast" / "final.md").exists())
 
 
 class ProfileRootResolutionTests(unittest.TestCase):

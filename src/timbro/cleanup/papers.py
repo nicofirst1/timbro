@@ -10,7 +10,6 @@ clean excerpt over raw full-text dumps.
 from __future__ import annotations
 
 import re
-from pathlib import Path
 
 _ABSTRACT = re.compile(r"^abstract\b[:.]?\s*", re.I)
 _INTRO = re.compile(r"^(?:\d+(?:\.\d+)*)?\s*introduction\b[:.]?\s*", re.I)
@@ -252,10 +251,3 @@ def cleanup_paper_markdown(text: str) -> str:
         excerpt = clean_extracted_text(body) + "\n"
     return frontmatter + "\n" + excerpt if frontmatter else excerpt
 
-
-def cleanup_markdown_file(path: str | Path) -> None:
-    file_path = Path(path)
-    file_path.write_text(
-        cleanup_paper_markdown(file_path.read_text(encoding="utf-8", errors="ignore")),
-        encoding="utf-8",
-    )

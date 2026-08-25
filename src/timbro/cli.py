@@ -13,8 +13,9 @@ import json
 import sys
 
 from timbro.model import VoiceModel, default_model
-from timbro.profiles import add_file, diagnose_profile, get_profile, init_profile, list_profiles
+from timbro.profiles import add_file, diagnose_profile, get_profile, init_profile, learn, list_profiles
 from timbro.report import voice_report
+from timbro.rewrite import evaluate_rewrite
 from timbro.rubrics import check_text
 from timbro.rubrics.report import render_text
 
@@ -38,6 +39,13 @@ def main():
     sl.add_argument("file", help="path to the draft, or - for stdin")
     sl.add_argument("--profile", help="baseline tells against this profile's corpus (relative mode)")
     sl.add_argument("--json", action="store_true", help="raw JSON payload")
+
+    ac = sub.add_parser("accept", help="judge a candidate rewrite: closer to voice + meaning preserved?")
+    ac.add_argument("original", help="path to the original draft")
+    ac.add_argument("revised", help="path to the candidate rewrite")
+    ac.add_argument("--profile", help="named profile to score against")
+    ac.add_argument("--threshold", type=float, default=0.85, help="content-similarity gate (default 0.85)")
+    ac.add_argument("--json", action="store_true", help="raw JSON payload")
 
     an = sub.add_parser("analyze", help="emit deterministic linguistic feature vectors")
     an.add_argument("paths", nargs="+", help="one or more .md/.txt files")
@@ -68,6 +76,17 @@ def main():
     pd = psub.add_parser("diagnose", help="diagnose profile coherence and outliers")
     pd.add_argument("name")
     pd.add_argument("--json", action="store_true", help="raw JSON payload")
+
+    pn = psub.add_parser(
+        "learn",
+        help="save a (draft, final) editing pair into a profile — final→exemplars, draft→contrast, guarded",
+    )
+    pn.add_argument("name")
+    pn.add_argument("--draft", required=True, help="path to the raw/first-pass draft (goes to contrast)")
+    pn.add_argument("--final", required=True, help="path to the polished final (goes to exemplars)")
+    pn.add_argument("--title", default=None, help="optional shared slug for both saved files (default: final's stem)")
+    pn.add_argument("--force", action="store_true", help="skip the guard / overwrite existing / bootstrap an empty profile")
+    pn.add_argument("--json", action="store_true", help="raw JSON payload")
 
     args = ap.parse_args()
 
@@ -135,6 +154,35 @@ def main():
                 print(f"- {row['file']}: {row['words']} words, {row['paragraphs']} paragraphs, nn-dist {row['nearest_neighbor_distance']:.2f}")
             return
 
+        if args.profiles_cmd == "learn":
+            try:
+                result = learn(
+                    args.name,
+                    args.draft,
+                    args.final,
+                    title=args.title,
+                    force=args.force,
+                )
+            except (FileExistsError, FileNotFoundError, ValueError) as exc:
+                print(f"error: {exc}", file=sys.stderr)
+                sys.exit(1)
+
+            if args.json:
+                print(json.dumps(result))
+                return
+
+            if not result["saved"]:
+                print(result["reason"], file=sys.stderr)
+                sys.exit(1)
+
+            print(f"learned pair into '{args.name}': exemplar {result['exemplar']}, contrast {result['contrast']}")
+            if result["distance_before"] is not None:
+                print(
+                    f"distance draft={result['distance_before']:.1f} -> final={result['distance_after']:.1f} "
+                    f"(similarity {result['similarity']:.2f})"
+                )
+            return
+
     if args.cmd in ("check", "slop"):
         rubric = "slop" if args.cmd == "slop" else args.rubric
         text = sys.stdin.read() if args.file == "-" else open(args.file, encoding="utf-8").read()
@@ -143,6 +191,26 @@ def main():
             print(json.dumps(result.to_dict(), indent=2))
             return
         print(render_text(result))
+        return
+
+    if args.cmd == "accept":
+        original = open(args.original, encoding="utf-8").read()
+        revised = open(args.revised, encoding="utf-8").read()
+        if args.profile:
+            prof = get_profile(args.profile)
+            model = VoiceModel.from_dir(prof.exemplars_dir, contrast=prof.contrast_dir)
+        else:
+            model = default_model()
+        result = evaluate_rewrite(model, original, revised, threshold=args.threshold)
+        if args.json:
+            print(json.dumps(result, indent=2))
+            return
+        verdict = "accepted" if result["accepted"] else "rejected"
+        print(
+            f"{verdict}: distance {result['distance_before']:.1f} -> {result['distance_after']:.1f} "
+            f"(improved={result['improved']}), content similarity {result['similarity']:.2f} "
+            f"(content_ok={result['content_ok']})"
+        )
         return
 
     if args.cmd == "analyze":

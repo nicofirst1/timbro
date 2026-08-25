@@ -1,19 +1,11 @@
 {
   "name": "timbro",
   "version": "0.7.1",
-  "description": "Keep your writing sounding like you — even when an LLM is writing. Scores a draft's distance from your voice (score_voice) and runs a deterministic Schimel writing rubric (check_voice). Returns named, content-preserving edits. Local, white-box, MCP-ready.",
+  "description": "Keep your writing sounding like you — even when an LLM is writing. Scores a draft's distance from your voice and runs a deterministic Schimel writing rubric. Returns named, content-preserving edits. Local, white-box, CLI-driven.",
   "author": {
     "name": "Nicolo' Brandizzi",
     "url": "https://nicolobrandizzi.com"
   },
   "homepage": "https://github.com/nicofirst1/timbro",
-  "keywords": ["writing", "style", "voice", "consistency", "mcp", "ai-agents"],
-  "mcpServers": {
-    "timbro": {
-      "command": "uv",
-      "args": ["run", "--directory", "${CLAUDE_PLUGIN_ROOT}", "timbro-mcp"],
-      "comment": "Runs on the packaged sample voice out of the box. To use your real voice, add TIMBRO_EXEMPLARS / TIMBRO_CONTRAST (absolute paths to your own corpora) to the env below.",
-      "env": {}
-    }
-  }
+  "keywords": ["writing", "style", "voice", "consistency", "ai-agents"]
 }

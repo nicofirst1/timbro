@@ -62,7 +62,19 @@ uv run timbro score draft.md --profile <name>
 
 3. **Re-score.** Run `timbro score` on your revision. Confirm `distance` dropped. If it rose, you over-rotated — back off the lowest-confidence edits.
 
-4. **(Optional) verify content was preserved.** If the Timbro MCP server is registered, call `accept_rewrite(original, revised)` — it returns `accepted: true` only when the rewrite moved closer to the voice **and** kept the meaning (semantic similarity > 0.85). Use it as the stop condition.
+4. **(Optional) verify content was preserved.** Save the original and revised text to files and run `uv run timbro accept original.md revised.md` — it returns `accepted: true` only when the rewrite moved closer to the voice **and** kept the meaning (semantic similarity > 0.85). Use it as the stop condition.
+
+5. **Close the loop — teach the profile (offer, don't assume).** Once the loop converges on an accepted final, offer to save the pair into the profile — never do this silently. Ask the user to confirm first. On confirmation:
+
+   ```bash
+   uv run timbro profiles learn <name> --draft <original-draft> --final <accepted-final> --title <short-descriptive-slug>
+   ```
+
+   The final becomes an exemplar (move-toward), the raw draft becomes contrast (move-away). Because the two are topic-matched, this pair is an unusually clean voice signal, and the profile sharpens with each one you add.
+
+   `learn` reuses the same guard as `timbro accept`: it refuses to save unless the final actually scored closer to the voice **and** preserved meaning. A rejected `learn` is a sign the loop didn't really converge — go back to step 2.
+
+   Only save finals a human has approved. That human gate is what keeps the profile from drifting toward generic LLM-polished prose over time.
 
 ## When to use this vs. just rewriting
 
@@ -77,7 +89,7 @@ uv run timbro slop draft.md          # human-readable verdict + ranked tells
 uv run timbro slop draft.md --json   # {verdict, dimensions, findings}
 ```
 
-(`slop` is an alias for `timbro check --rubric slop`; the `check_voice` MCP tool takes the same `rubric="slop"`.) It flags the mechanical LLM fingerprints — em/en dashes, "it's not X, it's Y", delve/tapestry/leverage diction, signposting and wrap-up phrases, emoji, curly quotes, bold lead-in bullets, colon-lists, and uniform/staccato rhythm — grouped into four dimensions (diction, construction, rhythm, formatting). Pure regex + POS, offline, **no LLM judging LLM prose**. Reach for it on "check for AI slop", "de-slop this", "does this sound like an LLM wrote it". Each flagged tell is a marker to delete or vary, not a style dial — removing it only helps.
+(`slop` is an alias for `timbro check --rubric slop`.) It flags the mechanical LLM fingerprints — em/en dashes, "it's not X, it's Y", delve/tapestry/leverage diction, signposting and wrap-up phrases, emoji, curly quotes, bold lead-in bullets, colon-lists, and uniform/staccato rhythm — grouped into four dimensions (diction, construction, rhythm, formatting). Pure regex + POS, offline, **no LLM judging LLM prose**. Reach for it on "check for AI slop", "de-slop this", "does this sound like an LLM wrote it". Each flagged tell is a marker to delete or vary, not a style dial — removing it only helps.
 
 **Corpus-relative mode.** By default `slop` measures against zero — any em-dash is a tell. If a voice legitimately uses some tells (an em-dash habit, say), add `--profile <name>` to baseline against that profile's exemplar corpus instead: a tell is flagged only where the draft _overuses_ it relative to your own norm.
 
@@ -89,6 +101,6 @@ Use absolute mode (no profile) to answer "is this AI-generated?"; use `--profile
 
 ## Related: the writing rubric (`check`)
 
-Voice alignment answers _"does this sound like the target?"_ (needs a corpus); the slop rubric answers _"does this read AI-generated?"_. A third, corpus-free capability answers _"is this good prose?"_ — `timbro check <file>` (or the `check_voice` MCP tool) runs ~30 deterministic Schimel _Writing Science_ checks (buried subject–verb core, passive voice, comma splices, expletive openings, preposition chains, nominalizations, word-echo repetition, metadiscourse frames, caveat/defensive closings, and more), no model, no voice corpus. Reach for it when the user asks to "check my writing", "run a Schimel pass", or clean up prose quality rather than match a specific voice.
+Voice alignment answers _"does this sound like the target?"_ (needs a corpus); the slop rubric answers _"does this read AI-generated?"_. A third, corpus-free capability answers _"is this good prose?"_ — `timbro check <file>` runs ~30 deterministic Schimel _Writing Science_ checks (buried subject–verb core, passive voice, comma splices, expletive openings, preposition chains, nominalizations, word-echo repetition, metadiscourse frames, caveat/defensive closings, and more), no model, no voice corpus. Reach for it when the user asks to "check my writing", "run a Schimel pass", or clean up prose quality rather than match a specific voice.
 
 The rubric is deliberately **recall-first**: it over-flags rather than stay silent, and you (the agent) are the precision filter. Treat every finding as "worth a look", not "definitely wrong" — judge each against the text, fix the real ones, and silently drop the false positives instead of contorting good prose to satisfy a flag. Severity is the confidence signal: act on `high` findings first; `low` findings are hints.

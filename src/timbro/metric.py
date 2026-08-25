@@ -84,12 +84,9 @@ def _nlp():
     # component after load. tagger + attribute_ruler + lemmatizer stay enabled (the
     # lemmatizer needs the tagger's output); ner/parser disabled for speed. sentencizer
     # is added (cheap, rule-based, not the statistical parser) for sentence-boundary axes.
-    import spacy
+    from timbro.spacy_model import load_spacy
 
-    try:
-        nlp = spacy.load("en_core_web_sm", disable=["ner", "parser"])
-    except OSError as e:  # model isn't a pip dep; spaCy ships it via a separate download
-        raise OSError("Run: uv run python -m spacy download en_core_web_sm") from e
+    nlp = load_spacy(disable=["ner", "parser"])
     nlp.add_pipe("sentencizer")
     return nlp
 

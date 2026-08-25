@@ -4,7 +4,7 @@ Before building named flow features (speed/volume/circle-back/TAACO), prove that
 paragraph ORDER is even discriminative at this doc length. The measuring stick is
 one order-sensitive scalar: mean adjacent-paragraph cosine (local coherence).
 
-Two gates (PLAN sec 7/8), run per document and averaged:
+Two gates, run per document and averaged:
   - insertion test: pull each interior paragraph, find the slot that maximises
     coherence; the original slot should win (rank-1). The stronger gate at ~15 paras.
   - shuffle test: original order should beat >80% of random permutations on coherence.
