@@ -88,11 +88,25 @@ class JsonShapeTests(unittest.TestCase):
 
 class ExitCodeTests(unittest.TestCase):
     def test_successful_run_exits_zero_regardless_of_verdict(self):
+        sloppy = (
+            "Let's delve into the seamless tapestry of robust solutions — "
+            "it's not just a tool, it's a paradigm. In conclusion, the future is bright."
+        )
+        with TemporaryDirectory() as tmp:
+            draft = Path(tmp) / "draft.md"
+            draft.write_text(sloppy)
+            out, _, code = _run(["check", str(draft), "--json"])
+        self.assertEqual(code, 0)
+        self.assertNotEqual(json.loads(out)["verdict"], "pass")
+
+    def test_all_empty_rubric_list_falls_back_to_all_rubrics(self):
         with TemporaryDirectory() as tmp:
             draft = Path(tmp) / "draft.md"
             draft.write_text(_CLEAN)
-            _, _, code = _run(["check", str(draft), "--json"])
+            out, err, code = _run(["check", str(draft), "--rubric", ",,", "--json"])
+        self.assertEqual(err, "")
         self.assertEqual(code, 0)
+        self.assertEqual(set(json.loads(out)["rubrics"]), {"schimel", "slop", "density"})
 
     def test_slop_command_no_longer_exists(self):
         with TemporaryDirectory() as tmp:

@@ -187,9 +187,10 @@ def main():
             return
 
     if args.cmd == "check":
+        names = []
         if args.rubric:
             names = [name.strip() for name in args.rubric.split(",") if name.strip()]
-        else:
+        if not names:
             names = list(RUBRIC_NAMES)
         unknown = [name for name in names if name not in RUBRIC_NAMES]
         if unknown:
