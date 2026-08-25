@@ -144,6 +144,13 @@ _NEGATION = {
 }
 # Finite-verb tags: a sentence with none of these (and no AUX) has no main verb.
 _FINITE_TAG = {"VBP", "VBZ", "VBD", "MD"}
+_DANGLING_SINGULAR_MARKERS = {"this", "that", "it"}
+_DANGLING_PLURAL_MARKERS = {"these", "those", "they"}
+_DANGLING_CONNECTIVE_MARKERS = {
+    "but", "so", "therefore", "thus", "hence", "however", "yet", "instead", "then",
+}
+_SINGULAR_NOUN_TAGS = {"NN", "NNP"}
+_PLURAL_NOUN_TAGS = {"NNS", "NNPS"}
 # Reporting/attribution verbs — a genuinely closed lexical class (there is no structural
 # signal for "this is a reporting verb"), so a small list here is strictly necessary.
 _REPORT_VERB = (
@@ -310,6 +317,40 @@ class DocumentView:
         emb = np.asarray(_embed_model().encode(sents, normalize_embeddings=True))
         sims = [_cos(emb[j], emb[j + 1]) for j in range(len(emb) - 1)]
         return float(np.mean(sims)) if sims else 1.0
+
+    def dangling_paragraph_openers(
+        self, *, include_connectives: bool = True
+    ) -> list[tuple[int, int, str]]:
+        """Coherence proxy (#74): a paragraph-opening sentence that leads with a
+        pronoun/demonstrative or bare connective whose referent isn't established in the
+        prior paragraph. Tag-based antecedent check — no embeddings, no LLM.
+        """
+        out: list[tuple[int, int, str]] = []
+        for pi in range(1, len(self._spacy_paragraphs)):
+            sents = list(self._spacy_paragraphs[pi].sents)
+            if not sents:
+                continue
+            first_sent = sents[0]
+            tokens = [t for t in first_sent if not t.is_punct]
+            if not tokens:
+                continue
+            marker = tokens[0].text.lower()
+
+            if marker in _DANGLING_SINGULAR_MARKERS or marker in _DANGLING_PLURAL_MARKERS:
+                expect_tags = (
+                    _SINGULAR_NOUN_TAGS
+                    if marker in _DANGLING_SINGULAR_MARKERS
+                    else _PLURAL_NOUN_TAGS
+                )
+                prior_sents = list(self._spacy_paragraphs[pi - 1].sents)
+                tail = prior_sents[-2:] if len(prior_sents) >= 2 else prior_sents[-1:]
+                resolved = any(t.tag_ in expect_tags for sent in tail for t in sent)
+                if not resolved:
+                    out.append((pi, 0, first_sent.text.strip()))
+            elif include_connectives and marker in _DANGLING_CONNECTIVE_MARKERS:
+                if not any(t.pos_ in {"NOUN", "PROPN"} for t in first_sent):
+                    out.append((pi, 0, first_sent.text.strip()))
+        return out
 
     def fuzzy_verb_density(self) -> float:
         words = max(1, len(self.text.split()))
