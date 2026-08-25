@@ -15,11 +15,6 @@ from timbro.rubrics.features import DocumentView
 # false positives itself, so we cap for payload size, not precision.
 MAX_FINDINGS_PER_RULE = 10
 
-# Tier B (#74): no labelled coherence benchmark exists yet; calibrated on the FP side
-# only via eval/rubric_dashboard.py. Flip to False if the bare-connective half proves
-# noisier than the pronoun/demonstrative half on the known-good corpus.
-_INCLUDE_DANGLING_CONNECTIVES = True
-
 
 def _emit(
     findings: list[RubricFinding],
@@ -249,9 +244,7 @@ def schimel_findings(doc: DocumentView) -> list[RubricFinding]:
         severity="low",
         dimension="flow",
         rule="paragraph_opener_dangling_reference",
-        occurrences=doc.dangling_paragraph_openers(
-            include_connectives=_INCLUDE_DANGLING_CONNECTIVES
-        ),
+        occurrences=doc.dangling_paragraph_openers(),
         message="Paragraph opens with a pronoun, demonstrative, or connective whose referent isn't established in the prior paragraph.",
     )
 

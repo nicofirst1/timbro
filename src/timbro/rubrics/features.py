@@ -318,12 +318,12 @@ class DocumentView:
         sims = [_cos(emb[j], emb[j + 1]) for j in range(len(emb) - 1)]
         return float(np.mean(sims)) if sims else 1.0
 
-    def dangling_paragraph_openers(
-        self, *, include_connectives: bool = True
-    ) -> list[tuple[int, int, str]]:
+    def dangling_paragraph_openers(self) -> list[tuple[int, int, str]]:
         """Coherence proxy (#74): a paragraph-opening sentence that leads with a
         pronoun/demonstrative or bare connective whose referent isn't established in the
-        prior paragraph. Tag-based antecedent check — no embeddings, no LLM.
+        prior paragraph. Tag-based antecedent check — no embeddings, no LLM. If the
+        connective half (elif below) proves noisier than the pronoun half on a future,
+        larger known-good corpus (eval/rubric_dashboard.py), drop that branch.
         """
         out: list[tuple[int, int, str]] = []
         for pi in range(1, len(self._spacy_paragraphs)):
@@ -347,7 +347,7 @@ class DocumentView:
                 resolved = any(t.tag_ in expect_tags for sent in tail for t in sent)
                 if not resolved:
                     out.append((pi, 0, first_sent.text.strip()))
-            elif include_connectives and marker in _DANGLING_CONNECTIVE_MARKERS:
+            elif marker in _DANGLING_CONNECTIVE_MARKERS:
                 if not any(t.pos_ in {"NOUN", "PROPN"} for t in first_sent):
                     out.append((pi, 0, first_sent.text.strip()))
         return out
