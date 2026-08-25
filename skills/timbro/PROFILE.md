@@ -2,8 +2,6 @@
 
 Use Timbro whenever consistency with an _established_ body of writing matters: a personal blog, a company's content, a newsletter persona, anything where "does this sound like us?" is a real question. For one-off prose with no reference voice, plain rewriting is fine — Timbro needs a corpus to measure against.
 
-You (the agent) are the rewriter. Timbro is the measurer. Run the loop: **score → edit toward the direction → re-score → repeat until the distance stops dropping.**
-
 `<version>` below is the pin declared at the top of `SKILL.md`.
 
 ## Setup (one-time per corpus)
