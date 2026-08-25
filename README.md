@@ -8,7 +8,7 @@
 <h1 align="center">Timbro</h1>
 
 <p align="center">
-  <em>Catch AI slop with deterministic, offline checks that never call an LLM. Then keep what's left sounding like you.</em>
+  <em>Keep what you publish sounding like you, or like your brand, with deterministic, offline checks that never call an LLM. Catching AI slop is the sharpest place to start.</em>
 </p>
 
 <p align="center">
