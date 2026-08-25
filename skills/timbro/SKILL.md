@@ -5,7 +5,7 @@ description: Run a deterministic writing rubric: AI-slop tells ("check for AI sl
 
 # Timbro
 
-Pinned CLI version: `timbro@0.7.1`. Commands in the files below substitute `<version>` for it; never hand-edit this line, `scripts/release.sh` keeps it in sync with the release tag.
+Pinned CLI version: `timbro@0.8.0`. Commands in the files below substitute `<version>` for it; never hand-edit this line, `scripts/release.sh` keeps it in sync with the release tag.
 
 You (the agent) are the rewriter, Timbro is the measurer. Every capability below runs the same loop: **run the check → edit what it flags → re-run → repeat until it stops improving.** They differ only in what "check" means and what "improving" means. Jump to the one that matches the request:
 
