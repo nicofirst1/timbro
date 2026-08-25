@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from timbro.rubrics.features import DocumentView
-from timbro.text import strip_markup
 from timbro.rubrics.report import build_result
 from timbro.rubrics.rules import schimel_findings
+from timbro.text import strip_markup
 
 
 class SchimelRubric:

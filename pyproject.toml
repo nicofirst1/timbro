@@ -51,7 +51,7 @@ Issues = "https://github.com/nicofirst1/timbro/issues"
 [dependency-groups]
 dev = [
     "pytest>=8",
-    "ruff==0.15.20",
+    "ruff==0.16.4",
     "en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl",
 ]
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import itertools
 import re
 from functools import cached_property, lru_cache
 from statistics import pstdev
@@ -7,8 +8,8 @@ from statistics import pstdev
 import numpy as np
 
 from timbro.cleanup import preprocess_runtime_text
-from timbro.text import _model as _embed_model
 from timbro.rubrics.sections import detect_sections, split_paragraphs, split_sentences
+from timbro.text import _model as _embed_model
 
 
 @lru_cache(maxsize=1)
@@ -24,37 +25,37 @@ def _rubric_nlp():
 _CITATION = re.compile(r"\([A-Z][A-Za-z-]+(?: et al\.)?,? \d{4}\)|\[\d+\]")
 _FUZZY = re.compile(
     r"\b(?:affect|facilitate|occur|perform|conduct|implement|provide|utilize|evaluate|examine)\w*\b",
-    re.I,
+    re.IGNORECASE,
 )
-_NOM = re.compile(r"\b\w+(?:tion|sion|ment|ance|ence|ity|ness)\b", re.I)
+_NOM = re.compile(r"\b\w+(?:tion|sion|ment|ance|ence|ity|ness)\b", re.IGNORECASE)
 _ACRONYM = re.compile(r"\b[A-Z]{2,}\b")
 _ALLOW = {"DNA", "RNA", "CO2", "NLP", "AI", "LLM", "OCAR", "SUCCES", "NIH", "NSF"}
 _PROBLEM = re.compile(
     r"\b(?:challenge|problem|question|unknown|unclear|important|critical|controls?|drives?|limits?|affects?)\b",
-    re.I,
+    re.IGNORECASE,
 )
 _METHOD = re.compile(
     r"\b(?:method|methods|measured|measures?|dataset|datasets|algorithm|algorithms|model|models|experiment|experiments)\b",
-    re.I,
+    re.IGNORECASE,
 )
 _WEAK_END = re.compile(
     r"\b(?:more research is needed|future work is needed|may provide insights|could be important)\b",
-    re.I,
+    re.IGNORECASE,
 )
-_OBJECTIVE_ONLY = re.compile(r"\bour objective(?:s)? (?:was|were|is|are)\b", re.I)
+_OBJECTIVE_ONLY = re.compile(r"\bour objective(?:s)? (?:was|were|is|are)\b", re.IGNORECASE)
 # A section closing on a hedge/concession instead of the result ("we cry at the end").
 _HEDGE_CLOSE = re.compile(
     r"\b(?:however|although|though|nonetheless|nevertheless|admittedly|unfortunately|"
     r"caveat|limitation|we do not (?:claim|argue)|we make no|we cannot|"
     r"does not (?:claim|establish|prove)|no\b[^.]{0,30}\bsuperiority|"
     r"rather than (?:a|an|evidence)|to be fair|falls short|is not (?:more|better|a stronger))\b",
-    re.I,
+    re.IGNORECASE,
 )
 # Coy/deferral predicates that point at the claim instead of making it.
 _COY = re.compile(
     r"\b(?:its value (?:is|lies)\b|the (?:real )?(?:key|point|answer|crux|value) (?:is|lies|here is)\b|"
     r"what (?:really )?matters (?:is|here)\b|the answer lies\b|the trick is\b|the magic (?:is|happens)\b)",
-    re.I,
+    re.IGNORECASE,
 )
 # Inline statistics (decimals / percentages) — a run of these is a number-ladder for a table.
 _STAT_NUMBER = re.compile(r"\d+\.\d+|\d+\s?%")
@@ -73,14 +74,14 @@ _ORPHAN_START = re.compile(
 _OVERCLAIM = re.compile(
     r"\b(?:proves?|proven|establishes?|novel|state[- ]of[- ]the[- ]art|outperforms?|"
     r"validate[ds]?|load[- ]bearing|unprecedented|definitive)\b",
-    re.I,
+    re.IGNORECASE,
 )
 # Throat-clearing and stacked hedges that carry no information.
 _DEADWOOD = re.compile(
     r"\b(?:it is important to note that|it should be noted that|it is worth noting that|"
     r"needless to say|as a matter of fact|for all intents and purposes|"
     r"may possibly|might perhaps|could potentially|somewhat suggests?)\b",
-    re.I,
+    re.IGNORECASE,
 )
 # Long Latinate words where a short Anglo-Saxon one works (Schimel, Writing Science ch. 9:
 # "prefer short words"). Map gives the plain alternative so the finding is actionable.
@@ -111,8 +112,8 @@ _LATINATE_PLAIN = {
 # overwhelmingly Latinate/Greek, which is Schimel's "prefer short words" target. We skip
 # nominalizations (-tion, -ity, ...) — the nominalization check already owns those — and
 # use the map above only to upgrade the advice to a plain-word swap when we know one.
-_SYLLABLE = re.compile(r"[aeiouy]+", re.I)
-_NOMINAL_END = re.compile(r"(?:tion|sion|ment|ity|ance|ence|ness)s?$", re.I)
+_SYLLABLE = re.compile(r"[aeiouy]+", re.IGNORECASE)
+_NOMINAL_END = re.compile(r"(?:tion|sion|ment|ity|ance|ence|ness)s?$", re.IGNORECASE)
 _WORD_TOKEN = re.compile(r"[A-Za-z][A-Za-z-]{4,}")
 # Content parts of speech for the repetition/terminology checks (skip function words).
 _CONTENT_POS = {"NOUN", "PROPN", "VERB", "ADJ", "ADV"}
@@ -162,24 +163,24 @@ _METADISCOURSE = re.compile(
     r"\b(?:we|this (?:study|paper|work|analysis)|our (?:results?|data|analysis|experiments?))\s+"
     + _REPORT_VERB
     + r"\s+that\b",
-    re.I,
+    re.IGNORECASE,
 )
 # Expletive opening: "There is/are…", "It is/was…" — an empty subject Schimel says to cut.
 _EXPLETIVE_OPEN = re.compile(
     r"^(?:There\s+(?:is|are|was|were|has|have|exists?|remains?|seems?|appears?)|"
     r"It\s+(?:is|was|has been|seems?|appears?|turns out))\b",
-    re.I,
+    re.IGNORECASE,
 )
 # "significant(ly)" or a p-value; a run of these with no co-located magnitude is Schimel's
 # "tell the story through the data, not the statistics" (ch. 8) — report the effect size.
-_SIGNIF = re.compile(r"\bsignificantly?\b|\bp\s*[<=>]\s*0?\.\d+", re.I)
+_SIGNIF = re.compile(r"\bsignificantly?\b|\bp\s*[<=>]\s*0?\.\d+", re.IGNORECASE)
 _MAGNITUDE = re.compile(
     r"%|[×x]\b|\bfold\b|\btimes\b|\bfactor\b|\bpercent\b|\bpoints?\b|"
     r"\d+\s*(?:mm|cm|km|kg|mg|ms|Hz|days?|years?|hours?)\b",
-    re.I,
+    re.IGNORECASE,
 )
 # A "of … of … of" run: 3+ prepositional phrases stacked (Schimel ch. 15: unstack them).
-_OF_CHAIN = re.compile(r"\bof\b(?:\s+\S+){1,4}\s+\bof\b(?:\s+\S+){1,4}\s+\bof\b", re.I)
+_OF_CHAIN = re.compile(r"\bof\b(?:\s+\S+){1,4}\s+\bof\b(?:\s+\S+){1,4}\s+\bof\b", re.IGNORECASE)
 # Words that legally introduce a clause after a comma (coordinators + subordinators +
 # relatives), so they are NOT comma splices.
 _SPLICE_SKIP = {
@@ -272,7 +273,7 @@ class DocumentView:
         for lemma, occ in positions.items():
             if len(occ) < _LEITWORT_MIN_OCCURRENCES:
                 continue
-            gaps = [b - a for a, b in zip(occ, occ[1:])]
+            gaps = [b - a for a, b in itertools.pairwise(occ)]
             if len(gaps) < _LEITWORT_MIN_GAPS:
                 continue
             mean_gap = sum(gaps) / len(gaps)
@@ -640,7 +641,7 @@ class DocumentView:
                         )
                     )
                     break
-            for a, b in zip(toks, toks[1:]):
+            for a, b in itertools.pairwise(toks):
                 fa, fb = a.text.lower(), b.text.lower()
                 if fa != fb and len(fa) >= 7 and fa[:7] == fb[:7]:
                     out.append(

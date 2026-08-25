@@ -105,7 +105,9 @@ def flow_report(text: str) -> FlowReport:
 
 
 if __name__ == "__main__":
-    from timbro.model import read_corpus  # lazy: avoids a model<->report<->flow import cycle
+    from timbro.model import (
+        read_corpus,  # lazy: avoids a model<->report<->flow import cycle
+    )
 
     docs = read_corpus(sys.argv[1])
     embs = [embed(paragraphs(d)) for d in docs]

@@ -30,7 +30,6 @@ from timbro.model import VoiceModel, _style_vec
 from timbro.profilelog import log_learn
 from timbro.rewrite import evaluate_rewrite
 
-
 _VALID_NAME = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
 
 
@@ -197,9 +196,7 @@ def init_profile(name: str, about: str = "", root: str | Path | None = None) -> 
     profile = get_profile(name, root)
     profile.exemplars_dir.mkdir(parents=True, exist_ok=True)
     profile.contrast_dir.mkdir(parents=True, exist_ok=True)
-    if not profile.readme_path.exists():
-        profile.readme_path.write_text(_readme_text(profile.name, about), encoding="utf-8")
-    elif about.strip():
+    if not profile.readme_path.exists() or about.strip():
         profile.readme_path.write_text(_readme_text(profile.name, about), encoding="utf-8")
     return profile
 
