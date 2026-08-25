@@ -6,10 +6,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-08-25
+
+First release to actually ship the metric-axis and edit-loop work that had accumulated on `dev` — earlier tags were cut from a lagging `main`.
+
 ### Added
 
 - `timbro profiles learn` — folds accepted edits back into a named profile, closing the score → edit → re-score loop into persistent voice tuning (#69).
+- Per-profile run telemetry: `profiles.learn()` appends learn events to `<profile>/runs.jsonl`; opt out with `TIMBRO_NO_LOG=1` (#72).
+- `paragraph-opener` dangling-reference check — flags a paragraph that opens on an unresolved referent (#74).
+- Discourse-marker / paragraph-opening coherence check (#86).
+- `timbro-setup` skill for guided first-run onboarding (#70).
+- Portable `uvx timbro@<version>` install path and a "Using Timbro with other coding agents" guide, with CI asserting the shipped pin matches the release tag (#77).
+- Feature-reference doc and ADRs 0001–0006 recording the architecture decisions (#71, #100).
 - Demo GIF walking the score → edit → re-score loop in ~20s, plus the `assets/demo.tape` source and before/after sample drafts (#67).
+
+### Changed
+
+- SKILL.md reworked into a router and renamed to `timbro-review`; plugin/PyPI metadata now leads with the slop-detection pitch (#13).
+- `release.sh` tags and pushes `vX.Y.Z` so the PyPI publish fires, and rewrites the `uvx` pins in the instruction files on each bump (#77, #82).
+
+### Removed
+
+- MCP server — the CLI is the sole interface. **Breaking** for anyone driving Timbro over MCP (#78).
+
+### Fixed
+
+- `eval/rubric_dashboard.py` imported from the removed `timbro.core` module.
 
 ## [0.7.1] — 2026-08-10
 

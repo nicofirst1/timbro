@@ -51,4 +51,4 @@ Single-context: a root `CONTEXT.md` (created lazily by `/domain-modeling`) plus 
 
 ### Project history
 
-No CHANGELOG — history lives in git tags (`git tag`), the commit log, closed GitHub milestones, and `docs/adr/` (why the architecture is what it is). Check these before assuming how a subsystem got here.
+History lives in `CHANGELOG.md` (Keep a Changelog format, updated by hand at release time — `release.sh` does not touch it), git tags (`git tag`), the commit log, closed GitHub milestones, and `docs/adr/` (why the architecture is what it is). Check these before assuming how a subsystem got here. Note: tags before v0.8.0 were cut from a `main` that lagged `dev`, so pre-0.8.0 changelog entries describe dev state, not what those tags actually shipped.
