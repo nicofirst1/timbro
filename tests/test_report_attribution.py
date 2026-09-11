@@ -33,6 +33,9 @@ class ReportAttributionTests(unittest.TestCase):
             def concreteness_report(self, text: str):
                 return []
 
+            def richness_report(self, text: str):
+                return []
+
             def profile_report(self):
                 return {
                     "health": "ok",

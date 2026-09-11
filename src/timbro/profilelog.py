@@ -52,6 +52,7 @@ def _summary(model: VoiceModel, text: str) -> dict:
         "hedge": _axis_z(report.get("hedge", [])),
         "fw": _axis_z(report.get("fw", [])),
         "concreteness": _axis_z(report.get("concreteness", [])),
+        "richness": _axis_z(report.get("richness", [])),
         "flow": report.get("flow"),
     }
 
