@@ -338,6 +338,11 @@ def main():
                 print(f"  - {ax['direction']:38s} (z {ax['z']:+.2f}, {ax['axis']})")
         else:
             print("  - on-target: within the reference spread")
+    if not args.quiet and payload.get("politeness"):
+        pol = payload["politeness"]
+        print(f"politeness strategies (reporting only, {pol['total']} fired):")
+        for name, n in sorted(pol["strategies"].items(), key=lambda kv: -kv[1]):
+            print(f"  - {name}: {n}")
     if not args.quiet and payload.get("spans"):
         print("highest-leverage paragraphs:")
         for span in payload["spans"]:
