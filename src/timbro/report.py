@@ -12,6 +12,7 @@ from dataclasses import asdict, dataclass
 
 from timbro.cleanup import preprocess_runtime_text
 from timbro.flow import flow_report, paragraphs
+from timbro.politeness import politeness_report as _politeness_report
 from timbro.tells import TELL_LABEL
 from timbro.text import split_sentences
 
@@ -219,6 +220,11 @@ def voice_report(model, text: str) -> dict:
     # Concreteness (#46): standalone axis group, same treatment as hedge -- runs on the
     # markup-stripped `prepared` text since word choice is prose, not markup.
     out["concreteness"] = [axis.to_dict() for axis in model.concreteness_report(prepared)]
+    # Politeness strategies (#94): reporting-only axis, no corpus/prior involved -- `None`
+    # ("not applicable") when zero of the 20 DNM strategies fire, which is the expected
+    # case for narrative/expository prose. Never touches the embedding distance or POS
+    # direction; runs on the markup-stripped `prepared` text like hedge/fw/concreteness.
+    out["politeness"] = _politeness_report(prepared)
     out["spans"] = _span_guidance(model, prepared)
     out["flow"] = flow_report(prepared).to_dict() if len(paragraphs(prepared)) >= 4 else None
     return out
