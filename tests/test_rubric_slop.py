@@ -20,15 +20,15 @@ _CLEAN = "I fixed the parser today. It dropped the last row, so I added a guard 
 class SlopRubricTest(unittest.TestCase):
     def test_registered(self):
         self.assertEqual(get_rubric("slop").name, "slop")
-        self.assertEqual(check_text(_SLOP, rubric="slop").rubric, "slop")
+        self.assertEqual(check_text(_SLOP, rubrics=["slop"])[0].rubric, "slop")
 
     def test_every_tell_has_a_dimension(self):
         self.assertEqual(set(DIMENSION), set(TELL_NAMES))
         self.assertEqual(set(DIMENSION.values()), set(DIMENSIONS))
 
     def test_slop_fails_clean_passes(self):
-        slop = check_text(_SLOP, rubric="slop")
-        clean = check_text(_CLEAN, rubric="slop")
+        slop = check_text(_SLOP, rubrics=["slop"])[0]
+        clean = check_text(_CLEAN, rubrics=["slop"])[0]
         self.assertIn(slop.verdict, ("warn", "fail"))
         self.assertEqual(clean.verdict, "pass")
         self.assertEqual(clean.findings, [])
@@ -77,7 +77,7 @@ class RelativeSlopTest(unittest.TestCase):
 
     def test_profile_only_valid_for_slop(self):
         with self.assertRaises(ValueError):
-            check_text(_CLEAN, rubric="schimel", profile="anything")
+            check_text(_CLEAN, rubrics=["schimel"], profile="anything")
 
 
 if __name__ == "__main__":

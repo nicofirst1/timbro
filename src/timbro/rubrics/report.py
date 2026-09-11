@@ -39,6 +39,14 @@ def build_result(
     return RubricResult(rubric, version, round(overall, 3), verdict, {k: round(v, 3) for k, v in dims.items()}, sections, ranked_findings)
 
 
+_VERDICT_RANK = {"fail": 0, "warn": 1, "pass": 2}
+
+
+def combine_verdicts(results: list[RubricResult]) -> str:
+    """Worst-of across rubrics: fail beats warn beats pass."""
+    return min((r.verdict for r in results), key=lambda v: _VERDICT_RANK[v])
+
+
 def render_text(result: RubricResult) -> str:
     lines = [f"{result.rubric}: {result.verdict.upper()} ({result.overall:.2f})", ""]
     for name, score in result.dimensions.items():

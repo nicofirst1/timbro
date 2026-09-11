@@ -118,12 +118,12 @@ class JargonClusterTests(unittest.TestCase):
 class DensityRubricTests(unittest.TestCase):
     def test_check_text_routes_to_density_rubric_and_leaves_schimel_unchanged(self):
         text = "The quiet river carried old stories past distant hills.\n\nTravelers gathered near the market."
-        result = check_text(text, rubric="density")
+        result = check_text(text, rubrics=["density"])[0]
         self.assertEqual(result.rubric, "density")
         self.assertEqual(set(result.dimensions), {"density", "jargon"})
         self.assertIn(result.verdict, {"pass", "warn", "fail"})
 
-        schimel_result = check_text(text, rubric="schimel")
+        schimel_result = check_text(text, rubrics=["schimel"])[0]
         self.assertEqual(schimel_result.rubric, "schimel")
 
 

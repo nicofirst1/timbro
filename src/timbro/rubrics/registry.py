@@ -4,6 +4,8 @@ from timbro.rubrics.density import DensityRubric
 from timbro.rubrics.schimel import SchimelRubric
 from timbro.rubrics.slop import SlopRubric
 
+RUBRIC_NAMES = ("schimel", "slop", "density")
+
 
 def get_rubric(name: str):
     if name == "schimel":
@@ -12,4 +14,4 @@ def get_rubric(name: str):
         return DensityRubric()
     if name == "slop":
         return SlopRubric()
-    raise KeyError(f"Unknown rubric: {name}")
+    raise KeyError(f"Unknown rubric: {name!r}; available rubrics: {', '.join(RUBRIC_NAMES)}")

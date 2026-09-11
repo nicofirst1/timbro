@@ -306,7 +306,7 @@ class SchimelRubricTests(unittest.TestCase):
                 return_value=0.1,
             ),
         ):
-            result = check_text(text)
+            result = check_text(text, rubrics=["schimel"])[0]
         rules = {f.rule for f in result.findings}
         self.assertIn("objective_only_challenge", rules)
         self.assertIn("weak_resolution", rules)
@@ -346,7 +346,7 @@ class SchimelRubricTests(unittest.TestCase):
                 return_value=0.9,
             ),
         ):
-            result = check_text(text)
+            result = check_text(text, rubrics=["schimel"])[0]
         highs = [f for f in result.findings if f.severity == "high"]
         self.assertFalse(highs)
 
