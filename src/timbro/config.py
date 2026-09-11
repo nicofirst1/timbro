@@ -140,3 +140,28 @@ FUNCTION_WORD_REFERENCE = Reference(
     spread=(25.14, 20.86, 17.99, 13.46, 40.16),
     strength=2.0,
 )
+
+
+# --- richness.py: readability/richness/entropy axis prior (#88) ------------------------
+
+# Hand-reasoned, same pattern as HEDGE_BOOSTER_REFERENCE (no external norms table exists
+# for these three metrics the way Brysbaert covers concreteness) -- order-of-magnitude
+# reasoning from each formula's published scale, not corpus-fit:
+#
+# readability=11.0 (Coleman-Liau index, a US school grade level): general nonfiction
+# prose (news, blogs, business writing) typically lands ~8-12; 11.0 sits mid-range,
+# spread=3.0 covers "easy blog post" (~7) to "dense report" (~14) within one spread.
+# richness=0.80 (HDD, 0-1 diversity scale): moderate-length prose (a few hundred words)
+# with ordinary vocabulary turnover typically lands ~0.75-0.90; spread=0.08 covers a
+# repetitive draft (~0.65) to a highly varied one (~0.90) within one spread.
+# entropy=6.0 (Shannon entropy in bits over the lemma distribution): a few hundred
+# distinct-ish lemmas with realistic Zipfian repetition typically lands ~5.5-6.5 bits;
+# spread=0.5 covers a repetitive draft (~5.2) to a wide-vocabulary one (~6.6).
+# strength=2.0: same modest pseudo-count as hedge/fw/concreteness, so a 5+ doc profile
+# corpus dominates while a zero-corpus call still reports something sane.
+# PROPOSED -- flagged in the PR body for maintainer confirmation.
+RICHNESS_REFERENCE = Reference(
+    mean=(11.0, 0.80, 6.0),
+    spread=(3.0, 0.08, 0.5),
+    strength=2.0,
+)
