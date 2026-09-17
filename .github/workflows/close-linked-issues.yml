@@ -1,0 +1,45 @@
+name: Close linked issues on dev merge
+
+# GitHub's own "Closes #N" keyword only auto-closes issues when the PR merges into
+# the repo's default branch (main). This repo merges feature PRs into dev first and
+# promotes to main later, so those issues sat open until someone closed them by hand.
+# This replicates the same keyword parsing for merges into dev.
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [dev]
+
+jobs:
+  close-issues:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const body = context.payload.pull_request.body || "";
+            const re = /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+#(\d+)/gi;
+            const numbers = new Set([...body.matchAll(re)].map((m) => Number(m[1])));
+            for (const number of numbers) {
+              const issue = await github.rest.issues.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: number,
+              });
+              if (issue.data.state !== "open") continue;
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: number,
+                body: `Closed via #${context.payload.pull_request.number} (merged to dev).`,
+              });
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: number,
+                state: "closed",
+              });
+            }
