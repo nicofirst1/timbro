@@ -105,6 +105,22 @@ class ConcretenessAxis:
 
 
 @dataclass
+class RichnessAxis:
+    """One readability/lexical-richness/entropy axis: where the draft sits vs the
+    reference (prior, or prior blended with the profile corpus) and the named direction
+    back toward it. Same shape as `HedgeAxis` -- always has a reference, so it reports
+    even with no corpus (#88)."""
+    axis: str
+    value: float           # the draft's raw value on this axis
+    reference_mean: float  # prior, or prior blended with the corpus (Reference.blend)
+    z: float                # draft's distance from reference_mean in reference-spread units
+    direction: str          # imperative phrase toward the reference, "" once |z| is negligible
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+
+@dataclass
 class ScoreResult:
     distance: float           # StyleDistance embedding kNN distance to your voice cloud
     direction: list[FeatureMove]
@@ -164,6 +180,16 @@ CONCRETENESS_AXES: tuple[tuple[str, str, str], ...] = (
 )
 CONCRETENESS_Z_TOL = 0.5
 
+# Readability/richness/entropy axis labels (#88): (axis, raise_hint, lower_hint), same
+# shape as HEDGE_AXES. "raise" fires when the draft sits below the reference (needs more
+# of the marker); "lower" fires above it.
+RICHNESS_AXES: tuple[tuple[str, str, str], ...] = (
+    ("readability", "simplify sentences and word choice", "add more complex sentences and vocabulary"),
+    ("richness", "vary word choice more", "use a narrower, more repeated vocabulary"),
+    ("entropy", "vary word choice more", "use a narrower, more repeated vocabulary"),
+)
+RICHNESS_Z_TOL = 0.5
+
 
 def _local_direction(model, text: str, top_k: int = 2) -> list[dict]:
     return [
@@ -219,6 +245,11 @@ def voice_report(model, text: str) -> dict:
     # Concreteness (#46): standalone axis group, same treatment as hedge -- runs on the
     # markup-stripped `prepared` text since word choice is prose, not markup.
     out["concreteness"] = [axis.to_dict() for axis in model.concreteness_report(prepared)]
+    # Readability/richness/entropy (#88): standalone axis group, same treatment as hedge
+    # -- runs on the markup-stripped `prepared` text since these are prose measures, not
+    # markup. Tier B/C per ADR-0005: reported for information, does not feed the scored
+    # POS/embedding direction.
+    out["richness"] = [axis.to_dict() for axis in model.richness_report(prepared)]
     out["spans"] = _span_guidance(model, prepared)
     out["flow"] = flow_report(prepared).to_dict() if len(paragraphs(prepared)) >= 4 else None
     return out

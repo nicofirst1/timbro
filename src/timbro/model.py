@@ -44,13 +44,19 @@ from timbro.report import (  # dataclasses/axis tuples/labels: report.py formats
     HEDGE_Z_TOL,
     MARKDOWN_AXES,
     MARKDOWN_Z_TOL,
+    RICHNESS_AXES,
+    RICHNESS_Z_TOL,
     ConcretenessAxis,
     FeatureMove,
     FwAxis,
     HedgeAxis,
     MarkdownAxis,
+    RichnessAxis,
     ScoreResult,
     _label,
+)
+from timbro.richness import (
+    RICHNESS_METRIC,
 )
 from timbro.tells import (  # noqa: F401  (import registers the tells metric)
     TELL_METRIC,
@@ -236,7 +242,8 @@ class VoiceModel:
                  health, warning, exemplar_floor, exemplar_spread, contrast_ceiling,
                  smean=None, sstd=None, hmean=None, hstd=None, hn=0,
                  fmean=None, fstd=None, fn=0,
-                 cmean=None, cstd=None, cn=0):
+                 cmean=None, cstd=None, cn=0,
+                 rmean=None, rstd=None, rn=0):
         self.smean = smean            # struct axis mean / std over the exemplar corpus (#28)
         self.sstd = sstd              # -- separate group, z-scored independently of the composite
         self.hmean = hmean            # hedge/booster corpus mean / std (#44) -- blended with the
@@ -248,6 +255,9 @@ class VoiceModel:
         self.cmean = cmean            # concreteness corpus mean / std (#46) -- blended with the
         self.cstd = cstd              # declared prior via Reference.blend, same treatment as hedge
         self.cn = cn                  # corpus doc count fed to Reference.blend as n
+        self.rmean = rmean            # readability/richness/entropy corpus mean / std (#88) --
+        self.rstd = rstd              # blended with the declared prior, same treatment as hedge
+        self.rn = rn                  # corpus doc count fed to Reference.blend as n
         self.names = names            # POS feature names (direction is white-box)
         self.mean = pmean             # POS mean / std for z-scoring the direction
         self.std = pstd
@@ -300,6 +310,11 @@ class VoiceModel:
         # blended with the declared prior via Reference.blend in concreteness_report().
         CN = np.array([CONCRETENESS_METRIC.extract(t) for t in texts], dtype=float)
         cmean, cstd = CN.mean(0), CN.std(0)
+        # readability/richness/entropy path (#88): same treatment as hedge/booster -- raw
+        # corpus mean/std, blended with the declared prior via Reference.blend in
+        # richness_report().
+        RI = np.array([RICHNESS_METRIC.extract(t) for t in texts], dtype=float)
+        rmean, rstd = RI.mean(0), RI.std(0)
         # embedding path (scalar)
         E = np.array([_style_vec(t) for t in texts])
         emean, estd = E.mean(0), E.std(0)
@@ -320,7 +335,8 @@ class VoiceModel:
                    health, warning, exemplar_floor, exemplar_spread, contrast_ceiling,
                    smean=smean, sstd=sstd, hmean=hmean, hstd=hstd, hn=len(texts),
                    fmean=fmean, fstd=fstd, fn=len(texts),
-                   cmean=cmean, cstd=cstd, cn=len(texts))
+                   cmean=cmean, cstd=cstd, cn=len(texts),
+                   rmean=rmean, rstd=rstd, rn=len(texts))
 
     @classmethod
     def from_dir(cls, exemplars: str | Path, contrast: str | Path | None = None,
@@ -496,6 +512,30 @@ class VoiceModel:
             else:
                 direction = lower_hint if zi > 0 else raise_hint  # move back toward the reference
             out.append(ConcretenessAxis(axis, float(vec[i]), float(ref_mean[i]), zi, direction))
+        return out
+
+    def richness_report(self, text: str) -> list[RichnessAxis]:
+        """Readability/richness/entropy axis vs the reference (issue #88). Same
+        blend-with-prior treatment as `hedge_report`: the declared prior
+        (`RICHNESS_REFERENCE`) blended with the corpus mean/std via `Reference.blend`,
+        weighted by `rn` (the corpus doc count) against the prior's `strength`. With no
+        corpus (rn=0) `blend` passes the prior through unchanged. Standalone axis group
+        -- never touches the embedding distance or POS direction.
+        """
+        vec = np.array(RICHNESS_METRIC.extract(text), dtype=float)
+        prior = RICHNESS_METRIC.prior
+        corpus_mean = self.rmean if self.rmean is not None else prior.mean
+        corpus_std = self.rstd if self.rstd is not None else prior.spread
+        ref_mean, ref_spread = prior.blend(corpus_mean, corpus_std, self.rn)
+        out = []
+        for i, (axis, raise_hint, lower_hint) in enumerate(RICHNESS_AXES):
+            spread = ref_spread[i] or 1.0
+            zi = float((vec[i] - ref_mean[i]) / spread)
+            if abs(zi) < RICHNESS_Z_TOL:
+                direction = ""
+            else:
+                direction = lower_hint if zi > 0 else raise_hint  # move back toward the reference
+            out.append(RichnessAxis(axis, float(vec[i]), float(ref_mean[i]), zi, direction))
         return out
 
 

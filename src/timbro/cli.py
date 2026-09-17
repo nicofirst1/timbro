@@ -338,6 +338,14 @@ def main():
                 print(f"  - {ax['direction']:38s} (z {ax['z']:+.2f}, {ax['axis']})")
         else:
             print("  - on-target: within the reference spread")
+    if not args.quiet and payload.get("richness"):
+        roff = [ax for ax in payload["richness"] if ax["direction"]]
+        print("readability/richness/entropy:")
+        if roff:
+            for ax in sorted(roff, key=lambda a: -abs(a["z"])):
+                print(f"  - {ax['direction']:38s} (z {ax['z']:+.2f}, {ax['axis']})")
+        else:
+            print("  - on-target: within the reference spread")
     if not args.quiet and payload.get("spans"):
         print("highest-leverage paragraphs:")
         for span in payload["spans"]:
