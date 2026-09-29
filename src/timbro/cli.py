@@ -34,8 +34,7 @@ def cmd_score(args):
     if args.file == "-":
         text = sys.stdin.read()
     else:
-        with open(args.file, encoding="utf-8") as f:
-            text = f.read()
+        text = _read_text(args.file)
 
     if args.profile:
         names = [name.strip() for name in args.profile.split(",") if name.strip()]
@@ -162,8 +161,7 @@ def cmd_check(args):
     if args.file == "-":
         text = sys.stdin.read()
     else:
-        with open(args.file, encoding="utf-8") as f:
-            text = f.read()
+        text = _read_text(args.file)
     try:
         results = check_text(text, rubrics=names, profile=args.profile)
     except ValueError as exc:
@@ -185,10 +183,8 @@ def cmd_check(args):
 
 
 def cmd_accept(args):
-    with open(args.original, encoding="utf-8") as f:
-        original = f.read()
-    with open(args.revised, encoding="utf-8") as f:
-        revised = f.read()
+    original = _read_text(args.original)
+    revised = _read_text(args.revised)
     if args.profile:
         prof = get_profile(args.profile)
         model = VoiceModel.from_dir(prof.exemplars_dir, contrast=prof.contrast_dir)
@@ -339,20 +335,34 @@ def cmd_profiles_learn(args):
     return
 
 
-def _user_error_message(args: argparse.Namespace, exc: Exception) -> str:
-    """One-line message for an expected user error raised by a command.
+def _read_text(path: str) -> str:
+    """Read a UTF-8 text file, attaching the path to any decode error.
 
-    OSError messages already name the offending path; a UnicodeDecodeError does
-    not, so name the file the user passed (args is the parsed namespace).
+    UnicodeDecodeError carries no filename of its own; attaching it here means
+    the CLI's error handler can name the exact file that failed to decode and
+    nothing else.
+    """
+    with open(path, encoding="utf-8") as f:
+        try:
+            return f.read()
+        except UnicodeDecodeError as e:
+            e.filename = path
+            raise
+
+
+def _user_error_message(exc: Exception) -> str:
+    """One-line message for an expected user error, naming only sure files.
+
+    OSError embeds its own filename in str() whenever it has one, and the
+    manual raise sites put the path inside their message text. A
+    UnicodeDecodeError carries no filename, so it may name a file only when a
+    read site attached the failing path (see _read_text); otherwise the codec
+    detail is printed without a path. Never guess the file from parsed args.
     """
     if isinstance(exc, UnicodeDecodeError):
-        path = (
-            getattr(args, "file", None)
-            or getattr(args, "original", None)
-            or getattr(args, "revised", None)
-        )
-        if path and path != "-":
-            return f"{path} is not UTF-8 text ({exc})"
+        filename = getattr(exc, "filename", None)
+        if filename:
+            return f"{filename} is not UTF-8 text ({exc})"
     return str(exc)
 
 
@@ -440,7 +450,7 @@ def main():
         # Expected user errors (missing file, non-UTF-8 text, duplicate add-file,
         # unknown profile): one clean line, not a traceback (issue #137). Every
         # other exception must still traceback, because bugs should stay loud.
-        print(f"timbro: error: {_user_error_message(args, e)}", file=sys.stderr)
+        print(f"timbro: error: {_user_error_message(e)}", file=sys.stderr)
         sys.exit(1)
 
 

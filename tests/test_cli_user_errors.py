@@ -139,13 +139,15 @@ class UncaughtExceptionsStillTracebackTests(unittest.TestCase):
         # of main() (the interpreter then prints the traceback), not be turned
         # into a clean 'timbro: error:' line + sys.exit(1).
         stderr = io.StringIO()
-        with mock.patch(
-            "timbro.cli.cmd_check", side_effect=RuntimeError("injected bug must stay loud")
+        with (
+            mock.patch(
+                "timbro.cli.cmd_check", side_effect=RuntimeError("injected bug must stay loud")
+            ),
+            contextlib.redirect_stderr(stderr),
+            mock.patch("sys.argv", ["timbro", "check", "unused.md"]),
+            self.assertRaises(RuntimeError),
         ):
-            with contextlib.redirect_stderr(stderr):
-                with mock.patch("sys.argv", ["timbro", "check", "unused.md"]):
-                    with self.assertRaises(RuntimeError):
-                        main()
+            main()
         self.assertNotIn("timbro: error:", stderr.getvalue())
         self.assertNotIn("Traceback", stderr.getvalue())
 
