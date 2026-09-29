@@ -19,8 +19,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
-import timbro.cli as cli
-from timbro.cli import cmd_accept, cmd_profiles_list, cmd_score, main
+from timbro.cli import cmd_accept, cmd_score, main
 from timbro.profiles import _legacy_xdg_root, init_profile, legacy_profile_warning
 
 
