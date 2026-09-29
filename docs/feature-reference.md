@@ -107,17 +107,17 @@ Runs on the **raw draft**, markup intact (the struct features live in the markup
 
 | Axis                            | Raw Value                                 | Meaning                                             |
 | ------------------------------- | ----------------------------------------- | --------------------------------------------------- |
-| `struct_heading_count`          | Count of top-level headings               | How many sections                                   |
+| `struct_heading_count`          | Count of headings (all depths)            | How many section headings                           |
 | `struct_max_heading_depth`      | Deepest heading level (1-6)               | Section nesting depth                               |
 | `struct_code_char_ratio`        | Code-block characters / total characters  | Proportion of content in code blocks                |
 | `struct_inline_code_char_ratio` | Inline code characters / total characters | Proportion of inline code                           |
-| `struct_list_item_ratio`        | List items / total paragraphs             | Density of list structure                           |
-| `struct_bullet_list_ratio`      | Bullet list items / total list items      | Bullet vs. numbered ratio                           |
-| `struct_ordered_list_ratio`     | Ordered list items / total list items     | Numbered list ratio                                 |
-| `struct_table_count`            | Count of markdown tables                  | How many tables                                     |
-| `struct_external_ref_count`     | Count of external hyperlinks              | How many outbound links                             |
-| `struct_long_paragraph_ratio`   | Paragraphs > 100 words / total paragraphs | Density of chunky prose                             |
-| `struct_prose_ratio`            | Prose paragraphs / total paragraphs       | Proportion that is continuous text (vs. lists/code) |
+| `struct_list_item_ratio`        | List-item lines / non-blank lines         | Density of list structure                           |
+| `struct_bullet_list_ratio`      | Bullet-item lines / non-blank lines       | How bullet-heavy the doc is                         |
+| `struct_ordered_list_ratio`     | Ordered-item lines / non-blank lines      | How step-by-step the doc is                         |
+| `struct_table_count`            | Count of table separator rows (no leading \|) | How many tables                                 |
+| `struct_external_ref_count`     | Count of `scripts/`, `references/`, or `assets/` path references | How many repo-path mentions   |
+| `struct_long_paragraph_ratio`   | Paragraphs with > 6 sentences / total paragraphs | Density of chunky prose                      |
+| `struct_prose_ratio`            | Prose characters / total characters       | Proportion that is continuous text (vs. lists/code) |
 
 **When no corpus**: If the model has no fitted corpus stats (a `VoiceModel` built directly through the Python API with no `axis_stats`, rather than fitted from a corpus), markdown_report returns an empty list. CLI runs always fit a non-empty corpus or fall back to the packaged sample voice.
 
