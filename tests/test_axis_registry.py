@@ -119,6 +119,15 @@ class AxisReportMethodTest(unittest.TestCase):
         with self.assertRaises(KeyError):
             model.axis_report("no-such-axis", "text")
 
+    def test_non_blend_registered_metric_raises_key_error(self):
+        # tells/politeness are registered but not blend-style (no hint_axes); axis_report
+        # must reject them like unknown names, not return [] (round-2 fix list, F2).
+        model = VoiceModel.fit(_CORPUS)
+        with self.assertRaises(KeyError):
+            model.axis_report("tells", "text")
+        with self.assertRaises(KeyError):
+            model.axis_report("politeness", "text")
+
     def test_no_stats_strength_zero_returns_empty(self):
         model = VoiceModel.fit(_CORPUS)
         del model._axis_stats["markdown"]  # owner decision 1: the old `model.smean = None`
