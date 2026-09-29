@@ -1,8 +1,8 @@
 """The markdown axis owns `_struct_features` end to end (issue #120).
 
-The extractor moved verbatim out of the deleted `timbro.analyze` module, so the
+The extractor moved verbatim out of the deleted analyze module, so the
 `struct_*`/`fm_desc_*` features live beside the `MARKDOWN_METRIC` that scores them.
-The fm-description token count must stay identical to the deleted analyze pipeline's
+The fm-description token count must stay identical to the deleted pipeline's
 `len(doc)`: only the tokenizer is run, and pipeline components never retokenize.
 """
 
@@ -53,7 +53,7 @@ EXPECTED_KEYS = {
 }
 
 # fm_desc_tokens per description, captured on the pre-move code (base 71aa1c9) with
-# the deleted analyze pipeline: len(_analyze_nlp()(description)). The moved extractor
+# the deleted four-pipe feature pipeline over the raw description. The moved extractor
 # must produce the same counts with the shared tokenizer alone.
 EXPECTED_FM_TOKENS = (
     ('', 0),
@@ -241,7 +241,7 @@ class StructEdgeCaseTests(unittest.TestCase):
 
 class LongParagraphTests(unittest.TestCase):
     """Long-paragraph ratio (#22): struct_long_paragraph_ratio cases from the
-    pre-#120 suite (their dict_/read_ siblings died with analyze.py)."""
+    pre-#120 suite (their dict_/read_ siblings died with the deleted module)."""
 
     def test_long_paragraph_ratio(self):
         # Para 1 has 7 sentence terminators (> 6); para 2 has 1. -> 1 of 2 paragraphs long.

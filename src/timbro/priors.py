@@ -1,6 +1,6 @@
 """Tunable lexicons, declared priors, and corpus defaults, in one place.
 
-What belongs here: hand-curated lexicons/phrase lists (hedge/booster, AI-tell
+What belongs here: hand-curated lexicon and phrase lists (hedge/booster, AI-tell
 diction), declared `Reference` priors for each scalar axis (the "expected value"
 a metric judges a draft against with no corpus), and the packaged-sample corpus
 paths. All of it is relocated byte-identical from the modules that used to define

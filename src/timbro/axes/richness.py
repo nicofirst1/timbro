@@ -2,7 +2,7 @@
 "how the prose reads" signals, reported standalone.
 
 Source, per the issue's decision record: reuse the two NLP libraries already
-installed for `timbro analyze` (`textdescriptives`, `lexical_diversity`) instead of
+installed (`textdescriptives`, `lexical_diversity`) instead of
 adding `elfen` (rejected -- drags a second spaCy/torch stack for three formulas).
 Shannon entropy is new code, but it's a few stdlib lines over lemma counts, not
 worth a dependency either.
@@ -31,7 +31,7 @@ from functools import lru_cache
 from timbro.metric import register
 from timbro.priors import RICHNESS_REFERENCE
 
-_CONTENT_POS = {"NOUN", "PROPN", "VERB", "ADJ", "ADV"}  # same set analyze.py uses for lex_mtld/lex_hdd
+_CONTENT_POS = {"NOUN", "PROPN", "VERB", "ADJ", "ADV"}
 
 
 def _nlp():
