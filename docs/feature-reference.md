@@ -127,7 +127,7 @@ Runs on the **raw markdown** text (markup intact), not the cleaned text.
 | `struct_long_paragraph_ratio`   | Paragraphs > 100 words / total paragraphs | Density of chunky prose                             |
 | `struct_prose_ratio`            | Prose paragraphs / total paragraphs       | Proportion that is continuous text (vs. lists/code) |
 
-**When no corpus**: If the model was built without exemplars (e.g., a profile with an empty exemplars folder), markdown_report returns an empty list.
+**When no corpus**: If the model has no fitted corpus stats (a `VoiceModel` built directly through the Python API with no `axis_stats`, rather than fitted from a corpus), markdown_report returns an empty list. CLI runs always fit a non-empty corpus or fall back to the packaged sample voice.
 
 ---
 
