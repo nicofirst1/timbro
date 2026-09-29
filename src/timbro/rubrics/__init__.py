@@ -15,11 +15,14 @@ def check_text(text: str, rubrics: list[str], profile: str | None = None):
     for rubric in rubrics:
         if rubric == "slop" and profile is not None:
             from timbro.axes.tells import tell_baseline
-            from timbro.model import read_corpus
+            from timbro.model import no_exemplars_error, read_corpus
             from timbro.profiles import get_profile
             from timbro.rubrics.slop import SlopRubric
 
-            corpus = read_corpus(get_profile(profile).exemplars_dir)
+            corpus_dir = get_profile(profile).exemplars_dir
+            corpus = read_corpus(corpus_dir)
+            if not corpus:  # name the problem, not the internal caller (#161)
+                raise no_exemplars_error(corpus_dir)
             results.append(SlopRubric(baseline=tell_baseline(corpus)).check(text))
         else:
             results.append(get_rubric(rubric).check(text))

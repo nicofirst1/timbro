@@ -67,6 +67,15 @@ def read_corpus(directory: str | Path) -> list[str]:
     return [_FRONTMATTER.sub("", f.read_text(encoding="utf-8")) for f in files]
 
 
+def no_exemplars_error(exemplars: str | Path) -> FileNotFoundError:
+    """The one wording for an empty/missing corpus, shared by every caller (#161):
+    name the env var AND the absolute path actually checked."""
+    return FileNotFoundError(
+        f"No .md/.txt exemplars found at {Path(exemplars).resolve()}. "
+        f"Set TIMBRO_EXEMPLARS to a folder of posts that define your voice."
+    )
+
+
 def _blend_metrics() -> list[Metric]:
     """The registered blend-style metrics (#108): those carrying `hint_axes` (excludes
     tells/politeness). One definition shared by fit() and axis_report() so metric
@@ -156,10 +165,8 @@ class VoiceModel:
     def from_dir(cls, exemplars: str | Path, contrast: str | Path | None = None,
                  top_k: int = 6, knn_k: int = 1) -> VoiceModel:
         texts = read_corpus(exemplars)
-        if not texts:  # plugin-friendly: name the env var AND the absolute path actually checked
-            raise FileNotFoundError(
-                f"No .md/.txt exemplars found at {Path(exemplars).resolve()}. "
-                f"Set TIMBRO_EXEMPLARS to a folder of posts that define your voice.")
+        if not texts:
+            raise no_exemplars_error(exemplars)
         co = read_corpus(contrast) if contrast else None
         return cls.fit(texts, co, top_k, knn_k)
 
