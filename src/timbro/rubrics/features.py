@@ -10,6 +10,7 @@ import numpy as np
 from timbro.cleanup import preprocess_runtime_text
 from timbro.rubrics.sections import detect_sections, split_paragraphs, split_sentences
 from timbro.text import _model as _embed_model
+from timbro.text import cosine
 
 
 def _rubric_nlp():
@@ -223,11 +224,6 @@ def _syllable_estimate(word: str) -> int:
     return len(_SYLLABLE.findall(word))
 
 
-def _cos(a: np.ndarray, b: np.ndarray) -> float:
-    denom = (np.linalg.norm(a) * np.linalg.norm(b)) or 1.0
-    return float(np.dot(a, b) / denom)
-
-
 class DocumentView:
     def __init__(self, text: str):
         self.text = preprocess_runtime_text(text)
@@ -302,7 +298,7 @@ class DocumentView:
     def paragraph_similarity(self, a: int, b: int) -> float:
         if a >= len(self.paragraphs) or b >= len(self.paragraphs):
             return 0.0
-        return _cos(self.paragraph_embeddings[a], self.paragraph_embeddings[b])
+        return cosine(self.paragraph_embeddings[a], self.paragraph_embeddings[b])
 
     def adjacent_paragraph_similarity(self) -> list[float]:
         return [
@@ -314,7 +310,7 @@ class DocumentView:
         if len(sents) < 2:
             return 1.0
         emb = np.asarray(_embed_model().encode(sents, normalize_embeddings=True))
-        sims = [_cos(emb[j], emb[j + 1]) for j in range(len(emb) - 1)]
+        sims = [cosine(emb[j], emb[j + 1]) for j in range(len(emb) - 1)]
         return float(np.mean(sims)) if sims else 1.0
 
     def dangling_paragraph_openers(self) -> list[tuple[int, int, str]]:
@@ -471,7 +467,7 @@ class DocumentView:
                 normalize_embeddings=True,
             )
         )
-        return _cos(emb[0], emb[1])
+        return cosine(emb[0], emb[1])
 
     def opening_resolution_similarity(self) -> float:
         if not self.opening_text() or not self.resolution_text():
@@ -481,7 +477,7 @@ class DocumentView:
                 [self.opening_text(), self.resolution_text()], normalize_embeddings=True
             )
         )
-        return _cos(emb[0], emb[1])
+        return cosine(emb[0], emb[1])
 
     def weak_resolution(self) -> bool:
         return bool(_WEAK_END.search(self.resolution_text()))
@@ -724,7 +720,7 @@ class DocumentView:
                 a, b = terms[i], terms[j]
                 if a[:4] == b[:4] or a in b or b in a:
                     continue
-                sim = _cos(emb[i], emb[j])
+                sim = cosine(emb[i], emb[j])
                 if sim >= threshold:
                     pairs.append((sim, surface[a], surface[b], a, b))
         pairs.sort(reverse=True)

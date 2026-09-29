@@ -11,6 +11,7 @@ Contents:
   - split_paragraphs / split_sentences: the two regexes, one filter, a min_words knob
   - strip_markup: runtime markdown removal (#16) -- distinct from cleanup/, which is
     ingest-time paper/LaTeX prep, not markdown stripping
+  - cosine: explicit-norm cosine similarity shared by rubrics/flow (#115)
   - _model: the general-purpose MiniLM semantic embedder shared by flow/rewrite/rubrics
     (model.py owns the *style* embedder separately -- different job, different weights)
 """
@@ -20,6 +21,8 @@ from __future__ import annotations
 import os
 import re
 from functools import lru_cache
+
+import numpy as np
 
 # ---- splitting ---------------------------------------------------------------
 
@@ -134,6 +137,14 @@ def strip_markup(text: str) -> str:
     text = _TRAILING_LINE_WHITESPACE.sub("", text)
     text = _EXCESS_BLANK_LINES.sub("\n\n", text)
     return text.strip()
+
+
+# ---- cosine (#115) -----------------------------------------------------------
+
+def cosine(a: np.ndarray, b: np.ndarray) -> float:
+    """Explicit-norm cosine: safe for non-unit inputs; returns 0.0 for a zero vector."""
+    denom = (np.linalg.norm(a) * np.linalg.norm(b)) or 1.0
+    return float(np.dot(a, b) / denom)
 
 
 # ---- embedding ---------------------------------------------------------------
