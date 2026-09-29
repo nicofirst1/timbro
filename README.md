@@ -255,6 +255,7 @@ uv run timbro score draft.md --profile science-clarity,academic
 
 ```
 src/timbro/
+├── __init__.py      # package root: re-exports the public API (VoiceModel, check_text, profiles)
 ├── model/           # VoiceModel orchestrator + the two scoring lenses
 │   ├── __init__.py  # VoiceModel: fit/score/axis_report, corpus reader, profile gating
 │   ├── embedding.py # "how far" lens: StyleDistance embedding kNN
