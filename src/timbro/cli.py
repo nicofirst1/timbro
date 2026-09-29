@@ -339,6 +339,23 @@ def cmd_profiles_learn(args):
     return
 
 
+def _user_error_message(args: argparse.Namespace, exc: Exception) -> str:
+    """One-line message for an expected user error raised by a command.
+
+    OSError messages already name the offending path; a UnicodeDecodeError does
+    not, so name the file the user passed (args is the parsed namespace).
+    """
+    if isinstance(exc, UnicodeDecodeError):
+        path = (
+            getattr(args, "file", None)
+            or getattr(args, "original", None)
+            or getattr(args, "revised", None)
+        )
+        if path and path != "-":
+            return f"{path} is not UTF-8 text ({exc})"
+    return str(exc)
+
+
 def main():
     ap = argparse.ArgumentParser(prog="timbro", description="Score a draft against your voice.")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -417,7 +434,14 @@ def main():
     ps.set_defaults(func=cmd_profiles_sync)
 
     args = ap.parse_args()
-    args.func(args)
+    try:
+        args.func(args)
+    except (FileNotFoundError, FileExistsError, IsADirectoryError, UnicodeDecodeError) as e:
+        # Expected user errors (missing file, non-UTF-8 text, duplicate add-file,
+        # unknown profile): one clean line, not a traceback (issue #137). Every
+        # other exception must still traceback, because bugs should stay loud.
+        print(f"timbro: error: {_user_error_message(args, e)}", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
