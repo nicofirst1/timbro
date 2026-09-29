@@ -207,12 +207,6 @@ def cmd_accept(args):
     return
 
 
-def cmd_analyze(args):
-    from timbro.analyze import run_analyze
-
-    sys.exit(run_analyze(args.paths, fmt=args.format, out_path=args.out))
-
-
 def cmd_profiles_list(args):
     profiles = list_profiles()
     payload = [
@@ -369,12 +363,6 @@ def main():
     ac.add_argument("--threshold", type=float, default=0.85, help="content-similarity gate (default 0.85)")
     ac.add_argument("--json", action="store_true", help="raw JSON payload")
     ac.set_defaults(func=cmd_accept)
-
-    an = sub.add_parser("analyze", help="emit deterministic linguistic feature vectors")
-    an.add_argument("paths", nargs="+", help="one or more .md/.txt files")
-    an.add_argument("--format", choices=["jsonl", "csv"], default="jsonl")
-    an.add_argument("--out", help="write to this file instead of stdout")
-    an.set_defaults(func=cmd_analyze)
 
     p = sub.add_parser("profiles", help="manage named exemplar/contrast profiles")
     psub = p.add_subparsers(dest="profiles_cmd", required=True)

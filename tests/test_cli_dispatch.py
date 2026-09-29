@@ -18,7 +18,6 @@ _WIRING = {
     ("score", "draft.md"): "cmd_score",
     ("check", "draft.md"): "cmd_check",
     ("accept", "orig.md", "revised.md"): "cmd_accept",
-    ("analyze", "draft.md"): "cmd_analyze",
     ("profiles", "list"): "cmd_profiles_list",
     ("profiles", "init", "name"): "cmd_profiles_init",
     ("profiles", "sync"): "cmd_profiles_sync",

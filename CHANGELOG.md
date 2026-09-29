@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Removed
+
+- `timbro analyze` subcommand and its lexicons. It served the SKILL.md paper, which pins `uvx timbro@0.8.0 analyze`; use that version if you need it.
+
 ## [0.8.0] — 2026-08-25
 
 First release to actually ship the metric-axis and edit-loop work that had accumulated on `dev` — earlier tags were cut from a lagging `main`.
