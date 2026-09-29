@@ -24,11 +24,6 @@ from pathlib import Path
 
 import numpy as np
 
-# Registration order is load-bearing: politeness and tells register via report.py,
-# which is imported between hedge and richness below. Alphabetical import sorting
-# would move richness/tells ahead of report and change timbro.metric.REGISTRY order
-# (#117 keeps relocation behavior-identical). Hence isort off for this block.
-# isort: off
 from timbro.axes.concreteness import (  # noqa: F401  (import registers the metric)
     CONCRETENESS_METRIC,
 )
@@ -38,6 +33,13 @@ from timbro.axes.fw import (  # noqa: F401  (import registers the metric)
 from timbro.axes.hedge import (  # noqa: F401  (import registers the metric)
     HEDGE_BOOSTER_METRIC,
 )
+from timbro.axes.richness import (  # noqa: F401  (import registers the metric)
+    RICHNESS_METRIC,
+)
+from timbro.axes.tells import (  # noqa: F401  (import registers the tells metric)
+    TELL_METRIC,
+    tell_rates,
+)
 from timbro.metric import REGISTRY, Metric, Reference, register
 from timbro.priors import DEFAULT_CONTRAST, DEFAULT_EXEMPLARS, TELL_PRIOR
 from timbro.report import (  # dataclasses/labels: report.py formats for humans (PR #57 review)
@@ -46,14 +48,6 @@ from timbro.report import (  # dataclasses/labels: report.py formats for humans 
     ScoreResult,
     _label,
 )
-from timbro.axes.richness import (  # noqa: F401  (import registers the metric)
-    RICHNESS_METRIC,
-)
-from timbro.axes.tells import (  # noqa: F401  (import registers the tells metric)
-    TELL_METRIC,
-    tell_rates,
-)
-# isort: on
 
 # Universal POS tags (spaCy `pos_`). Rates over these 17 are length-normalized,
 # so the doc-length confound that plagued raw counts can't arise here.
