@@ -81,5 +81,16 @@ class SubparsersWireTheirHandlerTests(unittest.TestCase):
                 self.assertIs(ns.func, fn)
 
 
+class MainCallsTheWiredHandlerTests(unittest.TestCase):
+    def test_main_routes_argv_to_the_handler(self):
+        # set_defaults binds the function object at parser build time, so patching the
+        # module attribute would not reach it; a namespace whose func is a mock does.
+        handler = mock.Mock()
+        ns = argparse.Namespace(func=handler)
+        with mock.patch.object(argparse.ArgumentParser, "parse_args", return_value=ns):
+            cli.main()
+        handler.assert_called_once_with(ns)
+
+
 if __name__ == "__main__":
     unittest.main()
