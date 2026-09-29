@@ -71,7 +71,7 @@ def cached_pipeline(
     pipeline (no add_pipe/remove_pipe, no enabling/disabling components).
     """
     # functools.cache == lru_cache(maxsize=None); unbounded is deliberate: the
-    # cache is bounded by the number of distinct call-site configs (6 today), and
+    # cache is bounded by the number of distinct call-site configs (5 today), and
     # a small maxsize would evict and reload spaCy repeatedly.
     nlp = load_spacy(disable=list(disable))
     for name in extra_pipes:

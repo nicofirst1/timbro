@@ -18,17 +18,6 @@ SITES = [
         ("sentencizer", "textdescriptives/readability"),
     ),
     ("timbro.rubrics.features", "_rubric_nlp", ("ner",), ()),
-    (
-        "timbro.analyze",
-        "_analyze_nlp",
-        ("ner",),
-        (
-            "textdescriptives/descriptive_stats",
-            "textdescriptives/readability",
-            "textdescriptives/dependency_distance",
-            "textdescriptives/coherence",
-        ),
-    ),
 ]
 
 
