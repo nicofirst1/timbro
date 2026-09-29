@@ -20,6 +20,8 @@ from timbro.profiles import (
     init_profile,
     learn,
     list_profiles,
+    profile_root,
+    sync_profiles,
 )
 from timbro.report import voice_report
 from timbro.rewrite import evaluate_rewrite
@@ -91,6 +93,15 @@ def main():
     pn.add_argument("--force", action="store_true", help="skip the guard / overwrite existing / bootstrap an empty profile")
     pn.add_argument("--json", action="store_true", help="raw JSON payload")
 
+    ps = psub.add_parser("sync", help="sync the profile root with a git remote")
+    ps.add_argument(
+        "--init",
+        metavar="remote-url",
+        default=None,
+        help="first-time setup on this machine: point the profile root at a (private) git repo and sync",
+    )
+    ps.add_argument("--json", action="store_true", help="raw JSON payload")
+
     args = ap.parse_args()
 
     if args.cmd == "profiles":
@@ -115,8 +126,44 @@ def main():
             return
 
         if args.profiles_cmd == "init":
+            root = profile_root()
+            configured = (root / ".git").exists()
+            had_profiles = any(
+                child.is_dir() and not child.name.startswith(".") for child in root.iterdir()
+            ) if root.exists() else False
             prof = init_profile(args.name, about=args.about)
+            if not configured and not had_profiles:
+                print(
+                    "tip: using Timbro on another machine? run 'timbro profiles sync --init <url>' "
+                    "before creating profiles",
+                    file=sys.stderr,
+                )
             print(prof.path)
+            return
+
+        if args.profiles_cmd == "sync":
+            try:
+                result = sync_profiles(init_remote=args.init)
+            except (RuntimeError, OSError, ValueError) as exc:
+                print(f"sync failed: {exc}", file=sys.stderr)
+                sys.exit(2)
+            if args.json:
+                print(json.dumps(result))
+            elif result["status"] == "ok":
+                print("synced")
+            elif result["status"] == "not-configured":
+                print("profile sync not configured")
+            elif result["status"] == "conflict":
+                files = ", ".join(result.get("files", []))
+                print(f'conflict in: {files}; see README "Resolving a sync conflict"', file=sys.stderr)
+            else:
+                # git stderr is often multi-line; the human output is one line.
+                message = " ".join(result.get("message", "unknown error").split())
+                print(f"sync failed: {message}", file=sys.stderr)
+            if result["status"] == "conflict":
+                sys.exit(1)
+            if result["status"] == "error":
+                sys.exit(2)
             return
 
         if args.profiles_cmd == "add-file":

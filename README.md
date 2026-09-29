@@ -123,6 +123,8 @@ uvx timbro profiles init myvoice --about "..."
 uvx timbro profiles add-file myvoice posts/example.md --to exemplars
 ```
 
+**On more than one machine:** on every machine after the first, run `uvx timbro profiles sync --init <url>` **before** `profiles init` or the setup walkthrough, so existing profiles are pulled from a **private** git repo instead of being recreated and colliding on the first sync (see the FAQ below).
+
 Or set `TIMBRO_EXEMPLARS` / `TIMBRO_CONTRAST` in your shell before launching Claude Code, if you'd rather point at raw folders than a managed profile.
 
 The POS model and the sample corpus both ship with the plugin — no manual download step.
@@ -218,6 +220,27 @@ print(profile.env)
 ```
 
 If `detex` is installed, `.tex` files are converted on ingest and raw LaTeX is normalized automatically during scoring.
+
+**Keeping profiles in sync across machines?** Profiles live in one folder per machine, so they drift apart: exemplars added or `learn`ed on one machine never reach the others. `timbro profiles sync` syncs the whole profile root (`~/.timbro/profiles` by default) with a git remote — no server, no account, just a **private** git repo (profiles hold private writing, so the repo must be private):
+
+```bash
+uvx timbro profiles sync --init git@github.com:you/timbro-profiles.git   # first machine: set up + push
+uvx timbro profiles sync                                                # every machine, routinely
+```
+
+On every machine after the first, run `--init` with the same URL **before** creating profiles: existing ones are pulled instead of being recreated. Each `sync` commits local changes (`timbro sync <UTC timestamp>`), fetches and merges `origin/main`, then pushes — it never rebases, never force-pushes, and never auto-resolves. Concurrent `runs.jsonl` appends merge losslessly (`merge=union`); two machines that edited the same exemplar offline get a reported conflict instead of a silent copy. What's synced: everything under the profile root. What isn't: `settings.json`, which is per-machine.
+
+**Resolving a sync conflict:** `sync` prints `conflict in: <files>` and stops — nothing is auto-resolved, and the local commit is kept. Fix it by hand in the profile root:
+
+```bash
+cd ~/.timbro/profiles
+git fetch origin main && git merge origin/main
+# edit the listed files, removing the <<<<<<< / ======= / >>>>>>> markers
+git add <files> && git commit
+timbro profiles sync
+```
+
+Until the conflict is resolved, that machine keeps committing locally but can't push.
 
 For scoring, prefer profile-native selection over manual env vars:
 

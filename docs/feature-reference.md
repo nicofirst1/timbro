@@ -285,3 +285,15 @@ The model rates the profile's evidence level on fit:
 - **"insufficient"** (< 1200 words or < 8 paras): Distance is very noisy; direction is suppressed.
 
 If no TIMBRO_EXEMPLARS or TIMBRO_CONTRAST is set and no `--profile` is passed, `timbro score` runs against the **packaged sample voice** (a small corpus of plain English examples). In this mode, distance and direction are only meaningful as toy examples: they don't reflect your actual voice.
+
+---
+
+## Profile sync
+
+`timbro profiles sync` syncs the **whole profile root** (`~/.timbro/profiles` by default; `TIMBRO_PROFILE_ROOT` overrides) with a git remote. No server, no account: any **private** git repo works — profiles hold private writing, so the repo must be private.
+
+- `--init <remote-url>` sets a machine up in one command: `git init` on branch `main`, a `.gitattributes` line (`runs.jsonl merge=union`, so concurrent learn-logs merge losslessly), a `.gitignore` (`.DS_Store`), the `origin` remote, then a normal sync. Every machine runs the same `--init` command; on machines after the first, run it **before** creating profiles, so existing ones are pulled instead of being recreated.
+- A plain `sync` commits local changes (`timbro sync <UTC timestamp>`), fetches and merges `origin/main`, then pushes. It never rebases, never force-pushes, never auto-resolves, and never prompts (stdin closed, 60 s per git call).
+- **Synced:** everything under the profile root (`<name>/exemplars/`, `<name>/contrast/`, `README.md`, `runs.jsonl`). **Not synced:** `<TIMBRO_HOME>/settings.json` — per-machine by design.
+- Outcomes: `ok`, `not-configured` (no `.git` in the root, silent no-op), `conflict` (offending file paths listed, merge aborted, local commit kept — resolve by hand per README, "Resolving a sync conflict"), or `error` (a git step failed or timed out). CLI exit codes: `0` ok / not configured, `1` conflict, `2` error.
+- Triggers are explicit only (the skills call `sync` at defined points); there is no background sync.
