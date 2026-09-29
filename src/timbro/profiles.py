@@ -237,10 +237,21 @@ def add_file(
 ) -> Path:
     # Unknown buckets used to fall through to contrast/ (the else-branch below),
     # silently filing the user's own writing into the away-voice corpus. Reject
-    # before any write (init_profile included). Kept as a separate `if` next to
-    # the #150 dest-name check so the two branches merge trivially.
+    # before any write (init_profile included).
     if bucket not in ("exemplars", "contrast"):
         raise ValueError(f"bucket must be 'exemplars' or 'contrast', got {bucket!r}")
+    # Issue #150: dest_name used to be joined verbatim (dst = target_dir / name),
+    # so '../x.md' escaped the bucket, an absolute path wrote anywhere, and
+    # 'subdir/x.md' crashed with FileNotFoundError. Reject anything that is not
+    # a plain file name before any write (init_profile included). A NUL byte is
+    # also rejected here: it equals its own Path.name but would only fail late
+    # inside shutil with a generic 'embedded null byte' ValueError (review R1).
+    if dest_name is not None and (
+        dest_name in {"", ".", ".."}
+        or "\x00" in dest_name
+        or dest_name != Path(dest_name).name
+    ):
+        raise ValueError(f"--dest-name must be a plain file name, got '{dest_name}'")
     profile = init_profile(profile_name, root=root)
     src = Path(source)
     if not src.exists():

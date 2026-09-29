@@ -270,13 +270,17 @@ def cmd_profiles_sync(args):
 
 
 def cmd_profiles_add_file(args):
-    dst = add_file(
-        args.name,
-        args.source,
-        bucket=args.to,
-        dest_name=args.dest_name,
-        overwrite=args.overwrite,
-    )
+    try:
+        dst = add_file(
+            args.name,
+            args.source,
+            bucket=args.to,
+            dest_name=args.dest_name,
+            overwrite=args.overwrite,
+        )
+    except (RuntimeError, ValueError) as exc:
+        print(f"timbro: error: {exc}", file=sys.stderr)
+        sys.exit(1)
     print(dst)
 
 
