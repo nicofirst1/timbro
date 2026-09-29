@@ -17,7 +17,7 @@ def _struct_vec(text: str) -> tuple[float, ...]:
     (no structure == zero structure) so a draft with no markdown never breaks z-scoring.
     """
     from timbro.analyze import (
-        _struct_features,  # lazy: analyze imports POS_TAGS from here
+        _struct_features,  # lazy: a module-level import closes model -> axes.markdown -> analyze -> model.direction
     )
 
     struct, _ = _struct_features(text)

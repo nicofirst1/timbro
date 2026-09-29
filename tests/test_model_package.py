@@ -45,12 +45,12 @@ class ModelPackageTest(unittest.TestCase):
     def test_voice_model_keeps_pos_dist(self):
         from timbro.model import VoiceModel
 
-        self.assertTrue(callable(getattr(VoiceModel, "_pos_dist")))
+        self.assertTrue(callable(VoiceModel._pos_dist))
 
     def test_python_m_timbro_model_smoke_test(self):
         r = subprocess.run(
             [sys.executable, "-m", "timbro.model"],
-            capture_output=True, text=True, timeout=600,
+            capture_output=True, text=True, timeout=600, check=False,
         )
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertTrue(r.stdout.startswith("ok:"), r.stdout)
