@@ -144,7 +144,7 @@ Runs on the **cleaned text** (markdown stripped).
 
 **Declared Prior**: mean=(6.0, 4.0), spread=(4.0, 4.0). A typical prose passage carries a few hedges and a few boosters per 1000 words; dozens/1000 would read as mealy-mouthed or bombastic. The prior reflects Hyland's research that hedges are more common than boosters in careful prose.
 
-**Reports Even With No Corpus**: Unlike markdown (which is corpus-only), hedge/booster always has a reference (the declared prior). With no corpus, the prior passes through unchanged, so `hedge_report` returns usable advice even with `--check` and no profile.
+**Reports Even With No Corpus**: Unlike markdown (which is corpus-only), hedge/booster always has a reference (the declared prior). With no corpus, the prior passes through unchanged, so `hedge_report` returns usable advice even with no corpus stats.
 
 ---
 
