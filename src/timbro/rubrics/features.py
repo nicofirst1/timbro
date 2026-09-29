@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import itertools
 import re
-from functools import cached_property, lru_cache
+from functools import cached_property
 from statistics import pstdev
 
 import numpy as np
@@ -12,14 +12,13 @@ from timbro.rubrics.sections import detect_sections, split_paragraphs, split_sen
 from timbro.text import _model as _embed_model
 
 
-@lru_cache(maxsize=1)
 def _rubric_nlp():
     """spaCy with the dependency parser AND lemmatizer ON (passive voice, comma splices,
     sentence boundaries need the parser; repetition/terminology/defensive checks need lemmas).
     Separate from core._nlp, which disables both for fast scoring."""
-    from timbro.spacy_model import load_spacy
+    from timbro.spacy_model import cached_pipeline
 
-    return load_spacy(disable=["ner"])
+    return cached_pipeline(("ner",), ())
 
 
 _CITATION = re.compile(r"\([A-Z][A-Za-z-]+(?: et al\.)?,? \d{4}\)|\[\d+\]")

@@ -76,19 +76,16 @@ def register(metric: Metric) -> Metric:
     return metric
 
 
-@lru_cache(maxsize=1)
 def _nlp():
     # Shared lemma+POS pipeline for axes that need more than a tagger-only parse.
-    # Separate loader/cache from the other `_nlp()` variants in this codebase -- each
+    # Separate config from the other `_nlp()` variants in this codebase -- each
     # caller enables only what it needs, and spaCy doesn't let you re-enable a disabled
     # component after load. tagger + attribute_ruler + lemmatizer stay enabled (the
     # lemmatizer needs the tagger's output); ner/parser disabled for speed. sentencizer
-    # is added (cheap, rule-based, not the statistical parser) for sentence-boundary axes.
-    from timbro.spacy_model import load_spacy
+    # (cheap, rule-based, not the statistical parser) covers sentence-boundary axes.
+    from timbro.spacy_model import cached_pipeline
 
-    nlp = load_spacy(disable=["ner", "parser"])
-    nlp.add_pipe("sentencizer")
-    return nlp
+    return cached_pipeline(("ner", "parser"), ("sentencizer",))
 
 
 @lru_cache(maxsize=8)  # small: Docs are heavy, keep memory bounded
