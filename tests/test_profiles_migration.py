@@ -20,7 +20,7 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 import timbro.cli as cli
-from timbro.cli import cmd_profiles_list, cmd_score, main
+from timbro.cli import cmd_accept, cmd_profiles_list, cmd_score, main
 from timbro.profiles import _legacy_xdg_root, init_profile, legacy_profile_warning
 
 
@@ -211,6 +211,100 @@ class ScoreProfileMigrationTests(unittest.TestCase):
         self.assertEqual(out.getvalue(), "")
         self.assertIn("mv", err.getvalue())
         self.assertIn(str((xdg / "timbro" / "profiles").resolve()), err.getvalue())
+
+
+_DRAFT = "The committee reviewed the budget and asked for a revised proposal today."
+
+
+class WarningCoversEveryProfileCommandTests(unittest.TestCase):
+    """Every command that resolves a profile by name warns in the firing state (#138)."""
+
+    def _firing(self):
+        """TemporaryDirectory + seeded legacy XDG dir + default-resolution env pin."""
+        td = TemporaryDirectory()
+        tdp = Path(td.name)
+        home, xdg = tdp / "home", tdp / "xdg"
+        _seed_legacy(xdg)
+        self.addCleanup(td.cleanup)
+        return home, xdg
+
+    def test_check_profile_warns(self):
+        home, xdg = self._firing()
+        draft = Path(xdg).parent / "draft.md"
+        draft.write_text(_DRAFT, encoding="utf-8")
+        with _default_resolution(home, xdg):
+            out, err, code = _run(["check", str(draft), "--profile", "old-a"])
+        self.assertNotEqual(code, 0)  # empty new-root corpus: pre-existing error path
+        self.assertIn("mv", err)
+
+    def test_check_non_slop_profile_does_not_resolve_so_no_warning(self):
+        home, xdg = self._firing()
+        draft = Path(xdg).parent / "draft.md"
+        draft.write_text(_DRAFT, encoding="utf-8")
+        with _default_resolution(home, xdg):
+            out, err, code = _run(["check", str(draft), "--profile", "old-a", "--rubric", "density"])
+        self.assertNotEqual(code, 0)  # --profile only affects the slop rubric
+        self.assertNotIn("mv", err)
+
+    def test_accept_profile_warns_before_missing_profile_error(self):
+        home, xdg = self._firing()
+        tdp = Path(xdg).parent
+        orig, revised = tdp / "orig.md", tdp / "revised.md"
+        orig.write_text(_DRAFT, encoding="utf-8")
+        revised.write_text(_DRAFT, encoding="utf-8")
+        with _default_resolution(home, xdg):
+            out, err = io.StringIO(), io.StringIO()
+            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                with self.assertRaises(FileNotFoundError):
+                    cmd_accept(
+                        argparse.Namespace(
+                            original=str(orig), revised=str(revised), profile="old-a", threshold=0.85, json=True
+                        )
+                    )
+        self.assertEqual(out.getvalue(), "")
+        self.assertIn("mv", err.getvalue())
+
+    def test_profiles_env_warns(self):
+        home, xdg = self._firing()
+        with _default_resolution(home, xdg):
+            out, err, code = _run(["profiles", "env", "old-a"])
+        self.assertEqual(code, 0)
+        self.assertIn("TIMBRO_EXEMPLARS=", out)  # behavior unchanged: still the new root
+        self.assertIn("mv", err)
+
+    def test_profiles_diagnose_warns(self):
+        home, xdg = self._firing()
+        with _default_resolution(home, xdg):
+            out, err, code = _run(["profiles", "diagnose", "old-a"])
+        self.assertEqual(code, 0)
+        self.assertIn("mv", err)
+
+    def test_profiles_learn_warns_before_refusal(self):
+        home, xdg = self._firing()
+        tdp = Path(xdg).parent
+        draft, final = tdp / "draft.md", tdp / "final.md"
+        draft.write_text(_DRAFT, encoding="utf-8")
+        final.write_text(_DRAFT, encoding="utf-8")
+        with _default_resolution(home, xdg):
+            out, err, code = _run(
+                ["profiles", "learn", "old-a", "--draft", str(draft), "--final", str(final)]
+            )
+        self.assertNotEqual(code, 0)  # cold-start refusal: pre-existing error path
+        self.assertIn("mv", err)
+
+    def test_profiles_add_file_warns_and_keeps_new_root_behavior(self):
+        home, xdg = self._firing()
+        tdp = Path(xdg).parent
+        src = tdp / "doc.md"
+        src.write_text(_DRAFT, encoding="utf-8")
+        with _default_resolution(home, xdg):
+            out, err, code = _run(
+                ["profiles", "add-file", "old-a", str(src), "--to", "exemplars"]
+            )
+        self.assertEqual(code, 0)
+        self.assertIn("mv", err)
+        # warning only: the profile is still created at the new root, unchanged
+        self.assertTrue((home / "profiles" / "old-a" / "exemplars" / "doc.md").exists())
 
 
 if __name__ == "__main__":
