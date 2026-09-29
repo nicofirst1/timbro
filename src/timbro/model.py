@@ -33,7 +33,7 @@ from timbro.fw import (  # noqa: F401  (import registers the metric)
 from timbro.hedge import (  # noqa: F401  (import registers the metric)
     HEDGE_BOOSTER_METRIC,
 )
-from timbro.metric import REGISTRY, Reference, register
+from timbro.metric import REGISTRY, Metric, Reference, register
 from timbro.priors import DEFAULT_CONTRAST, DEFAULT_EXEMPLARS, TELL_PRIOR
 from timbro.report import (  # dataclasses/labels: report.py formats for humans (PR #57 review)
     AxisReport,
@@ -191,6 +191,13 @@ MARKDOWN_REFERENCE = MARKDOWN_METRIC.prior
 STRUCT_AXIS_NAMES: tuple[str, ...] = MARKDOWN_METRIC.axes
 
 
+def _blend_metrics() -> list[Metric]:
+    """The registered blend-style metrics (#108): those carrying `hint_axes` (excludes
+    tells/politeness). One definition shared by fit() and axis_report() so metric
+    discovery and lookup can't drift."""
+    return [m for m in REGISTRY if hasattr(m, "hint_axes")]
+
+
 def features(text: str) -> dict[str, float]:
     """Named style features for one document. Every value traces to its name (NFR2)."""
     pos = {f"pos_{tag}": r for tag, r in zip(POS_TAGS, _pos_rates(text))}
@@ -295,14 +302,11 @@ class VoiceModel:
         for i, nm in enumerate(names):
             if nm.startswith("tell_"):
                 conf[i] = max(conf[i], TELL_PRIOR[nm[5:]])
-        # One corpus-stats pass over every registered blend-style metric (#108): a new
-        # axis costs zero lines here -- its module import is what registers it, and the
-        # `hint_axes` attribute is what this filter selects on (excludes tells and
-        # politeness, which don't carry it). Raw std, no zero-std guard: the report
-        # applies `spread or 1.0` per axis (#28/#44/#45/#46/#88 are the five today).
-        blend_metrics = [m for m in REGISTRY if hasattr(m, "hint_axes")]
+        # One corpus-stats pass over every registered blend-style metric (#108): raw
+        # std -- the report's `spread or 1.0` guards zero-variance axes. A new axis
+        # costs zero lines here: its import registers it; `hint_axes` selects it.
         axis_stats: dict[str, tuple[tuple[float, ...], tuple[float, ...], int]] = {}
-        for m in blend_metrics:
+        for m in _blend_metrics():
             M = np.array([m.extract(t) for t in texts], dtype=float)
             axis_stats[m.name] = (tuple(M.mean(0)), tuple(M.std(0)), len(texts))
         # embedding path (scalar)
@@ -421,11 +425,11 @@ class VoiceModel:
         embedding distance or POS direction -- standalone axis group. Raises KeyError
         for a name not in timbro.metric.REGISTRY.
         """
-        metric = next((m for m in REGISTRY if m.name == metric_name), None)
+        metric = next((m for m in _blend_metrics() if m.name == metric_name), None)
         if metric is None:
             raise KeyError(
-                f"no registered metric named {metric_name!r}; "
-                f"registered: {[m.name for m in REGISTRY]}"
+                f"no blend-style metric named {metric_name!r}; "
+                f"blend-style registered: {[m.name for m in _blend_metrics()]}"
             )
         stats = self._axis_stats.get(metric_name)
         if stats is None:
