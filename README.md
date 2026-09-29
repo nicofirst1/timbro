@@ -255,7 +255,7 @@ uv run timbro score draft.md --profile science-clarity,academic
 
 ```
 src/timbro/
-├── __init__.py      # package root: re-exports the public API (VoiceModel, check_text, profiles)
+├── __init__.py      # package root: re-exports the public API (VoiceModel, check_text, the profiles functions)
 ├── model/           # VoiceModel orchestrator + the two scoring lenses
 │   ├── __init__.py  # VoiceModel: fit/score/axis_report, corpus reader, profile gating
 │   ├── embedding.py # "how far" lens: StyleDistance embedding kNN
@@ -278,7 +278,7 @@ src/timbro/
 ├── metric.py        # the Metric/Reference contract, REGISTRY, parsed_doc, kNN + confidence helpers
 ├── norms/           # vendored Brysbaert 2014 concreteness norms (data + NOTICE)
 ├── priors.py        # declared priors + tell confidence floors (tuned constants)
-├── profiles.py      # named profiles: init/add-file/learn/diagnose/sync
+├── profiles.py      # named profiles: list/init/add-file/env/learn/diagnose/sync
 ├── profilelog.py    # the per-profile learn-event log (`runs.jsonl`)
 ├── settings.py      # `<TIMBRO_HOME>/settings.json` (the `no_log` flag)
 ├── spacy_model.py   # the one cached spaCy pipeline loader
