@@ -24,14 +24,21 @@ from pathlib import Path
 
 import numpy as np
 
-from timbro.concreteness import (  # noqa: F401  (import registers the metric)
+from timbro.axes.concreteness import (  # noqa: F401  (import registers the metric)
     CONCRETENESS_METRIC,
 )
-from timbro.fw import (  # noqa: F401  (import registers the metric)
+from timbro.axes.fw import (  # noqa: F401  (import registers the metric)
     FUNCTION_WORD_METRIC,
 )
-from timbro.hedge import (  # noqa: F401  (import registers the metric)
+from timbro.axes.hedge import (  # noqa: F401  (import registers the metric)
     HEDGE_BOOSTER_METRIC,
+)
+from timbro.axes.richness import (  # noqa: F401  (import registers the metric)
+    RICHNESS_METRIC,
+)
+from timbro.axes.tells import (  # noqa: F401  (import registers the tells metric)
+    TELL_METRIC,
+    tell_rates,
 )
 from timbro.metric import REGISTRY, Metric, Reference, register
 from timbro.priors import DEFAULT_CONTRAST, DEFAULT_EXEMPLARS, TELL_PRIOR
@@ -40,13 +47,6 @@ from timbro.report import (  # dataclasses/labels: report.py formats for humans 
     FeatureMove,
     ScoreResult,
     _label,
-)
-from timbro.richness import (  # noqa: F401  (import registers the metric)
-    RICHNESS_METRIC,
-)
-from timbro.tells import (  # noqa: F401  (import registers the tells metric)
-    TELL_METRIC,
-    tell_rates,
 )
 
 # Universal POS tags (spaCy `pos_`). Rates over these 17 are length-normalized,

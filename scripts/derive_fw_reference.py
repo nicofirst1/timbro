@@ -73,7 +73,7 @@ def fetch_text(gutenberg_id: int) -> str:
 
 
 def main() -> None:
-    from timbro.fw import function_word_rates
+    from timbro.axes.fw import function_word_rates
 
     all_chunks: list[str] = []
     for gid, title, category in GUTENBERG_TEXTS:

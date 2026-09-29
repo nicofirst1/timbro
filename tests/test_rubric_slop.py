@@ -4,7 +4,7 @@ import unittest
 
 from timbro.rubrics import check_text, get_rubric
 from timbro.rubrics.slop.checks import DIMENSION, DIMENSIONS, tell_findings
-from timbro.tells import TELL_NAMES, tell_baseline
+from timbro.axes.tells import TELL_NAMES, tell_baseline
 
 # Lights up tells across all four dimensions; a clean sentence lights up none.
 _SLOP = (

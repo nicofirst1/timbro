@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import unittest
 
-from timbro.hedge import (
+from timbro.axes.hedge import (
     HEDGE_BOOSTER_METRIC,
     HEDGE_BOOSTER_REFERENCE,
     hedge_booster_rates,
@@ -70,7 +70,7 @@ class RateMathTest(unittest.TestCase):
 
 class RegistryTest(unittest.TestCase):
     def test_registered_exactly_once(self):
-        from timbro.hedge import _HedgeBoosterMetric
+        from timbro.axes.hedge import _HedgeBoosterMetric
         from timbro.metric import register
 
         before = sum(1 for m in REGISTRY if m.name == "hedge")

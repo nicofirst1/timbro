@@ -4,7 +4,7 @@ from __future__ import annotations
 import unittest
 
 from timbro.metric import REGISTRY
-from timbro.politeness import (
+from timbro.axes.politeness import (
     POLITENESS_METRIC,
     politeness_counts,
     politeness_report,
@@ -93,7 +93,7 @@ class MetricTest(unittest.TestCase):
 class RegistryTest(unittest.TestCase):
     def test_registered_exactly_once(self):
         from timbro.metric import register
-        from timbro.politeness import _PolitenessMetric
+        from timbro.axes.politeness import _PolitenessMetric
 
         before = sum(1 for m in REGISTRY if m.name == "politeness")
         self.assertEqual(before, 1)

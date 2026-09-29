@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import unittest
 
-from timbro.fw import (
+from timbro.axes.fw import (
     FUNCTION_WORD_METRIC,
     FUNCTION_WORD_REFERENCE,
     function_word_rates,
@@ -73,7 +73,7 @@ class RateMathTest(unittest.TestCase):
 
 class RegistryTest(unittest.TestCase):
     def test_registered_exactly_once(self):
-        from timbro.fw import _FunctionWordMetric
+        from timbro.axes.fw import _FunctionWordMetric
         from timbro.metric import register
 
         before = sum(1 for m in REGISTRY if m.name == "fw")
