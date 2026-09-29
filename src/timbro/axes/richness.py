@@ -25,6 +25,7 @@ it does not feed the scored POS/embedding direction or `_WEIGHTS`.
 from __future__ import annotations
 
 import math
+import warnings
 from collections import Counter
 from functools import lru_cache
 
@@ -72,7 +73,16 @@ def richness_stats(text: str) -> tuple[float, float, float]:
       vocabulary, length-robust unlike raw type-token ratio)
     - entropy: Shannon entropy (bits) of the lemma distribution
     """
-    from lexical_diversity import lex_div
+    # lexical_diversity imports pkg_resources at module scope, so every fresh CLI
+    # process printed `UserWarning: pkg_resources is deprecated as an API...` to
+    # stderr (#140). The setuptools<81 pin (#42/#48) keeps the import working, so
+    # the warning is pure noise: scope an ignore filter to this one import, no
+    # global filter.
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore", message="pkg_resources is deprecated", category=UserWarning
+        )
+        from lexical_diversity import lex_div
 
     doc = _doc(text)
     readability = float(doc._.readability.get("coleman_liau_index") or 0.0)
