@@ -34,19 +34,17 @@ from timbro.priors import RICHNESS_REFERENCE
 _CONTENT_POS = {"NOUN", "PROPN", "VERB", "ADJ", "ADV"}  # same set analyze.py uses for lex_mtld/lex_hdd
 
 
-@lru_cache(maxsize=1)
 def _nlp():
-    # Separate loader from metric.py's `_nlp()`: this axis needs the
+    # Separate config from metric.py's `_nlp()`: this axis needs the
     # textdescriptives/readability pipe, which the shared parsed_doc pipeline doesn't
     # carry. parser/ner disabled -- readability only needs the sentencizer's bounds.
     import textdescriptives as td  # noqa: F401  (registers the textdescriptives/* factories)
 
-    from timbro.spacy_model import load_spacy
+    from timbro.spacy_model import cached_pipeline
 
-    nlp = load_spacy(disable=["ner", "parser"])
-    nlp.add_pipe("sentencizer")
-    nlp.add_pipe("textdescriptives/readability")
-    return nlp
+    return cached_pipeline(
+        ("ner", "parser"), ("sentencizer", "textdescriptives/readability")
+    )
 
 
 @lru_cache(maxsize=512)

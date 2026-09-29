@@ -163,16 +163,13 @@ _HR = re.compile(r"^(?:-{3,}|\*{3,}|_{3,})\s*$", re.MULTILINE)
 TELL_NAMES = tuple(TELL_LABEL)  # stable order for the feature vector
 
 
-@lru_cache(maxsize=1)
 def _nlp():
-    # A second spaCy load (separate from model.py's, which disables the
-    # parser and can't give sentence boundaries). Deliberately kept as its own
-    # lru_cache(size=1) loader rather than threading a Doc through every call site.
-    from timbro.spacy_model import load_spacy
+    # A second spaCy config (separate from model.py's, which disables the
+    # parser and can't give sentence boundaries): same disable list plus a
+    # sentencizer -- rule-based boundaries, no statistical parser.
+    from timbro.spacy_model import cached_pipeline
 
-    nlp = load_spacy(disable=["ner", "lemmatizer", "parser"])
-    nlp.add_pipe("sentencizer")  # rule-based boundaries; no statistical parser
-    return nlp
+    return cached_pipeline(("ner", "lemmatizer", "parser"), ("sentencizer",))
 
 
 # Penn finite/participle tags that mark a bare-verb opener; base-form VB is an

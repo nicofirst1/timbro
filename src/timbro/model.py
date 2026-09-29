@@ -62,11 +62,10 @@ _WORD = re.compile(r"\b\w+\b")
 # now (PR #57 review); re-imported above.
 
 
-@lru_cache(maxsize=1)
 def _nlp():
-    from timbro.spacy_model import load_spacy
+    from timbro.spacy_model import cached_pipeline
 
-    return load_spacy(disable=["ner", "lemmatizer", "parser"])
+    return cached_pipeline(("ner", "lemmatizer", "parser"), ())
 
 
 @lru_cache(maxsize=1)

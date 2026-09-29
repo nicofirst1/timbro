@@ -21,6 +21,7 @@ from __future__ import annotations
 import shutil
 import subprocess
 import sys
+from functools import cache
 
 _MODEL = "en_core_web_sm"
 
@@ -58,3 +59,21 @@ def load_spacy(**kwargs) -> spacy.language.Language:  # noqa: F821
         )
         _install_model()
         return spacy.load(_MODEL, **kwargs)
+
+
+@cache
+def cached_pipeline(
+    disable: tuple[str, ...], extra_pipes: tuple[str, ...] = ()
+) -> spacy.language.Language:  # noqa: F821
+    """One shared spaCy pipeline per (disable, extra_pipes) config.
+
+    Cached per config and shared across call sites: do not mutate the returned
+    pipeline (no add_pipe/remove_pipe, no enabling/disabling components).
+    """
+    # functools.cache == lru_cache(maxsize=None); unbounded is deliberate: the
+    # cache is bounded by the number of distinct call-site configs (6 today), and
+    # a small maxsize would evict and reload spaCy repeatedly.
+    nlp = load_spacy(disable=list(disable))
+    for name in extra_pipes:
+        nlp.add_pipe(name)
+    return nlp

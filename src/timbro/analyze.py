@@ -142,14 +142,18 @@ _TD_RENAME = {
 }
 
 
-@lru_cache(maxsize=1)
 def _analyze_nlp():
-    from timbro.spacy_model import load_spacy
+    from timbro.spacy_model import cached_pipeline
 
-    nlp = load_spacy(disable=["ner"])
-    for name in ("descriptive_stats", "readability", "dependency_distance", "coherence"):
-        nlp.add_pipe(f"textdescriptives/{name}")
-    return nlp
+    return cached_pipeline(
+        ("ner",),
+        (
+            "textdescriptives/descriptive_stats",
+            "textdescriptives/readability",
+            "textdescriptives/dependency_distance",
+            "textdescriptives/coherence",
+        ),
+    )
 
 
 @lru_cache(maxsize=1)
