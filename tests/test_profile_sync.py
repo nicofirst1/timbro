@@ -333,3 +333,46 @@ def test_no_git_identity_syncs_merge_with_seeded_remote_main(tmp_path, monkeypat
     # same identity the sync commit gets.
     head = _git(root, "log", "-1", "--format=%an|%ae|%cn|%ce").strip()
     assert head == "timbro|timbro@localhost|timbro|timbro@localhost"
+
+
+def test_configured_identity_survives_sync_merge(tmp_path, monkeypatch):
+    # A user with a configured identity keeps it on the merge commit; the
+    # fallback must never override it. Env identities are dropped so the
+    # repo-local config below is the only identity source, like real machines.
+    for var in (
+        "GIT_AUTHOR_NAME",
+        "GIT_AUTHOR_EMAIL",
+        "GIT_COMMITTER_NAME",
+        "GIT_COMMITTER_EMAIL",
+        "EMAIL",
+    ):
+        monkeypatch.delenv(var, raising=False)
+
+    remote = _bare_remote(tmp_path)
+    seed = tmp_path / "seed"
+    seed.mkdir()
+    _git(seed, "init")
+    _git(seed, "symbolic-ref", "HEAD", "refs/heads/main")
+    (seed / "README.md").write_text("seed\n", encoding="utf-8")
+    _git(seed, "add", "-A")
+    _git(seed, "-c", "user.name=seeder", "-c", "user.email=seeder@example.com", "commit", "-m", "seed")
+    _git(seed, "push", str(remote), "main")
+
+    root = tmp_path / "machine-c"
+    root.mkdir()
+    _git(root, "init")
+    _git(root, "symbolic-ref", "HEAD", "refs/heads/main")
+    _git(root, "config", "user.name", "nico")
+    _git(root, "config", "user.email", "nico@example.com")
+    _seed_profile(root, "demo", "from-c")
+
+    result = sync_profiles(root, init_remote=str(remote))
+
+    assert result == {"status": "ok"}
+    # Remote main's tip is the merge commit (two parents) and it keeps the
+    # user's own identity; the fallback never leaks into the history.
+    author_email, committer_email, parents = _git(remote, "log", "-1", "main", "--format=%ae|%ce|%p").strip().split("|")
+    assert author_email == "nico@example.com"
+    assert committer_email == "nico@example.com"
+    assert len(parents.split()) == 2
+    assert "timbro@localhost" not in _git(remote, "log", "main", "--format=%an <%ae> %cn <%ce>")
