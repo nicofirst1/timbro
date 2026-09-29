@@ -60,7 +60,8 @@ def fit_embedding(texts: list[str], contrast: list[str] | None, knn_k: int):
     # embedding path (scalar)
     E = np.array([_style_vec(t) for t in texts])
     emean, estd = E.mean(0), E.std(0)
-    estd[estd == 0] = 1.0
+    # a std below 1e-9 is float rounding, not spread
+    estd[estd < 1e-9] = 1.0
     train_ez = (E - emean) / estd
     exemplar_dists = _loo_exemplar_distances(train_ez, knn_k)
     exemplar_floor = float(np.median(exemplar_dists))
