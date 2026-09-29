@@ -3,15 +3,14 @@
 What belongs here: hand-curated lexicon and phrase lists (hedge/booster, AI-tell
 diction), declared `Reference` priors for each scalar axis (the "expected value"
 a metric judges a draft against with no corpus), and the packaged-sample corpus
-paths. All of it is relocated byte-identical from the modules that used to define
-it inline (PR #57 review) -- this is a move, not a retune.
+paths.
 
 What does NOT belong here: detector/extractor code (regexes with matching logic,
 POS predicates, the `_count_*`/`*_rates` functions), scoring weights (`_PENALTY`,
 `_WEIGHTS`), verdict thresholds in `report.py`, or the structural zero-placeholder
-references (`TELL_REFERENCE`, and the markdown metric's prior `MARKDOWN_METRIC.prior`
-in `model.py`) -- those derive their length from an axis-name tuple and live next to
-it, so the two can't drift apart.
+references (`TELL_REFERENCE`, and the markdown metric's prior `MARKDOWN_METRIC.prior`)
+-- those derive their length from an axis-name tuple and live next to it, so the two
+can't drift apart.
 """
 
 from __future__ import annotations
@@ -75,7 +74,7 @@ TELL_PRIOR = {
     "quote_punct": 0.25, "colon_list": 0.22,
 }
 
-# --- model.py: packaged-sample corpus defaults ------------------------------------------
+# --- packaged-sample corpus defaults ----------------------------------------------------
 
 # Packaged sample corpus -- makes the plugin run on install (override via env for a real voice).
 _SAMPLE = Path(__file__).parent / "sample"
@@ -96,7 +95,7 @@ DEFAULT_CONTRAST = _SAMPLE / "contrast"
 # (mean = sum(freq*conc) / sum(freq), all 37,058 vendored lemmas joined).
 #
 # spread=0.2792: population stdev of DOCUMENT-level mean concreteness, not lemma-level
-# -- model.py's z-score divides by this spread, so it has to be in the same unit the
+# -- the axis z-score divides by this spread, so it has to be in the same unit the
 # z-score consumes (how much a document's average concreteness varies, not how much
 # individual words' ratings vary -- lemma-level spread is ~3.75x wider and would make
 # every draft's z-score silently shrink toward zero). Measured by running the shipped

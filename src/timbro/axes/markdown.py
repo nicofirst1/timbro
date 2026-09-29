@@ -1,6 +1,6 @@
-"""Markdown-structure axis (#28) as a registered `Metric`, moved verbatim from
-model.py (#106) into the axes package -- a peer of hedge/fw/concreteness/richness,
-not VoiceModel-internal machinery. See timbro.metric for the Metric protocol."""
+"""Markdown-structure axis (#28) as a registered `Metric` -- a peer of
+hedge/fw/concreteness/richness in the axes package, not VoiceModel-internal
+machinery. See timbro.metric for the Metric protocol."""
 
 from __future__ import annotations
 

@@ -82,7 +82,8 @@ def tell_findings(text: str, baseline: dict[str, tuple[float, float]] | None = N
             continue
         mean, std = baseline[name]
         # Zero-variance corpus (a tell it never uses, or uses uniformly): 1 rate-unit
-        # (one occurrence per 1000 words) sets the scale, matching model.py's std guard.
+        # (one occurrence per 1000 words) sets the scale, matching the `spread or 1.0`
+        # guard VoiceModel.axis_report applies to degenerate axes.
         z = (rates[f"tell_{name}"] - mean) / (std or 1.0)
         if z <= _REL_FLAG_Z:
             continue

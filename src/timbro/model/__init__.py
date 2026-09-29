@@ -44,7 +44,7 @@ from timbro.metric import REGISTRY, Metric, _confidence, _knn
 from timbro.model.direction import feature_matrix, features
 from timbro.model.embedding import _style_vec, fit_embedding
 from timbro.priors import DEFAULT_CONTRAST, DEFAULT_EXEMPLARS, TELL_PRIOR
-from timbro.report import (  # dataclasses/labels: report.py formats for humans (PR #57 review)
+from timbro.report import (  # dataclasses/labels: report.py formats for humans
     AxisReport,
     FeatureMove,
     ScoreResult,
@@ -57,11 +57,6 @@ from timbro.text import (
 _FRONTMATTER = re.compile(r"\A---\n.*?\n---\n", re.DOTALL)
 _WORD = re.compile(r"\b\w+\b")
 
-# DEFAULT_EXEMPLARS / DEFAULT_CONTRAST (packaged sample corpus paths) live in priors.py
-# now (PR #57 review); re-imported above.
-# The two scoring lenses live in sibling modules (#106): embedding.py ("how far")
-# and direction.py ("which way").
-
 
 def read_corpus(directory: str | Path) -> list[str]:
     """All .md/.txt files in a dir, YAML frontmatter stripped."""
@@ -70,9 +65,6 @@ def read_corpus(directory: str | Path) -> list[str]:
     # Strip frontmatter only; code fences / blockquotes are left in as part of the
     # voice's texture. Strip them too if they prove to be topic noise, not style.
     return [_FRONTMATTER.sub("", f.read_text(encoding="utf-8")) for f in files]
-
-
-# --- Markdown-structure metric (#28) --------------------------------------------------
 
 
 def _blend_metrics() -> list[Metric]:
@@ -279,7 +271,7 @@ class VoiceModel:
             out.append(AxisReport(axis, float(vec[i]), float(ref_mean[i]), z, direction))
         return out
 
-    # Backward-compat wrappers (#108): the five named methods stay as one-liners over
+    # Backward-compat wrappers: the five named methods stay as one-liners over
     # axis_report -- same names, same return types; report.py/cli.py/tests keep calling
     # these. The per-axis detail lives in axis_report's docstring, not repeated here.
 

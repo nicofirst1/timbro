@@ -14,7 +14,7 @@ shipped; this script does not overwrite the vendored norms file.
 
 SPREAD: population stdev of DOCUMENT-level mean concreteness, not lemma-level. The
 axis this prior feeds (`concreteness.py:concreteness_stats`) scores one draft as a
-single averaged number, and `model.py`'s z-score divides by this spread -- so the
+single averaged number, and the axis z-score divides by this spread -- so the
 spread must be measured in the same units the z-score consumes: how much a
 ~1000-word document's mean concreteness varies, not how much individual words'
 ratings vary (~3.5x wider and the wrong unit -- see #58 verifier finding). Reuses
@@ -123,7 +123,7 @@ def chunk_words(text: str, chunk_words: int = CHUNK_WORDS) -> list[str]:
 
 def derive_document_spread(chunks: list[str], mean_concreteness_fn) -> float:
     """Population stdev of per-chunk mean concreteness -- the document-level unit the
-    z-score in `model.py` actually divides by. `mean_concreteness_fn` is injected so
+    z-score in `VoiceModel.axis_report` actually divides by. `mean_concreteness_fn` is injected so
     this is testable without spaCy/network."""
     per_chunk_means = [mean_concreteness_fn(c) for c in chunks]
     return statistics.pstdev(per_chunk_means)

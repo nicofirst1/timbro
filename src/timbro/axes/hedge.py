@@ -5,9 +5,8 @@ Hyland's metadiscourse taxonomy names two opposed families of stance marker: hed
 "must", "in fact") sharpen it. Neither is good or bad prose -- they are a dial a
 writer sets on purpose, and a voice has a resting position on that dial. This axis
 measures where a draft sits, per-1000-words, the same length-normalised way
-`tells.py::tell_rates` does, and reports it standalone (it does not feed the
-embedding distance or POS direction -- see `metric.MARKDOWN`-style axes in model.py
-for the precedent).
+`tells.py::tell_rates` does, and reports it standalone: it does not feed the
+embedding distance or POS direction.
 
 Matching is lemma + POS over the shared cached Doc (`metric.parsed_doc`), not regex:
 a few lemmas have a genuine non-hedge/non-booster reading in ordinary prose ("might"
@@ -79,7 +78,6 @@ def hedge_booster_rates(text: str) -> tuple[float, float]:
 
 
 # --- Metric (#43/#44) ----------------------------------------------------------------
-# HEDGE_BOOSTER_REFERENCE lives in priors.py now (PR #57 review); re-imported above.
 
 
 class _HedgeBoosterMetric:

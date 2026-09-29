@@ -66,8 +66,9 @@ class Metric(Protocol):
         ...
 
 
-# The registry the CLI iterates. Ported metrics register at import of their home module
-# (tells.py, the timbro/axes/ modules) to avoid an import cycle; new axes append here.
+# The metric registry. Metrics register at import of their home module (the
+# timbro/axes/ modules) to avoid an import cycle; timbro.model._blend_metrics
+# filters it. New axes append here.
 REGISTRY: list[Metric] = []
 
 

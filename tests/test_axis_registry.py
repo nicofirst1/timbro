@@ -1,7 +1,7 @@
 """Axis registry (#108): one _axis_stats dict, one axis_report method, hint_axes/z_tol
 on each Metric, one AxisReport dataclass. The zero-growth proof is the last test: a
-sixth blend-style metric registered from the test file reports with zero model.py
-changes (and is removed from REGISTRY again via addCleanup).
+sixth blend-style metric registered from the test file reports with zero changes to
+`timbro.model` (and is removed from REGISTRY again via addCleanup).
 """
 from __future__ import annotations
 
@@ -162,7 +162,7 @@ class ZeroGrowthProofTest(unittest.TestCase):
         REGISTRY.append(metric)
         self.addCleanup(REGISTRY.remove, metric)
 
-        model = VoiceModel.fit(_CORPUS)  # untouched model.py must pick the metric up
+        model = VoiceModel.fit(_CORPUS)  # zero per-metric code: fit() picks the metric up
         self.assertIn("throwaway", model._axis_stats)
         rows = model.axis_report("throwaway", "some words here")
         self.assertEqual([r.axis for r in rows], ["vibe_rate"])

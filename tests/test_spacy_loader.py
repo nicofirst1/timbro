@@ -85,8 +85,8 @@ class CallSiteDelegationTest(unittest.TestCase):
     def test_each_call_site_delegates_with_its_config(self):
         with (
             patch("timbro.spacy_model.cached_pipeline") as mock_cached,
-            # RED-phase safety net: the old wrappers still call load_spacy directly;
-            # keep this test from doing six real spaCy loads while it fails.
+            # safety net: if a call site skips cached_pipeline and hits load_spacy
+            # directly, keep the failure cheap (no real spaCy loads).
             patch("timbro.spacy_model.load_spacy", return_value=MagicMock(name="pipeline")),
         ):
             for mod_name, fn_name, disable, pipes in SITES:

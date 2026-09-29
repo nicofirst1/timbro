@@ -29,9 +29,8 @@ from timbro.model import read_corpus
 from timbro.priors import DEFAULT_EXEMPLARS
 from timbro.rubrics.registry import get_rubric
 
-# Candidate rubric names to try. Not every name is registered yet (e.g. `density`
-# lands with #5); unregistered names are skipped with a note, so this script
-# keeps working unmodified as new rubrics register.
+# Candidate rubric names to try. Unregistered names are skipped with a note, so
+# this script keeps working unmodified as rubrics come and go.
 CANDIDATE_RUBRICS = ["schimel", "density"]
 
 
