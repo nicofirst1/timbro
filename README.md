@@ -24,9 +24,9 @@
   <img src="assets/demo.gif" alt="timbro slop catching AI-writing tells, then re-scoring PASS after the flagged text is cut" width="720">
 </p>
 
-**LLM prose has a tell.** Em/en dashes everywhere, "it's not X, it's Y", the _delve / tapestry / seamless_ vocabulary, a tidy wrap-up about the future. A reader feels it, but "sounds AI-written" is not something you can put in CI.
+**LLM prose has a tell.** Dashes everywhere, "it's not X, it's Y", the _delve / tapestry / seamless_ vocabulary, a tidy wrap-up about the future. Readers feel it, but "sounds AI-written" is not something you can put in CI.
 
-Timbro makes it one. `timbro check --rubric slop` runs 21 deterministic detectors (regex + part-of-speech, no model, no network) and returns a verdict, four dimension scores, and the exact markers it found:
+Timbro turns it into a check you can run. `timbro check --rubric slop` runs 21 deterministic detectors (regex and part-of-speech, no model, no network) and returns a verdict, four dimension scores, and the exact markers it found:
 
 ```
 $ timbro check draft.md --rubric slop
@@ -45,250 +45,186 @@ Top findings
 
 Delete the flagged markers, re-run, and it reads `slop: PASS (1.00)`. Same meaning, no tells.
 
-**Sanity check, not a headline number:** `eval/slop_benchmark.py` scores a small set of genuinely LLM-generated paragraphs against the packaged known-good human prose and reports how often `slop` fires on each side. It's a repo-local smoke test, not independent validation — the human side is the same corpus the tell rules were tuned against (see the script's own caveat), so its false-positive rate isn't a claim about unseen writing. Run it yourself:
-
-```bash
-uv run python eval/slop_benchmark.py
-```
-
-**Why not just ask an LLM "does this read AI-generated?"** Because that is an LLM grading an LLM: nondeterministic, an API call every time, and it can't show you _which_ words tripped it. Timbro is white-box. Every flag is a named marker you can see, cite, and remove; it runs local and CPU-only, gives the same answer every time, and is fast enough for a git hook.
-
-## And a positive target, not just a blocklist
-
-Any regex list can tell you what to strip. Timbro's second act tells you what your writing should sound _like_. Seed it with posts you've accepted as your voice, and it scores any draft for **how far** it sits from that voice and **which way** to revise it, in named features, without changing what it says. That positive target is what separates it from every slop-lister.
-
-- **You, consistently.** A personal blog or newsletter should sound like one person across years of posts — not like whichever model wrote each one.
-- **A company on-brand.** Marketing, docs, and posts drift across authors and tools. Seed Timbro with your on-brand corpus and every draft gets measured against it.
-- **An agent that self-corrects.** LLMs are fluent but stylistically inconsistent. Timbro gives an agent a _measurable target_ and a _named direction_, so it can revise toward a voice instead of guessing.
-
-## Numbers
-
-This README was written by Claude (Opus 4.8). With Timbro you can see exactly how it scores against [my actual blog voice](https://nicolobrandizzi.com/blog/) — the same number your agent watches as it revises:
-
-<p align="center">
-  <img src="assets/distance.svg" width="780" alt="A 0-to-far axis: my blog voice sits in a 9–35 band; this README lands just outside it at 47; marketing hype is far out at 86">
-</p>
-
-It lands at 47 — outside my blog range (9–35): recognizably _not_ my essay voice (it's code-heavy docs), but a world away from sales-speak at 86. And Timbro hands back the _direction_ to close the gap: **more conjunctions, fewer abstract nouns, less code-block punctuation**. Scored against: [Horizon AI Fragmentation](https://nicolobrandizzi.com/blog/horizon-analysis/), [Teaching Machines to Think](https://nicolobrandizzi.com/blog/rl-reasoning-llm/), [The Digital Poisoners](https://nicolobrandizzi.com/blog/pravda-grooming/), [The SOTA Trap](https://nicolobrandizzi.com/blog/sota-trap/), [AI Gigafactories](https://nicolobrandizzi.com/blog/ai-gigafactories-tool/).
-
-## How it works
-
-Your agent runs one loop, and Timbro scores every turn of it:
-
-```
-score    → how far from your voice, and which way to move
-edit     → revise toward the named direction
-re-score → distance dropped AND meaning held?
-repeat   → until the distance stops falling
-```
-
-Each score is three legible layers plus a guard:
-
-- **Scalar — "how far"** — a pre-trained [StyleDistance](https://huggingface.co/StyleDistance/styledistance) embedding, scored by multi-modal **kNN**.
-- **Direction — "which way"** — **POS-unigram** rates, z-scored against your corpus and weighted by each feature's R². Every move is a named habit.
-- **Flow** — paragraph-embedding trajectory (speed, volume, circuitousness) + the Schimel "circle-back" (`cos(first, last)`).
-- **Content guard** — semantic cosine via a _general_ model (all-MiniLM): changes _how_ it reads, never _what_ it says.
-
-## The writing rubric (`check`)
-
-Voice alignment answers _"does this sound like me?"_. The rubric answers a separate question — _"is this good prose?"_ — and needs **no voice corpus**. `timbro check` runs three deterministic rubrics as peers — `schimel` (~30 checks distilled from Joshua Schimel's _Writing Science_: buried subject–verb core, passive voice, comma splices, expletive openings, preposition chains, nominalizations, long Latinate words, word-echo repetition, inconsistent terminology, metadiscourse and citation-as-subject frames, caveat/defensive closings, unearned claim words, significance-without-magnitude, and more), `slop` (AI-writing tells), and `density` (jargon/padding) — all linguistic/structural (spaCy dependency parse + POS + counting), **no LLM-as-judge**. Bare `check` runs all three with a combined worst-of verdict; narrow to one or more with `--rubric <name>[,<name>...]`. Each rubric returns a per-dimension score and a ranked findings list — recall-first, so a model consumer filters the occasional false positive. `uv run python eval/rubric_dashboard.py` prints each rule's findings-per-1000-words on known-good prose, so noisy rules can be spotted and demoted rather than deleted.
-
-```bash
-uv run timbro check draft.md                       # human-readable, all rubrics
-uv run timbro check draft.md --rubric schimel       # just the prose-quality rubric
-uv run timbro check draft.md --json                 # {verdict, rubrics: {<name>: {...}}}
-```
+Why not ask an LLM whether a draft reads AI-generated? That would be one model grading another. The answer changes from run to run, every check is an API call, and it can't show you _which_ words tripped it. Every Timbro flag is a named marker you can see, cite, and remove. It runs locally on the CPU, gives the same answer every time, and is fast enough for a git hook.
 
 ## Install
 
-### As a one-shot CLI, no clone (fastest)
+### Any coding agent (npx)
+
+One command installs the Timbro skill into ~40 coding agents (Cursor, Codex, Zed, aider, Cline, …), with nothing to clone:
 
 ```bash
-uvx timbro check draft.md   # first run downloads the spaCy POS model, then scores
+npx skills@latest add nicofirst1/timbro
+npx skills update    # later: pull the latest version
 ```
 
-### As a Claude Code plugin (one command)
+### Claude Code plugin
 
 ```
 /plugin marketplace add nicofirst1/timbro
 /plugin install timbro@timbro
 ```
 
-This installs the **skill** — it works immediately on a small **packaged sample voice** — ask Claude _"score this against the Timbro sample voice"_ to see it run.
+The plugin ships the skill, the spaCy model, and a small **sample voice**, so it works right away: ask Claude to _"score this against the Timbro sample voice"_. To use your own voice, ask Claude to run the `timbro-setup` skill for a guided walkthrough (see [Profiles](#profiles)).
 
-To use **your** voice, ask Claude to run the `timbro-setup` skill for a guided walkthrough, or scaffold a named profile yourself — the skill drives everything through `uvx timbro ... --profile <name>`, no config file to edit and no repo clone needed:
-
-```bash
-uvx timbro profiles init myvoice --about "..."
-uvx timbro profiles add-file myvoice posts/example.md --to exemplars
-```
-
-**On more than one machine:** on every machine after the first, run `uvx timbro profiles sync --init <url>` **before** `profiles init` or the setup walkthrough, so existing profiles are pulled from a **private** git repo instead of being recreated and colliding on the first sync (see the FAQ below).
-
-Or set `TIMBRO_EXEMPLARS` / `TIMBRO_CONTRAST` in your shell before launching Claude Code, if you'd rather point at raw folders than a managed profile.
-
-The POS model and the sample corpus both ship with the plugin — no manual download step.
-
-### As a skill
-
-Copy just the skill so the agent knows when and how to use Timbro:
+### Command line
 
 ```bash
-cp -r skills/timbro ~/.claude/skills/        # personal, or .claude/skills/ per-project
+uvx timbro check draft.md    # no install; the first run downloads the spaCy model
 ```
 
-Now ask Claude the same way — it runs Timbro, reads the direction, and proposes content-preserving edits.
+Or install it with `uv tool install timbro` / `pip install timbro`, then drop the `uvx` prefix.
 
-### As a one-shot CLI
-
-No server, no agent — just score a file:
-
-```bash
-uv run timbro check draft.md --rubric slop  # deterministic AI-slop / tells report
-uv run timbro score draft.md                # distance from your voice + revision direction
-cat draft.md | uv run timbro score -        # stdin
-uv run timbro score draft.md --json         # raw payload
-uv run timbro check draft.md                # all rubrics: Schimel + slop + density (above)
-```
-
-### From source (required for the CLI options above)
+### From source
 
 Requires Python ≥ 3.11 and [`uv`](https://docs.astral.sh/uv/).
 
 ```bash
 git clone git@github.com:nicofirst1/timbro.git && cd timbro
-uv sync     # pulls deps + the en_core_web_sm POS model (no manual spacy download)
-
-uv run timbro score draft.md   # runs immediately on the packaged sample voice
-
-# to use your own voice, bring a corpus (both dirs are gitignored — your writing stays private)
-mkdir -p data/exemplars data/contrast
-#   data/exemplars/  → posts that define your (or your company's) voice — 6+ pieces
-#   data/contrast/   → other authors' posts (the "not-our-voice" set), optional but sharpens it
-
-TIMBRO_EXEMPLARS=data/exemplars TIMBRO_CONTRAST=data/contrast uv run timbro score draft.md
-uv run python eval/harness.py data/exemplars data/contrast   # confirm it separates your voice
+uv sync                        # dependencies plus the pinned spaCy model
+uv run timbro score draft.md   # runs on the packaged sample voice
 ```
 
-The two sentence-transformer models download from Hugging Face on first use. Everything runs **local and CPU-only** at inference — no API calls.
+The two sentence-transformer models download from Hugging Face on first use. After that, everything runs locally with no API calls.
 
-## Using Timbro with other coding agents
-
-Works in ~40 non-Claude agents (Cursor, Codex, Zed, aider, Cline, ...) via `skills`, which copies `skills/timbro/SKILL.md` into the target agent's convention dir, pinned to an exact CLI version so it runs with no repo clone:
+## Usage
 
 ```bash
-npx skills@latest add nicofirst1/timbro   # installs the skill (pinned CLI version lives in SKILL.md)
-npx skills update                          # later: pulls newer instructions + CLI pin together
+timbro check draft.md                   # all rubrics: schimel + slop + density
+timbro check draft.md --rubric slop     # AI-writing tells only
+timbro score draft.md                   # distance from a voice + which way to revise
+timbro score draft.md --profile myvoice # against a named profile
+timbro accept draft.md revised.md       # closer to the voice, and the same meaning?
+cat draft.md | timbro score -           # `-` reads stdin (score and check)
 ```
 
-## FAQ
+Add `--json` to any command for the raw payload.
 
-**My voice legitimately uses em-dashes — won't the `slop` rubric nag me?** By default it flags against zero, so yes. Add `timbro check draft.md --rubric slop --profile <name>` to baseline the tells against your own corpus instead: a tell is flagged only where the draft _overuses_ it relative to how you normally write. Absolute mode answers "is this AI-generated?"; `--profile` answers "is this driftier than my own writing?".
+## A positive target, not just a blocklist
 
-**Do I need the contrast set?** No, but it sharpens the direction — without it, every feature looks equally informative.
+Any regex list can tell you what to strip. Timbro also learns what your writing usually sounds _like_. Seed it with content you consider your voice (articles, docs, papers, newsletters), and it scores any draft for **how far** it sits from that voice and **which way** to revise it, in named features, without changing what it says.
 
-**Will it work on one author / a whole company?** Both. The "voice" is whatever you put in `data/exemplars/`. Mixed registers (blogs + papers) are fine — the scorer is multi-modal.
+- **You, consistently.** A blog or newsletter should sound like one person across years of posts, whichever tool helped write them.
+- **A company, on brand.** Docs and posts drift across authors and tools. Seed Timbro with your on-brand corpus and measure every draft against it.
+- **An agent that self-corrects.** Timbro gives an agent a _measurable target_ and a _named direction_, so it revises toward a voice instead of guessing.
 
-**Can I keep several directions (academic vs. slop, clear vs. jargon)?** Yes — one folder pair per dimension, selected by env var. Profiles live under `~/.timbro/profiles/<name>/{exemplars,contrast}/` by default (`TIMBRO_HOME` relocates `~/.timbro`; `TIMBRO_PROFILE_ROOT` overrides just the profiles dir). `<TIMBRO_HOME>/settings.json` is created on first run; its `no_log` flag (or `TIMBRO_NO_LOG=1`) turns off the per-profile learn log. Point the env vars at the one you want for a given task:
+## Numbers
+
+Claude wrote this README. Here is how it scores against [my actual blog voice](https://nicolobrandizzi.com/blog/), the same number an agent watches as it revises:
+
+<p align="center">
+  <img src="assets/distance.svg" width="780" alt="A 0-to-far axis: my blog voice sits in an 11–36 band; this README lands outside it at 45; marketing hype is far out at 86">
+</p>
+
+It lands at 45, outside my blog range (11–36): recognizably _not_ my essay voice, since it is mostly commands and code, but far from sales copy at 86. Timbro also names the way back: **fewer section dividers and symbols, more auxiliary verbs and pronouns**. The voice is 15 of my posts, including [Horizon AI Fragmentation](https://nicolobrandizzi.com/blog/horizon-analysis/), [Teaching Machines to Think](https://nicolobrandizzi.com/blog/rl-reasoning-llm/), [The Digital Poisoners](https://nicolobrandizzi.com/blog/pravda-grooming/), [The SOTA Trap](https://nicolobrandizzi.com/blog/sota-trap/), [AI Gigafactories](https://nicolobrandizzi.com/blog/ai-gigafactories-tool/).
+
+## How it works
+
+Your agent runs one loop, and Timbro scores every turn:
+
+```
+score    → how far from your voice, and which way to move
+edit     → revise toward the named direction
+re-score → did the distance drop AND the meaning hold?
+repeat   → until the distance stops falling
+```
+
+Each score has three legible layers plus a guard:
+
+- **How far:** a pre-trained [StyleDistance](https://huggingface.co/StyleDistance/styledistance) embedding, scored by multi-modal kNN.
+- **Which way:** part-of-speech rates, z-scored against your corpus and weighted by how reliably each one marks your voice. Every move is a named habit.
+- **Flow:** the paragraph-embedding trajectory (speed, volume, circuitousness) and Schimel's "circle-back" between the first and last paragraph.
+- **Content guard:** semantic similarity from a _general_ model (all-MiniLM), so a revision changes _how_ it reads, never _what_ it says.
+
+Timbro measures; it never rewrites. Your agent rewrites and Timbro judges the result, which keeps the scoring honest and local.
+
+## The writing rubric
+
+Voice answers _"does this sound like me?"_. The rubric answers _"is this good prose?"_, and needs no corpus. `timbro check` runs three deterministic rubrics, all built on spaCy parsing and counting, with no LLM as judge:
+
+- **`schimel`:** about 30 checks from Joshua Schimel's _Writing Science_: buried subject–verb core, passive voice, comma splices, nominalizations, word-echo repetition, inconsistent terminology, defensive closings, significance without magnitude, and more.
+- **`slop`:** AI-writing tells.
+- **`density`:** jargon and padding.
+
+Bare `check` runs all three with a worst-of verdict; `--rubric schimel,slop` narrows it. Each rubric returns per-dimension scores and a ranked findings list. It is recall-first, so a model consumer filters the occasional false positive. `uv run python eval/rubric_dashboard.py` shows each rule's hit rate on known-good prose, so noisy rules get demoted rather than deleted, and `uv run python eval/slop_benchmark.py` is a small repo-local smoke test of `slop` on LLM vs. human paragraphs (not independent validation: the human side is the corpus the rules were tuned on).
+
+## Profiles
+
+A profile is a named voice: `exemplars/` (writing that defines it, 6+ pieces) and an optional `contrast/` (writing that doesn't, which sharpens the direction). Timbro manages them for you:
 
 ```bash
-P=~/.timbro/profiles/academic
-TIMBRO_EXEMPLARS=$P/exemplars TIMBRO_CONTRAST=$P/contrast uv run timbro score draft.md
+timbro profiles init science-clarity --about "Plain-language scientific explanation."
+timbro profiles add-file science-clarity notes/pvalue.md --to exemplars
+timbro profiles add-file science-clarity sloppy-example.md --to contrast
+timbro profiles learn science-clarity --draft draft.md --final final.md   # save an editing pair
+timbro score draft.md --profile science-clarity,academic                  # compare several
 ```
 
-No code, no flags — collect good/bad examples per dimension and swap the two paths. If you want Timbro to scaffold and manage the local profile layout for you, use the `timbro profiles ...` commands below.
+Profiles live in `~/.timbro/profiles/<name>/`. `TIMBRO_HOME` moves `~/.timbro`, and `TIMBRO_PROFILE_ROOT` moves just the profiles. To skip profiles, point `TIMBRO_EXEMPLARS` / `TIMBRO_CONTRAST` at any two folders. `.tex` files are converted on ingest when `detex` is installed. The same operations are available from Python through `timbro.profiles` (`init_profile`, `add_file`, …).
 
-**Can Timbro create and manage profiles for me?** Yes. Use the built-in profile helpers to scaffold a profile, describe it, add files, and print the right env vars:
+### Syncing across machines
+
+`timbro profiles sync` syncs the whole profile root with a **private** git repo (profiles hold private writing):
 
 ```bash
-uv run timbro profiles init science-clarity --about "Plain-language scientific explanation."
-uv run timbro profiles add-file science-clarity notes/pvalue.md --to exemplars
-uv run timbro profiles add-file science-clarity sloppy-example.md --to contrast
-uv run timbro profiles add-file science-clarity paper.tex --to exemplars
-uv run timbro profiles env science-clarity
+timbro profiles sync --init git@github.com:you/timbro-profiles.git   # first time on each machine
+timbro profiles sync                                                 # routinely
 ```
 
-Programmatically:
-
-```python
-from timbro.profiles import init_profile, add_file
-
-profile = init_profile("science-clarity", about="Plain-language scientific explanation.")
-add_file("science-clarity", "notes/pvalue.md", bucket="exemplars")
-add_file("science-clarity", "paper.tex", bucket="exemplars")
-print(profile.env)
-```
-
-If `detex` is installed, `.tex` files are converted on ingest and raw LaTeX is normalized automatically during scoring.
-
-**Keeping profiles in sync across machines?** Profiles live in one folder per machine, so they drift apart: exemplars added or `learn`ed on one machine never reach the others. `timbro profiles sync` syncs the whole profile root (`~/.timbro/profiles` by default) with a git remote — no server, no account, just a **private** git repo (profiles hold private writing, so the repo must be private):
-
-```bash
-uvx timbro profiles sync --init git@github.com:you/timbro-profiles.git   # first machine: set up + push
-uvx timbro profiles sync                                                # every machine, routinely
-```
-
-On every machine after the first, run `--init` with the same URL **before** creating profiles: existing ones are pulled instead of being recreated. Each `sync` commits local changes (`timbro sync <UTC timestamp>`), fetches and merges `origin/main`, then pushes — it never rebases, never force-pushes, and never auto-resolves. Concurrent `runs.jsonl` appends merge losslessly (`merge=union`); two machines that edited the same exemplar offline get a reported conflict instead of a silent copy. What's synced: everything under the profile root. What isn't: `settings.json`, which is per-machine.
-
-**Resolving a sync conflict:** `sync` prints `conflict in: <files>` and stops — nothing is auto-resolved, and the local commit is kept. Fix it by hand in the profile root:
+On every machine after the first, run `--init` **before** creating profiles, so existing ones are pulled instead of recreated. Each sync commits local changes, merges `origin/main`, and pushes. It never rebases, never force-pushes, and never auto-resolves. Concurrent learn logs merge losslessly. If two machines edited the same file offline, sync prints `conflict in: <files>` and stops. Resolve it by hand:
 
 ```bash
 cd ~/.timbro/profiles
 git fetch origin main && git merge origin/main
-# edit the listed files, removing the <<<<<<< / ======= / >>>>>>> markers
-git add <files> && git commit
-timbro profiles sync
+# fix the listed files, then:
+git add <files> && git commit && timbro profiles sync
 ```
 
-Until the conflict is resolved, that machine keeps committing locally but can't push.
+`settings.json` (per machine, including the `no_log` switch for the learn log) is not synced.
 
-For scoring, prefer profile-native selection over manual env vars:
+## FAQ
 
-```bash
-uv run timbro score draft.md --profile science-clarity
-uv run timbro score draft.md --profile science-clarity,academic
-```
+**My voice uses em dashes. Won't `slop` nag me?** By default it flags against zero. Add `--profile <name>` to `check` and a tell is flagged only where the draft uses it more than you normally do. Without a profile it answers "is this AI-generated?"; with one, "is this driftier than my own writing?".
 
-**Does it rewrite for me?** No, and that's deliberate. Timbro _measures_; your agent rewrites and Timbro judges the result (closer to voice **and** same meaning). Keeps the scoring honest and local.
+**Do I need a contrast set?** No, but without one every feature looks equally informative.
+
+**One author or a whole company?** Either. The voice is whatever the exemplars contain, and mixed registers (blog posts and papers) are fine because the scorer is multi-modal.
 
 ## Layout
 
 ```
 src/timbro/
-├── __init__.py      # package root: re-exports the public API (VoiceModel, check_text, the profiles functions)
-├── model/           # VoiceModel orchestrator + the two scoring lenses
-│   ├── __init__.py  # VoiceModel: fit/score/axis_report, corpus reader, profile gating
-│   ├── embedding.py # "how far" lens: StyleDistance embedding kNN
-│   ├── direction.py # "which way" lens: POS-unigram rates
+├── __init__.py      # public API (VoiceModel, check_text, the profiles functions)
+├── model/           # VoiceModel orchestrator and its two lenses
+│   ├── __init__.py  # fit / score / axis_report, corpus reader, profile gating
+│   ├── embedding.py # "how far": StyleDistance embedding kNN
+│   ├── direction.py # "which way": part-of-speech rates
 │   └── __main__.py  # smoke test (`python -m timbro.model`)
-├── text.py          # shared substrate: split_paragraphs/_sentences, strip_markup, MiniLM embedder
-├── flow.py          # paragraph trajectory, circle-back, order gates
-├── rewrite.py       # content-preservation guard + accept-rewrite loop
-├── report.py        # the shared {distance, direction, flow} payload
-├── axes/            # the seven standalone Metric axes (register at import)
-│   ├── tells.py     # AI-tell detectors (regex + POS); feed the `slop` rubric and the score direction
-│   ├── hedge.py     # hedge/booster stance axis
-│   ├── fw.py        # function-word / analytical-thinking axis
-│   ├── concreteness.py  # concreteness axis (Brysbaert norms)
-│   ├── richness.py  # readability / lexical richness / entropy axis
-│   ├── politeness.py  # politeness strategies axis (Tier C, manual)
-│   └── markdown.py  # markdown-structure axis
-├── rubrics/         # `check` rubrics (schimel/slop/density): features + rules + registry
-├── cleanup/         # ingest-time corpus prep (LaTeX/paper extraction — not markdown)
-├── metric.py        # the Metric/Reference contract, REGISTRY, parsed_doc, kNN + confidence helpers
-├── norms/           # vendored Brysbaert 2014 concreteness norms (data + NOTICE)
-├── priors.py        # declared priors + tell confidence floors (tuned constants)
-├── profiles.py      # named profiles: list/init/add-file/env/learn/diagnose/sync
-├── profilelog.py    # the per-profile learn-event log (`runs.jsonl`)
-├── settings.py      # `<TIMBRO_HOME>/settings.json` (the `no_log` flag)
-├── spacy_model.py   # the one cached spaCy pipeline loader
-├── sample/          # the packaged sample voice (exemplars + contrast)
-└── cli.py           # `timbro score` / `check` / `accept` / `profiles`
-skills/timbro/       # Claude Code skill
-skills/setup/        # guided first-run setup skill
-eval/harness.py           # LOO-AUC, permutation baseline, direction sign test
-eval/rubric_dashboard.py  # per-rule findings-per-1000-words on known-good prose
-eval/slop_benchmark.py    # slop hit rate / false-positive rate on a small LLM/human corpus
+├── axes/            # standalone metric axes (register at import)
+│   ├── tells.py     # AI-tell detectors; feed the slop rubric and the score direction
+│   ├── hedge.py     # hedge/booster stance
+│   ├── fw.py        # function words
+│   ├── concreteness.py  # Brysbaert concreteness norms
+│   ├── richness.py  # readability, lexical richness, entropy
+│   ├── politeness.py    # politeness strategies (Tier C, manual)
+│   └── markdown.py  # markdown structure
+├── rubrics/         # `check` rubrics: schimel, slop, density
+├── text.py          # splitting, markup stripping, the MiniLM embedder
+├── flow.py          # paragraph trajectory, circle-back
+├── rewrite.py       # content-preservation guard
+├── report.py        # the score payload
+├── metric.py        # Metric / Reference contract, registry, shared parse
+├── priors.py        # declared priors and tuned constants
+├── profiles.py      # named profiles: list, init, add-file, env, learn, diagnose, sync
+├── profilelog.py    # per-profile learn log (runs.jsonl)
+├── settings.py      # <TIMBRO_HOME>/settings.json
+├── spacy_model.py   # the cached spaCy loader
+├── cleanup/         # ingest-time LaTeX / paper cleanup
+├── norms/           # vendored Brysbaert 2014 norms
+├── sample/          # the packaged sample voice
+└── cli.py           # score / check / accept / profiles
+skills/              # the agent skill and the guided setup skill
+eval/                # rubric dashboard, slop smoke test
 ```
 
 ## Contributing
