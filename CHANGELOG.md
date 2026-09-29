@@ -6,9 +6,43 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.9.0] — 2026-09-29
+
+New voice axes, interchangeable rubrics, profile sync across machines, and a module layout that matches the architecture (#110). Several changes are **breaking**; see Removed and Changed.
+
+### Added
+
+- `timbro profiles sync [--init <url>]`: syncs the profile root with a private git remote. It never rebases, force-pushes or auto-resolves, and concurrent `runs.jsonl` appends merge losslessly (#118).
+- `$TIMBRO_HOME` (default `~/.timbro`) and `<TIMBRO_HOME>/settings.json`, whose `no_log` flag turns off the learn log. `TIMBRO_NO_LOG=1` still overrides it (#116).
+- Readability, lexical richness and entropy axis: Coleman-Liau, HD-D and Shannon entropy. Reported only (#88).
+- Politeness strategies axis: the 20 Danescu-Niculescu-Mizil 2013 strategies, reported as N/A when none fire. Reported only (#94).
+- `VoiceModel.axis_report(name, text)` and one `AxisReport` dataclass for every blend-style axis. A new axis needs only its own file plus an import (#108).
+
+### Changed
+
+- **Breaking:** rubrics are interchangeable peers. `timbro check` runs all of them by default, and `--rubric a,b` narrows it (#98).
+- **Breaking:** markdown-axis JSON rows use `reference_mean` instead of `corpus_mean`, matching every other axis. `timbro.MarkdownAxis` is replaced by `timbro.AxisReport` (#108).
+- **Breaking:** profiles resolve as `TIMBRO_PROFILE_ROOT` → `$TIMBRO_HOME/profiles`. The XDG (`$XDG_DATA_HOME/timbro/profiles`) fallback and the legacy-dir check are gone, so move any profiles kept under XDG (#116).
+- **Breaking for importers:** internal modules moved.
+  - `timbro.config` → `timbro.priors` (#116).
+  - The axis modules → `timbro.axes.*` (#117).
+  - `timbro/model.py` → the `timbro.model` package, with `embedding` and `direction` lenses (#106).
+  - `timbro.markdown` → `timbro.axes.markdown` (#106).
+
+  The public API in `timbro/__init__.py` keeps working, and `python -m timbro.model` still runs the smoke test.
+
+- The positioning is voice-first: the README and plugin metadata lead with voice alignment, and slop detection is the entry point (#97).
+- The CLI dispatches through one handler per subcommand. Output is unchanged (#109).
+- One cached spaCy pipeline loader (#114) and one cosine helper (#115). Scores are unchanged apart from float32-level flow drift, at most about 1e-7.
+
 ### Removed
 
-- `timbro analyze` subcommand and its lexicons. It served the SKILL.md paper, which pins `uvx timbro@0.8.0 analyze`; use that version if you need it.
+- **Breaking:** the `timbro slop` subcommand. Use `timbro check --rubric slop` (#98).
+- **Breaking:** the `timbro analyze` subcommand and its lexicons. It served the SKILL.md paper, which pins `uvx timbro@0.8.0 analyze`; use that version if you need it (#120).
+
+### Fixed
+
+- `feature-reference.md` now matches the code: 8 of the 11 markdown-structure rows had been wrong, the Richness and Politeness sections were missing, and several stale references are fixed. Stale comments and docstrings were swept after the layout work (#128).
 
 ## [0.8.0] — 2026-08-25
 
@@ -72,7 +106,9 @@ First tagged release (#63), consolidating the M6 metric work.
 - Replaced the circular slop benchmark with an HC3 held-out subsample (#60).
 - Corrected the `CONCRETENESS_REFERENCE` spread unit mismatch (#58).
 
-[Unreleased]: https://github.com/nicofirst1/timbro/compare/v0.7.1...HEAD
+[Unreleased]: https://github.com/nicofirst1/timbro/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/nicofirst1/timbro/compare/v0.8.0...v0.9.0
+[0.8.0]: https://github.com/nicofirst1/timbro/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/nicofirst1/timbro/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/nicofirst1/timbro/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/nicofirst1/timbro/releases/tag/v0.6.0
