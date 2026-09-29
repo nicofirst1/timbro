@@ -17,8 +17,8 @@ class PkgResourcesImportWarningTest(unittest.TestCase):
     def test_richness_import_emits_no_pkg_resources_warning(self):
         r = subprocess.run(
             [sys.executable, "-W", "default", "-c",
-             "from timbro.axes.richness import richness_stats; "
-             "richness_stats('The cat sat on the mat. The dog ran in the yard.')"],
+             ("from timbro.axes.richness import richness_stats; "
+              "richness_stats('The cat sat on the mat. The dog ran in the yard.')")],
             capture_output=True, text=True, timeout=600, check=False,
         )
         self.assertEqual(r.returncode, 0, r.stderr)
