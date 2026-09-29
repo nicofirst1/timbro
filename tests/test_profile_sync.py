@@ -329,3 +329,7 @@ def test_no_git_identity_syncs_merge_with_seeded_remote_main(tmp_path, monkeypat
     remote_files = _git(remote, "ls-tree", "-r", "--name-only", "main")
     assert "demo/README.md" in remote_files
     assert "demo/exemplars/post.md" in remote_files
+    # Root HEAD is the merge commit: authored and committed with the fallback,
+    # same identity the sync commit gets.
+    head = _git(root, "log", "-1", "--format=%an|%ae|%cn|%ce").strip()
+    assert head == "timbro|timbro@localhost|timbro|timbro@localhost"
