@@ -1,7 +1,7 @@
 """Shared text substrate: split, strip, embed.
 
 The one place both analysis families reach for their raw-text plumbing:
-  - the profile engine (model.py) and the profile-free diagnostics
+  - the profile engine (timbro.model) and the profile-free diagnostics
     (flow, rubrics, tells, rewrite) all split and embed the same way.
 
 Keeping it here (not inside flow or rubrics) means callers import *down* into
@@ -13,7 +13,7 @@ Contents:
     ingest-time paper/LaTeX prep, not markdown stripping
   - cosine: explicit-norm cosine similarity shared by rubrics/flow (#115)
   - _model: the general-purpose MiniLM semantic embedder shared by flow/rewrite/rubrics
-    (model.py owns the *style* embedder separately -- different job, different weights)
+    (timbro.model owns the *style* embedder separately -- different job, different weights)
 """
 
 from __future__ import annotations
