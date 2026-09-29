@@ -31,6 +31,16 @@ from timbro.rubrics.registry import RUBRIC_NAMES
 from timbro.rubrics.report import combine_verdicts, render_text
 
 
+def _warn_legacy_profiles() -> None:
+    """One stderr line when 0.8.0 XDG profiles went missing in the upgrade (#138).
+
+    Called by every command that resolves a profile by name.
+    """
+    warning = legacy_profile_warning()
+    if warning:
+        print(warning, file=sys.stderr)
+
+
 def cmd_score(args):
     if args.file == "-":
         text = sys.stdin.read()
@@ -39,9 +49,7 @@ def cmd_score(args):
             text = f.read()
 
     if args.profile:
-        warning = legacy_profile_warning()
-        if warning:
-            print(warning, file=sys.stderr)
+        _warn_legacy_profiles()
         names = [name.strip() for name in args.profile.split(",") if name.strip()]
         rows = []
         for name in names:
@@ -163,6 +171,9 @@ def cmd_check(args):
         )
         sys.exit(1)
 
+    if args.profile and "slop" in names:
+        _warn_legacy_profiles()  # only the slop rubric resolves the profile
+
     if args.file == "-":
         text = sys.stdin.read()
     else:
@@ -194,6 +205,7 @@ def cmd_accept(args):
     with open(args.revised, encoding="utf-8") as f:
         revised = f.read()
     if args.profile:
+        _warn_legacy_profiles()
         prof = get_profile(args.profile)
         model = VoiceModel.from_dir(prof.exemplars_dir, contrast=prof.contrast_dir)
     else:
@@ -212,9 +224,7 @@ def cmd_accept(args):
 
 
 def cmd_profiles_list(args):
-    warning = legacy_profile_warning()
-    if warning:
-        print(warning, file=sys.stderr)
+    _warn_legacy_profiles()
     profiles = list_profiles()
     payload = [
         {
@@ -277,6 +287,7 @@ def cmd_profiles_sync(args):
 
 
 def cmd_profiles_add_file(args):
+    _warn_legacy_profiles()
     dst = add_file(
         args.name,
         args.source,
@@ -288,6 +299,7 @@ def cmd_profiles_add_file(args):
 
 
 def cmd_profiles_env(args):
+    _warn_legacy_profiles()
     prof = get_profile(args.name)
     payload = prof.env
     if args.json:
@@ -299,6 +311,7 @@ def cmd_profiles_env(args):
 
 
 def cmd_profiles_diagnose(args):
+    _warn_legacy_profiles()
     payload = diagnose_profile(args.name)
     if args.json:
         print(json.dumps(payload, indent=2))
@@ -317,6 +330,7 @@ def cmd_profiles_diagnose(args):
 
 
 def cmd_profiles_learn(args):
+    _warn_legacy_profiles()
     try:
         result = learn(
             args.name,
