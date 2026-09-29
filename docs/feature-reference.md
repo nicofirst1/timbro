@@ -232,7 +232,7 @@ No new features: spans reuse the distance and white-box features at paragraph gr
 
 ## Shared Mechanics
 
-**Input text**: every standalone axis group except markdown runs on the **prepared text**: whitespace- and punctuation-spacing normalized, with LaTeX stripped when the input looks like LaTeX (`preprocess_runtime_text`). Markdown markup is left intact, so the markdown axes run on the raw draft.
+**Input text**: every standalone axis group except markdown runs on the **prepared text**: whitespace- and punctuation-spacing normalized, with LaTeX stripped when the input looks like LaTeX and the `detex` tool is available (`preprocess_runtime_text`). Markdown markup is left intact, so the markdown axes run on the raw draft.
 
 ### Z-Scoring and Confidence Ranking
 
