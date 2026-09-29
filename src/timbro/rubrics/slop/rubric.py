@@ -11,7 +11,7 @@ class SlopRubric:
     version = "v1"
 
     def __init__(self, baseline: dict[str, tuple[float, float]] | None = None):
-        # baseline from timbro.tells.tell_baseline switches on corpus-relative mode
+        # baseline from timbro.axes.tells.tell_baseline switches on corpus-relative mode
         # (`slop --profile`); None keeps the default absolute, corpus-free detection.
         self.baseline = baseline
 

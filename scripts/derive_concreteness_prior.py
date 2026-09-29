@@ -136,7 +136,7 @@ def fetch_text(gutenberg_id: int) -> str:
 
 
 def main() -> None:
-    from timbro.concreteness import concreteness_stats
+    from timbro.axes.concreteness import concreteness_stats
 
     with urllib.request.urlopen(_ORIGINAL_URL) as resp:
         text = resp.read().decode("utf-8")

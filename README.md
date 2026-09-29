@@ -260,7 +260,13 @@ src/timbro/
 ├── flow.py          # paragraph trajectory, circle-back, order gates
 ├── rewrite.py       # content-preservation guard + accept-rewrite loop
 ├── report.py        # the shared {distance, direction, flow} payload
-├── tells.py         # AI-tell detectors (regex + POS); feed the `slop` rubric and the score direction
+├── axes/            # the six standalone Metric axes (register at import)
+│   ├── tells.py     # AI-tell detectors (regex + POS); feed the `slop` rubric and the score direction
+│   ├── hedge.py     # hedge/booster stance axis
+│   ├── fw.py        # function-word / analytical-thinking axis
+│   ├── concreteness.py  # concreteness axis (Brysbaert norms)
+│   ├── richness.py  # readability / lexical richness / entropy axis
+│   └── politeness.py  # politeness strategies axis (Tier C, manual)
 ├── rubrics/         # `check` rubrics (schimel/slop/density): features + rules + registry
 ├── cleanup/         # ingest-time corpus prep (LaTeX/paper extraction — not markdown)
 └── cli.py           # `timbro score` + `timbro check`

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import unittest
 
-from timbro.concreteness import (
+from timbro.axes.concreteness import (
     CONCRETENESS_METRIC,
     CONCRETENESS_REFERENCE,
     _norms,
@@ -63,7 +63,7 @@ class LazyLoadTest(unittest.TestCase):
 
 class RegistryTest(unittest.TestCase):
     def test_registered_exactly_once(self):
-        from timbro.concreteness import _ConcretenessMetric
+        from timbro.axes.concreteness import _ConcretenessMetric
         from timbro.metric import register
 
         before = sum(1 for m in REGISTRY if m.name == "concreteness")

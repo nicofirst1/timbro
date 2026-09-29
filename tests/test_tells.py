@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from timbro.tells import TELL_LABEL, TELL_NAMES, TELL_PRIOR, tell_rates
+from timbro.axes.tells import TELL_LABEL, TELL_NAMES, TELL_PRIOR, tell_rates
 
 
 class TellRegistryTest(unittest.TestCase):

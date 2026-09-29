@@ -12,13 +12,13 @@ import numpy as np
 
 import timbro
 import timbro.report as report_module
-from timbro.concreteness import CONCRETENESS_METRIC
-from timbro.fw import FUNCTION_WORD_METRIC
-from timbro.hedge import HEDGE_BOOSTER_METRIC
+from timbro.axes.concreteness import CONCRETENESS_METRIC
+from timbro.axes.fw import FUNCTION_WORD_METRIC
+from timbro.axes.hedge import HEDGE_BOOSTER_METRIC
+from timbro.axes.richness import RICHNESS_METRIC
 from timbro.metric import REGISTRY, Reference
 from timbro.model import VoiceModel
 from timbro.report import AxisReport
-from timbro.richness import RICHNESS_METRIC
 
 # _MarkdownMetric lives in model.py; import via the registered singleton's class.
 from timbro.model import MARKDOWN_METRIC

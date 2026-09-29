@@ -28,9 +28,10 @@ from timbro.priors import CONCRETENESS_REFERENCE
 
 _CONTENT_POS = {"NOUN", "VERB", "ADJ", "ADV"}
 # Package-relative, same convention as model.py's `_SAMPLE = Path(__file__).parent /
-# "sample"` -- resolves against the installed package dir, not CWD, so the plugin cache
-# sandbox and any CWD find it the same way.
-_NORMS_PATH = Path(__file__).parent / "norms" / "concreteness_brysbaert2014.csv.gz"
+# "sample"` -- but one level up, since this file moved into axes/ (#117) and norms/
+# stayed at the package root. Resolves against the installed package dir, not CWD, so
+# the plugin cache sandbox and any CWD find it the same way.
+_NORMS_PATH = Path(__file__).parent.parent / "norms" / "concreteness_brysbaert2014.csv.gz"
 
 
 @lru_cache(maxsize=1)

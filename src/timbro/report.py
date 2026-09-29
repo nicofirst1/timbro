@@ -10,10 +10,10 @@ below to build and return them).
 
 from dataclasses import asdict, dataclass
 
+from timbro.axes.politeness import politeness_report as _politeness_report
+from timbro.axes.tells import TELL_LABEL
 from timbro.cleanup import preprocess_runtime_text
 from timbro.flow import flow_report, paragraphs
-from timbro.politeness import politeness_report as _politeness_report
-from timbro.tells import TELL_LABEL
 from timbro.text import split_sentences
 
 # Plain-English labels so the direction reads as advice, not tag soup.

@@ -5,7 +5,7 @@ import unittest
 
 from timbro.metric import REGISTRY, Reference
 from timbro.model import VoiceModel
-from timbro.richness import (
+from timbro.axes.richness import (
     RICHNESS_METRIC,
     RICHNESS_REFERENCE,
     richness_stats,
@@ -61,7 +61,7 @@ class ExtractorTest(unittest.TestCase):
 class RegistryTest(unittest.TestCase):
     def test_registered_exactly_once(self):
         from timbro.metric import register
-        from timbro.richness import _RichnessMetric
+        from timbro.axes.richness import _RichnessMetric
 
         before = sum(1 for m in REGISTRY if m.name == "richness")
         self.assertEqual(before, 1)
