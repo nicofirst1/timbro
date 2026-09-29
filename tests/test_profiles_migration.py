@@ -126,6 +126,19 @@ class LegacyProfileWarningTests(unittest.TestCase):
             with _default_resolution(home, xdg):
                 self.assertIsNone(legacy_profile_warning())
 
+    def test_warning_quotes_paths_with_spaces(self):
+        with TemporaryDirectory() as td:
+            td = Path(td)
+            home, xdg = td / "timbro home", td / "xdg data"  # spaces: command must survive copy-paste
+            _seed_legacy(xdg)
+            with _default_resolution(home, xdg):
+                warning = legacy_profile_warning()
+        new_root = str((home / "profiles").resolve())
+        legacy_root = str((xdg / "timbro" / "profiles").resolve())
+        self.assertIsNotNone(warning)
+        self.assertIn(f"mkdir -p '{new_root}'", warning)
+        self.assertIn(f"mv '{legacy_root}'/* '{new_root}'/", warning)
+
     def test_silent_when_explicit_root_arg_is_given(self):
         with TemporaryDirectory() as td:
             td = Path(td)
