@@ -19,6 +19,7 @@ from timbro.profiles import (
     get_profile,
     init_profile,
     learn,
+    legacy_profile_warning,
     list_profiles,
     profile_root,
     sync_profiles,
@@ -38,6 +39,9 @@ def cmd_score(args):
             text = f.read()
 
     if args.profile:
+        warning = legacy_profile_warning()
+        if warning:
+            print(warning, file=sys.stderr)
         names = [name.strip() for name in args.profile.split(",") if name.strip()]
         rows = []
         for name in names:
@@ -208,6 +212,9 @@ def cmd_accept(args):
 
 
 def cmd_profiles_list(args):
+    warning = legacy_profile_warning()
+    if warning:
+        print(warning, file=sys.stderr)
     profiles = list_profiles()
     payload = [
         {

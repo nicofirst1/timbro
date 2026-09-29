@@ -81,6 +81,43 @@ def profile_root(root: str | Path | None = None) -> Path:
     return (timbro_home() / "profiles").resolve()
 
 
+def _legacy_xdg_root() -> Path:
+    """0.8.0's default profile root, kept only so the upgrade can be detected (#138).
+
+    Never read for profiles: naming it in a warning is the only use.
+    """
+    xdg_data_home = os.environ.get("XDG_DATA_HOME") or str(Path.home() / ".local" / "share")
+    return (Path(xdg_data_home).expanduser() / "timbro" / "profiles").resolve()
+
+
+def _has_profiles(base: Path) -> bool:
+    if not base.exists():
+        return False
+    return any(child.is_dir() and not child.name.startswith(".") for child in base.iterdir())
+
+
+def legacy_profile_warning(root: str | Path | None = None) -> str | None:
+    """One-line stderr hint when profiles went missing in the 0.8 -> 0.9 root move (#138).
+
+    Fires only when all of these hold: default resolution (no `root` argument,
+    no `TIMBRO_PROFILE_ROOT`), the resolved root holds no profiles, and 0.8.0's
+    XDG root still holds at least one. The legacy path is only named in the
+    message; it is never read or moved automatically.
+    """
+    if root is not None or "TIMBRO_PROFILE_ROOT" in os.environ:
+        return None
+    new = profile_root()
+    if _has_profiles(new):
+        return None
+    legacy = _legacy_xdg_root()
+    if not _has_profiles(legacy):
+        return None
+    return (
+        f"warning: no profiles in {new}; profiles from Timbro 0.8.0 are still in {legacy}; "
+        f"move them with: mkdir -p {new} && mv {legacy}/* {new}/"
+    )
+
+
 def normalize_profile_name(name: str) -> str:
     out = name.strip().lower().replace(" ", "-")
     if not _VALID_NAME.fullmatch(out):
