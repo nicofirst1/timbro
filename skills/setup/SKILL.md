@@ -12,6 +12,16 @@ Pinned CLI version: `timbro@0.8.0`. Commands below substitute `<version>` for it
 
 ## Process
 
+### 0. Pull existing profiles
+
+Run `uvx timbro@<version> profiles sync` once, up front.
+
+- If it prints `profile sync not configured`, ask: "Do you already have a Timbro profile-sync repo, e.g. from another machine?"
+  - **Yes** → ask for the repo URL and run `uvx timbro@<version> profiles sync --init <url>` **before** creating anything, so existing profiles are pulled instead of being recreated locally and colliding on first sync. Then continue at "1. Check" -- if a pulled profile already fits the purpose, setup ends there.
+  - **No** → continue at "1. Check".
+- If it prints `synced`, the profile root is already sync-configured and up to date; continue at "1. Check".
+- On `conflict in: ...` or `sync failed: ...`, tell the user in one line and continue at "1. Check" with the local profiles.
+
 ### 1. Check
 
 List existing profiles:
@@ -71,3 +81,5 @@ From one exemplar up, there's no cutoff -- score if asked, but relay `diagnose`'
 ### 7. Done
 
 Tell the user the profile is ready, and that `skills/timbro/PROFILE.md`'s workflow now uses it via `--profile <name>`. Re-running this skill scaffolds another profile for a different purpose -- it doesn't touch this one.
+
+Then sync once: if the profile root is configured, run `uvx timbro@<version> profiles sync`. If it is not, offer once: "Use Timbro on more than one machine? Create a **private** git repo and run `uvx timbro@<version> profiles sync --init <url>` on each machine." The repo has to be private -- profiles hold private writing.

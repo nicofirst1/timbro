@@ -9,7 +9,8 @@ Profiles are folder pairs under a root directory. Root resolution precedence
     <root>/<name>/README.md
 
 The README describes what the profile is for; the corpus folders hold `.md` / `.txt`
-documents that Timbro scores against.
+documents that Timbro scores against. The whole root can be kept in sync across
+machines with `sync_profiles` (git remote, no server).
 """
 
 from __future__ import annotations
@@ -17,7 +18,9 @@ from __future__ import annotations
 import os
 import re
 import shutil
+import subprocess
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 
 import numpy as np
@@ -356,3 +359,162 @@ def learn(
         "title": title,
         **res,
     }
+
+
+_SYNC_TIMEOUT_SECONDS = 60
+
+
+def _sync_git(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    """Run one git command in the profile root; never prompts, never hangs."""
+    return subprocess.run(
+        ["git", "-C", str(root), *args],
+        env={**os.environ, "GIT_TERMINAL_PROMPT": "0"},
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        timeout=_SYNC_TIMEOUT_SECONDS,
+        check=False,
+    )
+
+
+def _sync_error(res: subprocess.CompletedProcess[str]) -> dict:
+    return {"status": "error", "message": (res.stderr or "").strip() or "git failed"}
+
+
+def _sync_merge_in_progress(root: Path) -> bool:
+    git_dir = root / ".git"
+    if (
+        (git_dir / "MERGE_HEAD").exists()
+        or (git_dir / "rebase-merge").exists()
+        or (git_dir / "rebase-apply").exists()
+    ):
+        return True
+    return bool(_sync_git(root, "ls-files", "-u").stdout.strip())
+
+
+def _sync_conflict_files(root: Path) -> list[str]:
+    res = _sync_git(root, "diff", "--name-only", "--diff-filter=U")
+    return [line for line in res.stdout.splitlines() if line.strip()]
+
+
+def _sync_append_line(path: Path, line: str) -> None:
+    """Append `line` to `path` unless a line with that exact text is already there."""
+    if path.exists():
+        content = path.read_text(encoding="utf-8", errors="ignore")
+        if line in content.splitlines():
+            return
+        prefix = "\n" if content and not content.endswith("\n") else ""
+        path.write_text(content + prefix + line + "\n", encoding="utf-8")
+    else:
+        path.write_text(line + "\n", encoding="utf-8")
+
+
+def _sync_init(root: Path, remote_url: str) -> dict | None:
+    """First-time setup; returns an error dict on failure, None on success."""
+    root.mkdir(parents=True, exist_ok=True)
+    if not (root / ".git").exists():
+        res = _sync_git(root, "init")
+        if res.returncode != 0:
+            return _sync_error(res)
+        # Pin the branch to main explicitly; `git init -b` needs git >= 2.28.
+        res = _sync_git(root, "symbolic-ref", "HEAD", "refs/heads/main")
+        if res.returncode != 0:
+            return _sync_error(res)
+    _sync_append_line(root / ".gitattributes", "runs.jsonl merge=union")
+    _sync_append_line(root / ".gitignore", ".DS_Store")
+    res = _sync_git(root, "remote", "add", "origin", remote_url)
+    if res.returncode != 0:
+        res = _sync_git(root, "remote", "set-url", "origin", remote_url)
+        if res.returncode != 0:
+            return _sync_error(res)
+    return None
+
+
+def _sync_run(root: Path, allow_unrelated_histories: bool) -> dict:
+    # 1. Commit local changes.
+    res = _sync_git(root, "add", "-A")
+    if res.returncode != 0:
+        return _sync_error(res)
+    res = _sync_git(root, "diff", "--cached", "--quiet")
+    if res.returncode != 0:
+        identity: list[str] = []
+        if _sync_git(root, "config", "user.email").returncode != 0:
+            identity = ["-c", "user.name=timbro", "-c", "user.email=timbro@localhost"]
+        stamp = datetime.now(UTC).isoformat(timespec="seconds")
+        res = _sync_git(root, *identity, "commit", "-m", f"timbro sync {stamp}")
+        if res.returncode != 0:
+            return _sync_error(res)
+    # 2. Does the remote branch exist yet?
+    res = _sync_git(root, "ls-remote", "--exit-code", "--heads", "origin", "main")
+    if res.returncode not in (0, 2):
+        return _sync_error(res)
+    # 3. Explicit fetch and merge, not pull: the user's pull.rebase / pull.ff
+    # config must not change behaviour.
+    if res.returncode == 0:
+        res = _sync_git(root, "fetch", "origin", "main")
+        if res.returncode != 0:
+            return _sync_error(res)
+        merge_args = ["merge", "--no-edit", "--no-ff"]
+        if allow_unrelated_histories:
+            merge_args.append("--allow-unrelated-histories")
+        merge_args.append("origin/main")
+        res = _sync_git(root, *merge_args)
+        if res.returncode != 0:
+            files = _sync_conflict_files(root)
+            if files:
+                # Collect the paths first, then abort: the local commit is kept,
+                # nothing is auto-resolved, no conflict markers get committed.
+                _sync_git(root, "merge", "--abort")
+                return {"status": "conflict", "files": files}
+            return _sync_error(res)
+    # 4. Push, unless nothing was ever committed (empty root, empty remote).
+    res = _sync_git(root, "rev-parse", "--verify", "HEAD")
+    if res.returncode != 0:
+        return {"status": "ok"}
+    res = _sync_git(root, "push", "-u", "origin", "main")
+    if res.returncode != 0:
+        return _sync_error(res)
+    return {"status": "ok"}
+
+
+def sync_profiles(root: str | Path | None = None, init_remote: str | None = None) -> dict:
+    """Sync the whole profile root with a git remote.
+
+    Syncs everything under the root (`<name>/exemplars`, `<name>/contrast`,
+    `README.md`, `runs.jsonl`); `settings.json` lives outside the root and is
+    per-machine, so it is never synced. Merges only -- no rebase, no force push,
+    no auto-resolved conflicts.
+
+    Returns one of:
+
+    - {"status": "ok"}
+    - {"status": "not-configured"}          no `.git` in the root, no remote given
+    - {"status": "conflict", "files": ...}   merge conflicts, left for the user
+    - {"status": "error", "message": ...}    a git step failed or timed out
+
+    `init_remote` runs first-time setup (same command on every machine): init on
+    branch `main`, write `.gitattributes` (`runs.jsonl merge=union`) and
+    `.gitignore` (`.DS_Store`), point `origin` at the remote, then sync. The
+    remote must be a private repo -- profiles hold private writing.
+    """
+    if shutil.which("git") is None:
+        raise RuntimeError("git not found on PATH; profile sync needs git")
+    base = profile_root(root)
+    allow_unrelated_histories = init_remote is not None
+    try:
+        if not (base / ".git").exists():
+            if not allow_unrelated_histories:
+                return {"status": "not-configured"}
+        elif _sync_merge_in_progress(base):
+            # Report and stop: never stage or commit over a merge in progress.
+            return {"status": "conflict", "files": _sync_conflict_files(base)}
+        if allow_unrelated_histories:
+            error = _sync_init(base, init_remote)
+            if error is not None:
+                return error
+        return _sync_run(base, allow_unrelated_histories)
+    except subprocess.TimeoutExpired as exc:
+        stderr = exc.stderr
+        if isinstance(stderr, bytes):
+            stderr = stderr.decode("utf-8", errors="replace")
+        return {"status": "error", "message": (stderr or "").strip() or "timed out"}
