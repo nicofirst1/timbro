@@ -8,7 +8,8 @@ from __future__ import annotations
 
 import unittest
 
-from timbro.model import MARKDOWN_METRIC, STRUCT_AXIS_NAMES, VoiceModel
+from timbro.axes.markdown import MARKDOWN_METRIC, STRUCT_AXIS_NAMES
+from timbro.model import VoiceModel
 
 
 # Three docs with two headings each and no code -> heading axis has variance,

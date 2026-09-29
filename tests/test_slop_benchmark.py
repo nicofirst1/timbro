@@ -20,7 +20,7 @@ class SlopBenchmarkCorpusTest(unittest.TestCase):
         self.assertTrue(human_dir.is_dir())
         self.assertTrue(llm_dir.is_dir())
 
-        from timbro.model import DEFAULT_EXEMPLARS
+        from timbro.priors import DEFAULT_EXEMPLARS
 
         tuning_files = {f.name for f in Path(DEFAULT_EXEMPLARS).glob("*.md")}
         human_files = {f.name for f in human_dir.glob("*.md")}

@@ -3,7 +3,7 @@ from __future__ import annotations
 import unittest
 from types import SimpleNamespace
 
-from timbro.model import FeatureMove
+from timbro.report import FeatureMove
 from timbro.report import voice_report
 
 
