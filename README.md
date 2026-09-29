@@ -26,7 +26,7 @@
 
 **LLM prose has a tell.** Em/en dashes everywhere, "it's not X, it's Y", the _delve / tapestry / seamless_ vocabulary, a tidy wrap-up about the future. A reader feels it, but "sounds AI-written" is not something you can put in CI.
 
-Timbro makes it one. `timbro check --rubric slop` runs ~19 deterministic detectors (regex + part-of-speech, no model, no network) and returns a verdict, four dimension scores, and the exact markers it found:
+Timbro makes it one. `timbro check --rubric slop` runs 21 deterministic detectors (regex + part-of-speech, no model, no network) and returns a verdict, four dimension scores, and the exact markers it found:
 
 ```
 $ timbro check draft.md --rubric slop
@@ -258,7 +258,8 @@ src/timbro/
 ├── model/           # VoiceModel orchestrator + the two scoring lenses
 │   ├── __init__.py  # VoiceModel: fit/score/axis_report, corpus reader, profile gating
 │   ├── embedding.py # "how far" lens: StyleDistance embedding kNN
-│   └── direction.py # "which way" lens: POS-unigram rates
+│   ├── direction.py # "which way" lens: POS-unigram rates
+│   └── __main__.py  # smoke test (`python -m timbro.model`)
 ├── text.py          # shared substrate: split_paragraphs/_sentences, strip_markup, MiniLM embedder
 ├── flow.py          # paragraph trajectory, circle-back, order gates
 ├── rewrite.py       # content-preservation guard + accept-rewrite loop
@@ -273,8 +274,17 @@ src/timbro/
 │   └── markdown.py  # markdown-structure axis (#28)
 ├── rubrics/         # `check` rubrics (schimel/slop/density): features + rules + registry
 ├── cleanup/         # ingest-time corpus prep (LaTeX/paper extraction — not markdown)
-└── cli.py           # `timbro score` + `timbro check`
+├── metric.py        # the Metric/Reference contract, REGISTRY, parsed_doc, kNN + confidence helpers
+├── norms/           # vendored Brysbaert 2014 concreteness norms (data + NOTICE)
+├── priors.py        # declared priors + tell confidence floors (tuned constants)
+├── profiles.py      # named profiles: init/add-file/learn/diagnose/sync
+├── profilelog.py    # the per-profile learn-event log (`runs.jsonl`)
+├── settings.py      # `<TIMBRO_HOME>/settings.json` (the `no_log` flag)
+├── spacy_model.py   # the one cached spaCy pipeline loader
+├── sample/          # the packaged sample voice (exemplars + contrast)
+└── cli.py           # `timbro score` / `check` / `accept` / `profiles`
 skills/timbro/       # Claude Code skill
+skills/setup/        # guided first-run setup skill
 eval/harness.py           # LOO-AUC, permutation baseline, direction sign test
 eval/rubric_dashboard.py  # per-rule findings-per-1000-words on known-good prose
 eval/slop_benchmark.py    # slop hit rate / false-positive rate on a small LLM/human corpus
