@@ -1,7 +1,7 @@
 from timbro.flow import FlowReport, flow_report
 from timbro.model import (
+    AxisReport,
     FeatureMove,
-    MarkdownAxis,
     ScoreResult,
     VoiceModel,
     features,
@@ -18,9 +18,9 @@ from timbro.profiles import (
 from timbro.rubrics import check_text
 
 __all__ = [
+    "AxisReport",
     "FeatureMove",
     "FlowReport",
-    "MarkdownAxis",
     "Profile",
     "ScoreResult",
     "VoiceModel",

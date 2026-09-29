@@ -24,46 +24,30 @@ from pathlib import Path
 
 import numpy as np
 
-from timbro.concreteness import (
+from timbro.concreteness import (  # noqa: F401  (import registers the metric)
     CONCRETENESS_METRIC,
 )
-from timbro.fw import (
+from timbro.fw import (  # noqa: F401  (import registers the metric)
     FUNCTION_WORD_METRIC,
 )
-from timbro.hedge import (
+from timbro.hedge import (  # noqa: F401  (import registers the metric)
     HEDGE_BOOSTER_METRIC,
 )
-from timbro.metric import Reference, register
+from timbro.metric import REGISTRY, Metric, Reference, register
 from timbro.priors import DEFAULT_CONTRAST, DEFAULT_EXEMPLARS, TELL_PRIOR
-from timbro.report import (  # dataclasses/axis tuples/labels: report.py formats for humans (PR #57 review)
-    CONCRETENESS_AXES,
-    CONCRETENESS_Z_TOL,
-    FW_AXES,
-    FW_Z_TOL,
-    HEDGE_AXES,
-    HEDGE_Z_TOL,
-    MARKDOWN_AXES,
-    MARKDOWN_Z_TOL,
-    RICHNESS_AXES,
-    RICHNESS_Z_TOL,
-    ConcretenessAxis,
+from timbro.report import (  # dataclasses/labels: report.py formats for humans (PR #57 review)
+    AxisReport,
     FeatureMove,
-    FwAxis,
-    HedgeAxis,
-    MarkdownAxis,
-    RichnessAxis,
     ScoreResult,
     _label,
 )
-from timbro.richness import (
+from timbro.richness import (  # noqa: F401  (import registers the metric)
     RICHNESS_METRIC,
 )
 from timbro.tells import (  # noqa: F401  (import registers the tells metric)
     TELL_METRIC,
     tell_rates,
 )
-
-STRUCT_AXIS_NAMES: tuple[str, ...] = tuple(name for name, _, _ in MARKDOWN_AXES)
 
 # Universal POS tags (spaCy `pos_`). Rates over these 17 are length-normalized,
 # so the doc-length confound that plagued raw counts can't arise here.
@@ -137,7 +121,7 @@ def _pos_rates(text: str) -> tuple[float, ...]:
 
 @lru_cache(maxsize=512)
 def _struct_vec(text: str) -> tuple[float, ...]:
-    """Markdown-structure feature vector (MARKDOWN_AXES order) for one raw document.
+    """Markdown-structure feature vector (STRUCT_AXIS_NAMES order) for one raw document.
     Reuses analyze._struct_features -- the same extractor `timbro analyze` emits, so
     scoring and analysis never drift. Ratio axes are None on empty input; coerce to 0.0
     (no structure == zero structure) so a draft with no markdown never breaks z-scoring.
@@ -150,30 +134,63 @@ def _struct_vec(text: str) -> tuple[float, ...]:
     return tuple(float(struct.get(name) or 0.0) for name in STRUCT_AXIS_NAMES)
 
 
-# Structural neutral placeholder, not a tunable prior (those live in priors.py): this
-# axis group runs only contrastively today -- the reference is corpus-derived at fit
-# (smean/sstd) and `markdown_report` returns [] with no corpus. Derived from
-# STRUCT_AXIS_NAMES so the length can't drift from the axis tuple.
-MARKDOWN_REFERENCE = Reference(
-    mean=tuple(0.0 for _ in STRUCT_AXIS_NAMES),
-    spread=tuple(1.0 for _ in STRUCT_AXIS_NAMES),
-    strength=0.0,
-)
+# --- Markdown-structure metric (#28) --------------------------------------------------
 
 
 class _MarkdownMetric:
     """Markdown-structure axis group as a `Metric`. `extract` returns the struct feature
     vector in `STRUCT_AXIS_NAMES` order for one raw document."""
 
+    # Markdown-structure axes scored as a SEPARATE group from the embedding/POS composite
+    # (issue #28) -- these never feed the distance/direction, they get their own
+    # z-score-vs-corpus report. Each axis carries an imperative revision phrase per
+    # direction, (axis, raise_hint, lower_hint), matching the "fewer/more <label>"
+    # register of the POS direction. "raise" fires when the draft sits below the corpus
+    # mean; "lower" fires above it. Only structural (`struct_*`) numeric axes a writer
+    # can actually move are listed; the frontmatter-description (`fm_desc_*`) and string
+    # fields are excluded.
+    hint_axes: tuple[tuple[str, str, str], ...] = (
+        ("struct_heading_count", "add section headings", "merge section headings"),
+        ("struct_max_heading_depth", "deepen sectioning", "flatten sectioning"),
+        ("struct_code_char_ratio", "add code blocks", "reduce code blocks"),
+        ("struct_inline_code_char_ratio", "add inline code", "reduce inline code"),
+        ("struct_list_item_ratio", "add lists", "reduce list share"),
+        ("struct_bullet_list_ratio", "add bullets", "reduce bullet share"),
+        ("struct_ordered_list_ratio", "add numbered steps", "reduce numbered steps"),
+        ("struct_table_count", "add tables", "remove tables"),
+        ("struct_external_ref_count", "add external references", "trim external references"),
+        ("struct_long_paragraph_ratio", "lengthen paragraphs", "break up long paragraphs"),
+        ("struct_prose_ratio", "add prose", "reduce prose"),
+    )
+    # Fixed tolerance; promote to a knob only if a caller needs to tune it.
+    z_tol: float = 0.5
+
     name = "markdown"
-    axes = STRUCT_AXIS_NAMES
-    prior = MARKDOWN_REFERENCE
+    axes = tuple(a for a, _, _ in hint_axes)
+    # Structural neutral placeholder, not a tunable prior (those live in priors.py): this
+    # axis group runs only contrastively today -- the reference is corpus-derived at fit
+    # (see VoiceModel.fit) and `axis_report` returns [] with no corpus stats. Derived
+    # from `axes` so the length can't drift from the hint tuple.
+    prior = Reference(
+        mean=tuple(0.0 for _ in axes),
+        spread=tuple(1.0 for _ in axes),
+        strength=0.0,
+    )
 
     def extract(self, text: str) -> tuple[float, ...]:
         return _struct_vec(text)
 
 
 MARKDOWN_METRIC = register(_MarkdownMetric())
+
+STRUCT_AXIS_NAMES: tuple[str, ...] = MARKDOWN_METRIC.axes
+
+
+def _blend_metrics() -> list[Metric]:
+    """The registered blend-style metrics (#108): those carrying `hint_axes` (excludes
+    tells/politeness). One definition shared by fit() and axis_report() so metric
+    discovery and lookup can't drift."""
+    return [m for m in REGISTRY if hasattr(m, "hint_axes")]
 
 
 def features(text: str) -> dict[str, float]:
@@ -240,24 +257,12 @@ class VoiceModel:
                  emean, estd, train_ez, top_k, knn_k,
                  exemplar_count, contrast_count, total_words, total_paragraphs,
                  health, warning, exemplar_floor, exemplar_spread, contrast_ceiling,
-                 smean=None, sstd=None, hmean=None, hstd=None, hn=0,
-                 fmean=None, fstd=None, fn=0,
-                 cmean=None, cstd=None, cn=0,
-                 rmean=None, rstd=None, rn=0):
-        self.smean = smean            # struct axis mean / std over the exemplar corpus (#28)
-        self.sstd = sstd              # -- separate group, z-scored independently of the composite
-        self.hmean = hmean            # hedge/booster corpus mean / std (#44) -- blended with the
-        self.hstd = hstd              # declared prior via Reference.blend, not used raw like smean/sstd
-        self.hn = hn                  # corpus doc count fed to Reference.blend as n
-        self.fmean = fmean            # function-word corpus mean / std (#45) -- same blend pattern as hedge
-        self.fstd = fstd
-        self.fn = fn                  # corpus doc count fed to Reference.blend as n
-        self.cmean = cmean            # concreteness corpus mean / std (#46) -- blended with the
-        self.cstd = cstd              # declared prior via Reference.blend, same treatment as hedge
-        self.cn = cn                  # corpus doc count fed to Reference.blend as n
-        self.rmean = rmean            # readability/richness/entropy corpus mean / std (#88) --
-        self.rstd = rstd              # blended with the declared prior, same treatment as hedge
-        self.rn = rn                  # corpus doc count fed to Reference.blend as n
+                 axis_stats: dict | None = None):
+        # One corpus-stats dict for every blend-style axis (#108), replacing the 14
+        # Xmean/Xstd/Xn attributes: metric name -> (per-axis mean, per-axis std, corpus
+        # doc count). Raw std -- the zero-std guard lives in axis_report (`spread or
+        # 1.0`), not here.
+        self._axis_stats: dict[str, tuple[tuple[float, ...], tuple[float, ...], int]] = dict(axis_stats or {})
         self.names = names            # POS feature names (direction is white-box)
         self.mean = pmean             # POS mean / std for z-scoring the direction
         self.std = pstd
@@ -292,29 +297,13 @@ class VoiceModel:
         for i, nm in enumerate(names):
             if nm.startswith("tell_"):
                 conf[i] = max(conf[i], TELL_PRIOR[nm[5:]])
-        # struct path (separate axis group #28): same z-score machinery as the POS path --
-        # mean/std over the exemplar corpus, zero-variance axes guarded to std=1 so a
-        # degenerate corpus yields z=0 (on-target) instead of inf/NaN.
-        S = np.array([MARKDOWN_METRIC.extract(t) for t in texts], dtype=float)
-        smean, sstd = S.mean(0), S.std(0)
-        sstd[sstd == 0] = 1.0
-        # hedge/booster path (#44): corpus mean/std, raw material for Reference.blend
-        # (not z-scored here directly -- hedge_report() blends this with the declared
-        # prior, unlike struct which has no prior and z-scores raw).
-        H = np.array([HEDGE_BOOSTER_METRIC.extract(t) for t in texts], dtype=float)
-        hmean, hstd = H.mean(0), H.std(0)
-        # function-word path (#45): same blend-with-prior treatment as hedge/booster.
-        F = np.array([FUNCTION_WORD_METRIC.extract(t) for t in texts], dtype=float)
-        fmean, fstd = F.mean(0), F.std(0)
-        # concreteness path (#46): same treatment as hedge/booster -- raw corpus mean/std,
-        # blended with the declared prior via Reference.blend in concreteness_report().
-        CN = np.array([CONCRETENESS_METRIC.extract(t) for t in texts], dtype=float)
-        cmean, cstd = CN.mean(0), CN.std(0)
-        # readability/richness/entropy path (#88): same treatment as hedge/booster -- raw
-        # corpus mean/std, blended with the declared prior via Reference.blend in
-        # richness_report().
-        RI = np.array([RICHNESS_METRIC.extract(t) for t in texts], dtype=float)
-        rmean, rstd = RI.mean(0), RI.std(0)
+        # One corpus-stats pass over every registered blend-style metric (#108): raw
+        # std -- the report's `spread or 1.0` guards zero-variance axes. A new axis
+        # costs zero lines here: its import registers it; `hint_axes` selects it.
+        axis_stats: dict[str, tuple[tuple[float, ...], tuple[float, ...], int]] = {}
+        for m in _blend_metrics():
+            M = np.array([m.extract(t) for t in texts], dtype=float)
+            axis_stats[m.name] = (tuple(M.mean(0)), tuple(M.std(0)), len(texts))
         # embedding path (scalar)
         E = np.array([_style_vec(t) for t in texts])
         emean, estd = E.mean(0), E.std(0)
@@ -333,10 +322,7 @@ class VoiceModel:
                    emean, estd, train_ez, top_k, knn_k,
                    len(texts), len(contrast or []), total_words, total_paragraphs,
                    health, warning, exemplar_floor, exemplar_spread, contrast_ceiling,
-                   smean=smean, sstd=sstd, hmean=hmean, hstd=hstd, hn=len(texts),
-                   fmean=fmean, fstd=fstd, fn=len(texts),
-                   cmean=cmean, cstd=cstd, cn=len(texts),
-                   rmean=rmean, rstd=rstd, rn=len(texts))
+                   axis_stats=axis_stats)
 
     @classmethod
     def from_dir(cls, exemplars: str | Path, contrast: str | Path | None = None,
@@ -416,127 +402,70 @@ class VoiceModel:
                 )
         return ScoreResult(self._dist(text), moves)
 
-    def markdown_report(self, text: str) -> list[MarkdownAxis]:
-        """Per-axis markdown-structure distance from the corpus (issue #28).
+    def axis_report(self, metric_name: str, text: str) -> list[AxisReport]:
+        """Per-axis distance from the reference for any registered blend-style metric
+        (#108): one implementation for markdown/hedge/fw/concreteness/richness, whose
+        named wrappers below are one-liners over this.
 
-        z-scores the draft's struct features against the exemplar-corpus mean/std
-        (computed at fit time, same machinery as the POS path), and names the direction
-        back toward the corpus pole. Separate from score() -- struct never touches the
-        embedding distance or POS direction. A near-target axis (|z| < MARKDOWN_Z_TOL) gets
-        an empty direction string. Returns [] if the model was built without struct stats.
+        z-scores the draft's metric values against a reference that is always defined:
+        the metric's declared prior blended with the corpus mean/std via
+        `Reference.blend`, weighted by the corpus doc count against the prior's
+        `strength`. With no corpus stats, a strength>0 prior still reports (blend
+        passes it through at n=0, so a `check`-style no-profile call gets usable
+        advice); a strength==0 metric like markdown is corpus-only and returns [].
+        A near-target axis (|z| < metric.z_tol) gets an empty direction string; the
+        direction names the way back toward the reference in the metric's own
+        `hint_axes` vocabulary. Zero-variance axes get spread forced to 1.0, so a
+        degenerate corpus yields z=0 (on-target), never inf/NaN. Never touches the
+        embedding distance or POS direction -- standalone axis group. Raises KeyError
+        for a name that is not a registered blend-style metric.
         """
-        if self.smean is None or self.sstd is None:
-            return []
-        vec = np.array(MARKDOWN_METRIC.extract(text), dtype=float)
-        z = (vec - self.smean) / self.sstd
+        metric = next((m for m in _blend_metrics() if m.name == metric_name), None)
+        if metric is None:
+            raise KeyError(
+                f"no blend-style metric named {metric_name!r}; "
+                f"blend-style registered: {[m.name for m in _blend_metrics()]}"
+            )
+        stats = self._axis_stats.get(metric_name)
+        if stats is None:
+            if metric.prior.strength == 0:  # corpus-only axis (markdown): nothing to z-score against
+                return []
+            mean, std, n = metric.prior.mean, metric.prior.spread, 0
+        else:
+            mean, std, n = stats
+        ref_mean, ref_spread = metric.prior.blend(mean, std, n)
+        vec = metric.extract(text)
         out = []
-        for i, (axis, raise_hint, lower_hint) in enumerate(MARKDOWN_AXES):
-            zi = float(z[i])
-            if abs(zi) < MARKDOWN_Z_TOL:
-                direction = ""
-            else:
-                direction = lower_hint if zi > 0 else raise_hint  # move back toward corpus mean
-            out.append(MarkdownAxis(axis, float(vec[i]), float(self.smean[i]), zi, direction))
+        for i, (axis, raise_hint, lower_hint) in enumerate(metric.hint_axes):
+            spread = ref_spread[i] or 1.0  # zero-std guard: degenerate axis is on-target
+            z = float((vec[i] - ref_mean[i]) / spread)
+            direction = "" if abs(z) < metric.z_tol else (lower_hint if z > 0 else raise_hint)
+            out.append(AxisReport(axis, float(vec[i]), float(ref_mean[i]), z, direction))
         return out
 
-    def hedge_report(self, text: str) -> list[HedgeAxis]:
-        """Per-axis hedge/booster distance from the reference (issue #44).
+    # Backward-compat wrappers (#108): the five named methods stay as one-liners over
+    # axis_report -- same names, same return types; report.py/cli.py/tests keep calling
+    # these. The per-axis detail lives in axis_report's docstring, not repeated here.
 
-        Unlike `markdown_report`, this axis always has a reference: the declared prior
-        (`HEDGE_BOOSTER_REFERENCE`) blended with the corpus mean/std via `Reference.blend`,
-        weighted by `hn` (the corpus doc count) against the prior's `strength`. With no
-        corpus (hn=0) `blend` passes the prior through unchanged, so this still reports
-        something sane for a `check`-style no-profile call. Never touches the embedding
-        distance or POS direction -- standalone axis group, same as markdown.
-        """
-        vec = np.array(HEDGE_BOOSTER_METRIC.extract(text), dtype=float)
-        prior = HEDGE_BOOSTER_METRIC.prior
-        corpus_mean = self.hmean if self.hmean is not None else prior.mean
-        corpus_std = self.hstd if self.hstd is not None else prior.spread
-        ref_mean, ref_spread = prior.blend(corpus_mean, corpus_std, self.hn)
-        out = []
-        for i, (axis, raise_hint, lower_hint) in enumerate(HEDGE_AXES):
-            spread = ref_spread[i] or 1.0
-            zi = float((vec[i] - ref_mean[i]) / spread)
-            if abs(zi) < HEDGE_Z_TOL:
-                direction = ""
-            else:
-                direction = lower_hint if zi > 0 else raise_hint  # move back toward the reference
-            out.append(HedgeAxis(axis, float(vec[i]), float(ref_mean[i]), zi, direction))
-        return out
+    def markdown_report(self, text: str) -> list[AxisReport]:
+        """Markdown-structure report (#28); see `axis_report`."""
+        return self.axis_report("markdown", text)
 
-    def fw_report(self, text: str) -> list[FwAxis]:
-        """Per-axis function-word distance from the reference (issue #45).
+    def hedge_report(self, text: str) -> list[AxisReport]:
+        """Hedge/booster stance report (#44); see `axis_report`."""
+        return self.axis_report("hedge", text)
 
-        Same treatment as `hedge_report`: always has a reference (the declared prior,
-        `FUNCTION_WORD_REFERENCE`), blended with the corpus mean/std via `Reference.blend`
-        weighted by `fn` against the prior's `strength`. With no corpus (fn=0) `blend`
-        passes the prior through unchanged. Never touches the embedding distance or POS
-        direction -- standalone axis group, same as markdown/hedge.
-        """
-        vec = np.array(FUNCTION_WORD_METRIC.extract(text), dtype=float)
-        prior = FUNCTION_WORD_METRIC.prior
-        corpus_mean = self.fmean if self.fmean is not None else prior.mean
-        corpus_std = self.fstd if self.fstd is not None else prior.spread
-        ref_mean, ref_spread = prior.blend(corpus_mean, corpus_std, self.fn)
-        out = []
-        for i, (axis, raise_hint, lower_hint) in enumerate(FW_AXES):
-            spread = ref_spread[i] or 1.0
-            zi = float((vec[i] - ref_mean[i]) / spread)
-            if abs(zi) < FW_Z_TOL:
-                direction = ""
-            else:
-                direction = lower_hint if zi > 0 else raise_hint  # move back toward the reference
-            out.append(FwAxis(axis, float(vec[i]), float(ref_mean[i]), zi, direction))
-        return out
+    def fw_report(self, text: str) -> list[AxisReport]:
+        """Function-word report (#45); see `axis_report`."""
+        return self.axis_report("fw", text)
 
-    def concreteness_report(self, text: str) -> list[ConcretenessAxis]:
-        """The concreteness axis vs the reference (issue #46). Same blend-with-prior
-        treatment as `hedge_report`: the declared prior (`CONCRETENESS_REFERENCE`)
-        blended with the corpus mean/std via `Reference.blend`, weighted by `cn` against
-        the prior's `strength`. With no corpus (cn=0) `blend` passes the prior through
-        unchanged. Standalone axis group -- never touches the embedding distance or POS
-        direction.
-        """
-        vec = np.array(CONCRETENESS_METRIC.extract(text), dtype=float)
-        prior = CONCRETENESS_METRIC.prior
-        corpus_mean = self.cmean if self.cmean is not None else prior.mean
-        corpus_std = self.cstd if self.cstd is not None else prior.spread
-        ref_mean, ref_spread = prior.blend(corpus_mean, corpus_std, self.cn)
-        out = []
-        for i, (axis, raise_hint, lower_hint) in enumerate(CONCRETENESS_AXES):
-            spread = ref_spread[i] or 1.0
-            zi = float((vec[i] - ref_mean[i]) / spread)
-            if abs(zi) < CONCRETENESS_Z_TOL:
-                direction = ""
-            else:
-                direction = lower_hint if zi > 0 else raise_hint  # move back toward the reference
-            out.append(ConcretenessAxis(axis, float(vec[i]), float(ref_mean[i]), zi, direction))
-        return out
+    def concreteness_report(self, text: str) -> list[AxisReport]:
+        """Concreteness report (#46); see `axis_report`."""
+        return self.axis_report("concreteness", text)
 
-    def richness_report(self, text: str) -> list[RichnessAxis]:
-        """Readability/richness/entropy axis vs the reference (issue #88). Same
-        blend-with-prior treatment as `hedge_report`: the declared prior
-        (`RICHNESS_REFERENCE`) blended with the corpus mean/std via `Reference.blend`,
-        weighted by `rn` (the corpus doc count) against the prior's `strength`. With no
-        corpus (rn=0) `blend` passes the prior through unchanged. Standalone axis group
-        -- never touches the embedding distance or POS direction.
-        """
-        vec = np.array(RICHNESS_METRIC.extract(text), dtype=float)
-        prior = RICHNESS_METRIC.prior
-        corpus_mean = self.rmean if self.rmean is not None else prior.mean
-        corpus_std = self.rstd if self.rstd is not None else prior.spread
-        ref_mean, ref_spread = prior.blend(corpus_mean, corpus_std, self.rn)
-        out = []
-        for i, (axis, raise_hint, lower_hint) in enumerate(RICHNESS_AXES):
-            spread = ref_spread[i] or 1.0
-            zi = float((vec[i] - ref_mean[i]) / spread)
-            if abs(zi) < RICHNESS_Z_TOL:
-                direction = ""
-            else:
-                direction = lower_hint if zi > 0 else raise_hint  # move back toward the reference
-            out.append(RichnessAxis(axis, float(vec[i]), float(ref_mean[i]), zi, direction))
-        return out
+    def richness_report(self, text: str) -> list[AxisReport]:
+        """Readability/richness/entropy report (#88); see `axis_report`."""
+        return self.axis_report("richness", text)
 
 
 def default_model() -> VoiceModel:

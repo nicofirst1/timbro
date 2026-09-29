@@ -107,7 +107,7 @@ That floor is what "Reddit frequency" refers to. The two public compilations abo
 
 ## Markdown Structure (11 axes)
 
-Scored independently against the exemplar corpus mean/std (no declared prior). Each axis is z-scored; directions are returned only if |z| ≥ 0.5 (MARKDOWN_Z_TOL).
+Scored independently against the exemplar corpus mean/std (no declared prior). Each axis is z-scored; directions are returned only if |z| ≥ 0.5 (the markdown metric's `z_tol`, `MARKDOWN_METRIC.z_tol`).
 
 Runs on the **raw markdown** text (markup intact), not the cleaned text.
 
@@ -131,7 +131,7 @@ Runs on the **raw markdown** text (markup intact), not the cleaned text.
 
 ## Hedge/Booster Stance (2 axes)
 
-Per-1000-word rates. Uses declared prior [`HEDGE_BOOSTER_REFERENCE`](../src/timbro/priors.py#L56) blended with corpus mean/std via `Reference.blend` (see Shared Mechanics, below). Directions fire only if |z| ≥ 0.5 (HEDGE_Z_TOL).
+Per-1000-word rates. Uses declared prior [`HEDGE_BOOSTER_REFERENCE`](../src/timbro/priors.py#L56) blended with corpus mean/std via `Reference.blend` (see Shared Mechanics, below). Directions fire only if |z| ≥ 0.5 (the hedge metric's `z_tol`, `HEDGE_BOOSTER_METRIC.z_tol`).
 
 Runs on the **cleaned text** (markdown stripped).
 
@@ -148,7 +148,7 @@ Runs on the **cleaned text** (markdown stripped).
 
 ## Function Words (5 axes)
 
-Per-1000-word rates. Uses declared prior [`FUNCTION_WORD_REFERENCE`](../src/timbro/priors.py#L138) (derived from 750 chunks of 7 Project Gutenberg texts) blended with corpus mean/std via `Reference.blend`. Directions fire only if |z| ≥ 0.5 (FW_Z_TOL).
+Per-1000-word rates. Uses declared prior [`FUNCTION_WORD_REFERENCE`](../src/timbro/priors.py#L138) (derived from 750 chunks of 7 Project Gutenberg texts) blended with corpus mean/std via `Reference.blend`. Directions fire only if |z| ≥ 0.5 (the fw metric's `z_tol`, `FUNCTION_WORD_METRIC.z_tol`).
 
 Runs on the **cleaned text** (markdown stripped).
 
@@ -175,7 +175,7 @@ Runs on the **cleaned text** (markdown stripped).
 
 ## Concreteness (1 axis)
 
-Mean concreteness score (1–5 scale, where 1 is abstract and 5 is concrete/physical). Uses declared prior [`CONCRETENESS_REFERENCE`](../src/timbro/priors.py#L109) blended with corpus mean/std via `Reference.blend`. Directions fire only if |z| ≥ 0.5 (CONCRETENESS_Z_TOL).
+Mean concreteness score (1–5 scale, where 1 is abstract and 5 is concrete/physical). Uses declared prior [`CONCRETENESS_REFERENCE`](../src/timbro/priors.py#L109) blended with corpus mean/std via `Reference.blend`. Directions fire only if |z| ≥ 0.5 (the concreteness metric's `z_tol`, `CONCRETENESS_METRIC.z_tol`).
 
 Runs on the **cleaned text** (markdown stripped). Word ratings come from Brysbaert, Warriner & Kuperman (2014) concreteness norms (37,058 lemmas, frequency-weighted).
 

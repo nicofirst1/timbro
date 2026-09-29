@@ -9,7 +9,7 @@ from timbro.fw import (
     function_word_rates,
 )
 from timbro.metric import REGISTRY, Reference
-from timbro.model import FW_AXES, VoiceModel
+from timbro.model import VoiceModel
 
 
 class SelfCheckTest(unittest.TestCase):
@@ -104,18 +104,20 @@ class VoiceModelFwReportTest(unittest.TestCase):
 
     def test_profiled_model_reports_fw_axes(self):
         model = VoiceModel.fit(self._CORPUS)
-        self.assertGreater(model.fn, 0)
+        self.assertGreater(model._axis_stats["fw"][2], 0)
         axes = {a.axis: a for a in model.fw_report("I think my plan will help.")}
-        self.assertEqual(set(axes), {axis for axis, _, _ in FW_AXES})
+        self.assertEqual(set(axes), {axis for axis, _, _ in FUNCTION_WORD_METRIC.hint_axes})
         for a in axes.values():
             self.assertTrue(a.axis)
 
     def test_no_profile_still_reports_via_prior(self):
-        # A model with fn=0 falls back to the declared prior alone (n=0 blend passthrough).
+        # A model with the fw corpus count forced to 0 falls back to the declared prior
+        # alone (n=0 blend passthrough) -- the old `model.fn = 0`.
         model = VoiceModel.fit(self._CORPUS)
-        model.fn = 0
+        mean, std, _ = model._axis_stats["fw"]
+        model._axis_stats["fw"] = (mean, std, 0)
         axes = {a.axis: a for a in model.fw_report("I think my plan will help.")}
-        for i, (axis, _, _) in enumerate(FW_AXES):
+        for i, (axis, _, _) in enumerate(FUNCTION_WORD_METRIC.hint_axes):
             self.assertAlmostEqual(axes[axis].reference_mean, FUNCTION_WORD_REFERENCE.mean[i])
 
 

@@ -71,8 +71,17 @@ class _ConcretenessMetric:
     raw document, per-lemma norms averaged over content words. Standalone axis group --
     does not feed the embedding distance or POS direction (issue #46)."""
 
+    # (axis, raise_hint, lower_hint): "raise" fires when the draft sits below the
+    # reference (needs more concrete language); "lower" fires above it (draft leans
+    # more concrete than the reference).
+    hint_axes: tuple[tuple[str, str, str], ...] = (
+        ("mean_concreteness", "use more concrete, physical language", "use more abstract language"),
+    )
+    # Fixed tolerance; promote to a knob only if a caller needs to tune it.
+    z_tol: float = 0.5
+
     name = "concreteness"
-    axes = ("mean_concreteness",)
+    axes = tuple(a for a, _, _ in hint_axes)
     prior = CONCRETENESS_REFERENCE
 
     def extract(self, text: str) -> tuple[float, ...]:

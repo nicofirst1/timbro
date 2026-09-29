@@ -66,8 +66,20 @@ class _FunctionWordMetric:
     article_rate, preposition_rate, conjunction_rate, pronoun_rate) per-1000-words for
     one raw document."""
 
+    # (axis, raise_hint, lower_hint): "raise" fires when the draft sits below the
+    # reference (needs more of the marker); "lower" fires above it.
+    hint_axes: tuple[tuple[str, str, str], ...] = (
+        ("first_person_sg", "use more first-person singular (I/me/my)", "use less first-person singular"),
+        ("article_rate", "add more articles (a/an/the)", "trim articles"),
+        ("preposition_rate", "add more prepositions", "trim prepositions"),
+        ("conjunction_rate", "add more conjunctions", "trim conjunctions"),
+        ("pronoun_rate", "add more pronouns", "trim pronouns"),
+    )
+    # Fixed tolerance; promote to a knob only if a caller needs to tune it.
+    z_tol: float = 0.5
+
     name = "fw"
-    axes = ("first_person_sg", "article_rate", "preposition_rate", "conjunction_rate", "pronoun_rate")
+    axes = tuple(a for a, _, _ in hint_axes)
     prior = FUNCTION_WORD_REFERENCE
 
     def extract(self, text: str) -> tuple[float, ...]:

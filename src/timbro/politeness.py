@@ -153,10 +153,10 @@ def politeness_report(text: str) -> dict | None:
 # --- Metric (#94) ------------------------------------------------------------------------
 # No declared prior: Tier C reporting-only per the issue's decision record -- a Reference
 # mean/spread would assert a separation claim the mini-validation doesn't support. Zero
-# strength, zero mean/spread (same "structural neutral placeholder" shape model.py's
-# MARKDOWN_REFERENCE uses) so this never contributes a scored claim if something upstream
-# ever blends it; the report path (politeness_report, added by the caller) uses the N/A
-# gate instead of this reference.
+# strength, zero mean/spread (same "structural neutral placeholder" shape the markdown
+# metric's prior uses, `MARKDOWN_METRIC.prior` in model.py) so this never contributes a
+# scored claim if something upstream ever blends it; the report path (politeness_report,
+# added by the caller) uses the N/A gate instead of this reference.
 POLITENESS_REFERENCE = Reference(
     mean=tuple(0.0 for _ in range(20)),
     spread=tuple(1.0 for _ in range(20)),
