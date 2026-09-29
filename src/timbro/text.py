@@ -2,7 +2,7 @@
 
 The one place both analysis families reach for their raw-text plumbing:
   - the profile engine (model.py) and the profile-free diagnostics
-    (flow, rubrics, tells, analyze, rewrite) all split and embed the same way.
+    (flow, rubrics, tells, rewrite) all split and embed the same way.
 
 Keeping it here (not inside flow or rubrics) means callers import *down* into
 substrate instead of *sideways* into a sibling that happens to own the helper.
