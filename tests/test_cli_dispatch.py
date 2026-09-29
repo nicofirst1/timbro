@@ -15,8 +15,8 @@ import timbro.cli as cli
 
 # Minimal argv per subcommand -> the handler its subparser must wire via set_defaults.
 _WIRING = {
-    ("score",): "cmd_score",
-    ("check",): "cmd_check",
+    ("score", "draft.md"): "cmd_score",
+    ("check", "draft.md"): "cmd_check",
     ("accept", "orig.md", "revised.md"): "cmd_accept",
     ("analyze", "draft.md"): "cmd_analyze",
     ("profiles", "list"): "cmd_profiles_list",
