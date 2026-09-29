@@ -290,3 +290,42 @@ def test_no_git_identity_falls_back_to_timbro_identity(tmp_path, monkeypatch):
 
     assert result == {"status": "ok"}
     assert _git(root, "log", "-1", "--format=%ae").strip() == "timbro@localhost"
+
+
+def test_no_git_identity_syncs_merge_with_seeded_remote_main(tmp_path, monkeypatch):
+    # No identity from anywhere: config is already /dev/null via the fixture;
+    # drop the env identities (and EMAIL) too, and make git refuse to
+    # auto-detect, like machines where auto-detection fails (e.g. Docker).
+    for var in (
+        "GIT_AUTHOR_NAME",
+        "GIT_AUTHOR_EMAIL",
+        "GIT_COMMITTER_NAME",
+        "GIT_COMMITTER_EMAIL",
+        "EMAIL",
+    ):
+        monkeypatch.delenv(var, raising=False)
+
+    remote = _bare_remote(tmp_path)
+    # Seed the remote's main with one commit from a third, unrelated repo.
+    seed = tmp_path / "seed"
+    seed.mkdir()
+    _git(seed, "init")
+    _git(seed, "symbolic-ref", "HEAD", "refs/heads/main")
+    (seed / "README.md").write_text("seed\n", encoding="utf-8")
+    _git(seed, "add", "-A")
+    _git(seed, "-c", "user.name=seeder", "-c", "user.email=seeder@example.com", "commit", "-m", "seed")
+    _git(seed, "push", str(remote), "main")
+
+    root = tmp_path / "machine-b"
+    root.mkdir()
+    _git(root, "init")
+    _git(root, "symbolic-ref", "HEAD", "refs/heads/main")
+    _git(root, "config", "user.useConfigOnly", "true")
+    _seed_profile(root, "demo", "from-b")
+
+    result = sync_profiles(root, init_remote=str(remote))
+
+    assert result == {"status": "ok"}
+    remote_files = _git(remote, "ls-tree", "-r", "--name-only", "main")
+    assert "demo/README.md" in remote_files
+    assert "demo/exemplars/post.md" in remote_files
