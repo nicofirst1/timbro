@@ -34,7 +34,7 @@ One-time prerequisite (already done for this repo, not part of `release.sh`): th
 
 ## Gotchas
 
-- `en_core_web_sm` is pinned as a direct-URL wheel dep (needs `tool.hatch.metadata.allow-direct-references`). No manual `spacy download`.
+- `en_core_web_sm` is pinned as a direct-URL wheel only in the dev group (`uv sync`; needs `tool.hatch.metadata.allow-direct-references`). PyPI rejects direct-URL deps, so `pip install` / `uvx` users get it fetched on first run by `spacy_model.py`. No manual `spacy download` either way.
 - Defaults resolve relative to the package dir (`src/timbro/sample/`), not CWD — so the plugin works inside its cache sandbox.
 - `data/` is gitignored (private corpora); the shipped `src/timbro/sample/` is the only corpus that publishes.
 - `TIMBRO_NO_LOG=1` disables the per-profile learn-event log (`<profile>/runs.jsonl`, appended by `profiles.learn()` via `profilelog.log_learn`). Unset by default (logging on); it overrides `no_log` in `$TIMBRO_HOME/settings.json`, read via `settings.no_log()`, and is never set in code.
