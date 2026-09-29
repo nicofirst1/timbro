@@ -300,8 +300,9 @@ class VoiceModel:
         # `hint_axes` attribute is what this filter selects on (excludes tells and
         # politeness, which don't carry it). Raw std, no zero-std guard: the report
         # applies `spread or 1.0` per axis (#28/#44/#45/#46/#88 are the five today).
+        blend_metrics = [m for m in REGISTRY if hasattr(m, "hint_axes")]
         axis_stats: dict[str, tuple[tuple[float, ...], tuple[float, ...], int]] = {}
-        for m in [m for m in REGISTRY if hasattr(m, "hint_axes")]:
+        for m in blend_metrics:
             M = np.array([m.extract(t) for t in texts], dtype=float)
             axis_stats[m.name] = (tuple(M.mean(0)), tuple(M.std(0)), len(texts))
         # embedding path (scalar)

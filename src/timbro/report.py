@@ -4,8 +4,8 @@ one payload the CLI returns (score + flow).
 Split from model.py (PR #57 review) -- model.py keeps the statistical model
 (corpus loading, spaCy pipeline, feature extraction, z-scores/distances, Metric
 orchestration); this module formats those results as named advice. Imports
-from model only where needed (never the reverse -- model.py imports the
-dataclasses/constants below to build and return them).
+from model only where needed (never the reverse -- model.py imports the dataclasses
+below to build and return them).
 """
 
 from dataclasses import asdict, dataclass
