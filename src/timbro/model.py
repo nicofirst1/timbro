@@ -418,7 +418,7 @@ class VoiceModel:
         `hint_axes` vocabulary. Zero-variance axes get spread forced to 1.0, so a
         degenerate corpus yields z=0 (on-target), never inf/NaN. Never touches the
         embedding distance or POS direction -- standalone axis group. Raises KeyError
-        for a name not in timbro.metric.REGISTRY.
+        for a name that is not a registered blend-style metric.
         """
         metric = next((m for m in _blend_metrics() if m.name == metric_name), None)
         if metric is None:
