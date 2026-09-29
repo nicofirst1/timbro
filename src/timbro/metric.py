@@ -17,6 +17,8 @@ from dataclasses import dataclass
 from functools import lru_cache
 from typing import Protocol, runtime_checkable
 
+import numpy as np
+
 
 @dataclass(frozen=True)
 class Reference:
@@ -65,7 +67,7 @@ class Metric(Protocol):
 
 
 # The registry the CLI iterates. Ported metrics register at import of their home module
-# (tells.py, model.py) to avoid an import cycle; new axes append here.
+# (tells.py, the timbro/axes/ modules) to avoid an import cycle; new axes append here.
 REGISTRY: list[Metric] = []
 
 
@@ -92,8 +94,24 @@ def _nlp():
 def parsed_doc(text: str):
     """Cached text->Doc for axes that need lemma+POS (and sentence bounds). One parse
     shared across every `Metric` that calls this, instead of each axis reparsing the
-    same draft. text[:100000] caps spaCy work, same cap tells.py/model.py use."""
+    same draft. text[:100000] caps spaCy work, same cap tells.py/direction.py use."""
     return _nlp()(text[:100000])
+
+
+def _confidence(exemplar_X: np.ndarray, contrast_X: np.ndarray) -> np.ndarray:
+    """Per-feature R^2: squared point-biserial correlation with the voice label.
+    1.0 = this feature perfectly separates you from contrast; ~0 = noise."""
+    X = np.vstack([exemplar_X, contrast_X])
+    y = np.r_[np.ones(len(exemplar_X)), np.zeros(len(contrast_X))]
+    Xs = (X - X.mean(0)) / (X.std(0) + 1e-9)
+    ys = (y - y.mean()) / (y.std() + 1e-9)
+    return ((Xs * ys[:, None]).mean(0)) ** 2
+
+
+def _knn(train_z: np.ndarray, z: np.ndarray, k: int) -> float:
+    """Mean distance to the k nearest standardized exemplars (multi-modal region)."""
+    d = np.linalg.norm(train_z - z, axis=1)
+    return float(np.sort(d)[:k].mean())
 
 
 if __name__ == "__main__":

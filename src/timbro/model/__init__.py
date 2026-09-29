@@ -18,8 +18,6 @@ from __future__ import annotations
 
 import os
 import re
-from collections import Counter
-from functools import lru_cache
 from pathlib import Path
 
 import numpy as np
@@ -33,14 +31,18 @@ from timbro.axes.fw import (  # noqa: F401  (import registers the metric)
 from timbro.axes.hedge import (  # noqa: F401  (import registers the metric)
     HEDGE_BOOSTER_METRIC,
 )
+from timbro.axes.markdown import (  # noqa: F401  (import registers the metric)
+    MARKDOWN_METRIC,
+)
 from timbro.axes.richness import (  # noqa: F401  (import registers the metric)
     RICHNESS_METRIC,
 )
 from timbro.axes.tells import (  # noqa: F401  (import registers the tells metric)
     TELL_METRIC,
-    tell_rates,
 )
-from timbro.metric import REGISTRY, Metric, Reference, register
+from timbro.metric import REGISTRY, Metric, _confidence, _knn
+from timbro.model.direction import feature_matrix, features
+from timbro.model.embedding import _style_vec, fit_embedding
 from timbro.priors import DEFAULT_CONTRAST, DEFAULT_EXEMPLARS, TELL_PRIOR
 from timbro.report import (  # dataclasses/labels: report.py formats for humans (PR #57 review)
     AxisReport,
@@ -49,54 +51,14 @@ from timbro.report import (  # dataclasses/labels: report.py formats for humans 
     _label,
 )
 
-# Universal POS tags (spaCy `pos_`). Rates over these 17 are length-normalized,
-# so the doc-length confound that plagued raw counts can't arise here.
-POS_TAGS = ("ADJ", "ADP", "ADV", "AUX", "CCONJ", "DET", "INTJ", "NOUN", "NUM",
-            "PART", "PRON", "PROPN", "PUNCT", "SCONJ", "SYM", "VERB", "X")
-
 _FRONTMATTER = re.compile(r"\A---\n.*?\n---\n", re.DOTALL)
 _PARA = re.compile(r"\n\s*\n")
 _WORD = re.compile(r"\b\w+\b")
 
 # DEFAULT_EXEMPLARS / DEFAULT_CONTRAST (packaged sample corpus paths) live in priors.py
 # now (PR #57 review); re-imported above.
-
-
-def _nlp():
-    from timbro.spacy_model import cached_pipeline
-
-    return cached_pipeline(("ner", "lemmatizer", "parser"), ())
-
-
-@lru_cache(maxsize=1)
-def _style_model():
-    os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
-    os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
-    try:
-        from transformers.utils import logging as tlog
-
-        tlog.set_verbosity_error()
-    except Exception:  # noqa: BLE001, S110 -- best-effort optional-lib logging setup, must not block model load
-        pass
-    try:
-        from huggingface_hub.utils import disable_progress_bars
-        from huggingface_hub.utils import logging as hlog
-
-        disable_progress_bars()
-        hlog.set_verbosity_error()
-    except Exception:  # noqa: BLE001, S110 -- best-effort optional-lib logging setup, must not block model load
-        pass
-    from sentence_transformers import SentenceTransformer
-
-    return SentenceTransformer("StyleDistance/styledistance")  # content-invariant style
-
-
-@lru_cache(maxsize=512)
-def _style_vec(text: str) -> tuple[float, ...]:
-    # one style vector per doc = mean of paragraph (chunk) style embeddings. cached
-    # because the LOO harness re-scores the same docs across folds.
-    chunks = [p.strip() for p in _PARA.split(text) if p.strip()] or [text[:2000]]
-    return tuple(_style_model().encode(chunks, normalize_embeddings=True).mean(0))
+# The two scoring lenses live in sibling modules (#106): embedding.py ("how far")
+# and direction.py ("which way").
 
 
 def read_corpus(directory: str | Path) -> list[str]:
@@ -108,81 +70,7 @@ def read_corpus(directory: str | Path) -> list[str]:
     return [_FRONTMATTER.sub("", f.read_text(encoding="utf-8")) for f in files]
 
 
-@lru_cache(maxsize=512)
-def _pos_rates(text: str) -> tuple[float, ...]:
-    # cached: the LOO harness re-scores the same docs across folds, so each doc is
-    # tagged once. text[:100000] caps spaCy work on the longest posts.
-    pos = [t.pos_ for t in _nlp()(text[:100000]) if not t.is_space]
-    n = len(pos) or 1
-    c = Counter(pos)
-    return tuple(c.get(tag, 0) / n for tag in POS_TAGS)
-
-
-@lru_cache(maxsize=512)
-def _struct_vec(text: str) -> tuple[float, ...]:
-    """Markdown-structure feature vector (STRUCT_AXIS_NAMES order) for one raw document.
-    Reuses analyze._struct_features -- the same extractor `timbro analyze` emits, so
-    scoring and analysis never drift. Ratio axes are None on empty input; coerce to 0.0
-    (no structure == zero structure) so a draft with no markdown never breaks z-scoring.
-    """
-    from timbro.analyze import (
-        _struct_features,  # lazy: analyze imports POS_TAGS from here
-    )
-
-    struct, _ = _struct_features(text)
-    return tuple(float(struct.get(name) or 0.0) for name in STRUCT_AXIS_NAMES)
-
-
 # --- Markdown-structure metric (#28) --------------------------------------------------
-
-
-class _MarkdownMetric:
-    """Markdown-structure axis group as a `Metric`. `extract` returns the struct feature
-    vector in `STRUCT_AXIS_NAMES` order for one raw document."""
-
-    # Markdown-structure axes scored as a SEPARATE group from the embedding/POS composite
-    # (issue #28) -- these never feed the distance/direction, they get their own
-    # z-score-vs-corpus report. Each axis carries an imperative revision phrase per
-    # direction, (axis, raise_hint, lower_hint), matching the "fewer/more <label>"
-    # register of the POS direction. "raise" fires when the draft sits below the corpus
-    # mean; "lower" fires above it. Only structural (`struct_*`) numeric axes a writer
-    # can actually move are listed; the frontmatter-description (`fm_desc_*`) and string
-    # fields are excluded.
-    hint_axes: tuple[tuple[str, str, str], ...] = (
-        ("struct_heading_count", "add section headings", "merge section headings"),
-        ("struct_max_heading_depth", "deepen sectioning", "flatten sectioning"),
-        ("struct_code_char_ratio", "add code blocks", "reduce code blocks"),
-        ("struct_inline_code_char_ratio", "add inline code", "reduce inline code"),
-        ("struct_list_item_ratio", "add lists", "reduce list share"),
-        ("struct_bullet_list_ratio", "add bullets", "reduce bullet share"),
-        ("struct_ordered_list_ratio", "add numbered steps", "reduce numbered steps"),
-        ("struct_table_count", "add tables", "remove tables"),
-        ("struct_external_ref_count", "add external references", "trim external references"),
-        ("struct_long_paragraph_ratio", "lengthen paragraphs", "break up long paragraphs"),
-        ("struct_prose_ratio", "add prose", "reduce prose"),
-    )
-    # Fixed tolerance; promote to a knob only if a caller needs to tune it.
-    z_tol: float = 0.5
-
-    name = "markdown"
-    axes = tuple(a for a, _, _ in hint_axes)
-    # Structural neutral placeholder, not a tunable prior (those live in priors.py): this
-    # axis group runs only contrastively today -- the reference is corpus-derived at fit
-    # (see VoiceModel.fit) and `axis_report` returns [] with no corpus stats. Derived
-    # from `axes` so the length can't drift from the hint tuple.
-    prior = Reference(
-        mean=tuple(0.0 for _ in axes),
-        spread=tuple(1.0 for _ in axes),
-        strength=0.0,
-    )
-
-    def extract(self, text: str) -> tuple[float, ...]:
-        return _struct_vec(text)
-
-
-MARKDOWN_METRIC = register(_MarkdownMetric())
-
-STRUCT_AXIS_NAMES: tuple[str, ...] = MARKDOWN_METRIC.axes
 
 
 def _blend_metrics() -> list[Metric]:
@@ -190,35 +78,6 @@ def _blend_metrics() -> list[Metric]:
     tells/politeness). One definition shared by fit() and axis_report() so metric
     discovery and lookup can't drift."""
     return [m for m in REGISTRY if hasattr(m, "hint_axes")]
-
-
-def features(text: str) -> dict[str, float]:
-    """Named style features for one document. Every value traces to its name (NFR2)."""
-    pos = {f"pos_{tag}": r for tag, r in zip(POS_TAGS, _pos_rates(text))}
-    return pos | tell_rates(text)  # pos_* grammatical texture + tell_* lexical AI-markers
-
-
-def feature_matrix(texts: list[str]) -> tuple[np.ndarray, list[str]]:
-    rows = [features(t) for t in texts]
-    names = list(rows[0])
-    X = np.array([[r[k] for k in names] for r in rows], dtype=float)
-    return X, names
-
-
-def _confidence(exemplar_X: np.ndarray, contrast_X: np.ndarray) -> np.ndarray:
-    """Per-feature R^2: squared point-biserial correlation with the voice label.
-    1.0 = this feature perfectly separates you from contrast; ~0 = noise."""
-    X = np.vstack([exemplar_X, contrast_X])
-    y = np.r_[np.ones(len(exemplar_X)), np.zeros(len(contrast_X))]
-    Xs = (X - X.mean(0)) / (X.std(0) + 1e-9)
-    ys = (y - y.mean()) / (y.std() + 1e-9)
-    return ((Xs * ys[:, None]).mean(0)) ** 2
-
-
-def _knn(train_z: np.ndarray, z: np.ndarray, k: int) -> float:
-    """Mean distance to the k nearest standardized exemplars (multi-modal region)."""
-    d = np.linalg.norm(train_z - z, axis=1)
-    return float(np.sort(d)[:k].mean())
 
 
 def _profile_evidence(texts: list[str]) -> tuple[int, int, str, str | None]:
@@ -235,17 +94,6 @@ def _profile_evidence(texts: list[str]) -> tuple[int, int, str, str | None]:
             "Distance is usable, but direction may be unstable."
         )
     return total_words, total_paragraphs, "ok", None
-
-
-def _loo_exemplar_distances(train_ez: np.ndarray, knn_k: int) -> np.ndarray:
-    if len(train_ez) < 2:
-        return np.zeros(1)
-    dists = []
-    k = max(1, min(knn_k, len(train_ez) - 1))
-    for i in range(len(train_ez)):
-        rest = np.delete(train_ez, i, axis=0)
-        dists.append(_knn(rest, train_ez[i], k))
-    return np.array(dists, dtype=float)
 
 
 class VoiceModel:
@@ -303,20 +151,7 @@ class VoiceModel:
         for m in _blend_metrics():
             M = np.array([m.extract(t) for t in texts], dtype=float)
             axis_stats[m.name] = (tuple(M.mean(0)), tuple(M.std(0)), len(texts))
-        # embedding path (scalar)
-        E = np.array([_style_vec(t) for t in texts])
-        emean, estd = E.mean(0), E.std(0)
-        estd[estd == 0] = 1.0
-        train_ez = (E - emean) / estd
-        exemplar_dists = _loo_exemplar_distances(train_ez, knn_k)
-        exemplar_floor = float(np.median(exemplar_dists))
-        exemplar_spread = float(np.std(exemplar_dists) or 1.0)
-        contrast_ceiling = None
-        if contrast:
-            C = np.array([_style_vec(t) for t in contrast])
-            if len(C):
-                contrast_ez = (C - emean) / estd
-                contrast_ceiling = float(np.mean([_knn(train_ez, z, knn_k) for z in contrast_ez]))
+        emean, estd, train_ez, exemplar_floor, exemplar_spread, contrast_ceiling = fit_embedding(texts, contrast, knn_k)
         return cls(names, pmean, pstd, (X - pmean) / pstd, conf,
                    emean, estd, train_ez, top_k, knn_k,
                    len(texts), len(contrast or []), total_words, total_paragraphs,
@@ -478,23 +313,3 @@ def default_model() -> VoiceModel:
     model.sample_fallback = not os.environ.get("TIMBRO_EXEMPLARS") and not os.environ.get("TIMBRO_CONTRAST")
     return model
 
-
-if __name__ == "__main__":
-    # Smoke test: a draft in the seed voice must score closer than an alien one.
-    plain = [
-        "The cat sat by the door. It was small and grey.",
-        "We went to the shop. The shop was shut, so we walked home.",
-        "He likes tea. She likes coffee. They share a pot all the same.",
-        "Rain fell all day. The street was wet. The dog stayed in.",
-        "I read the book twice. The first time was slow. The second was quick.",
-        "The bread was warm. We ate it with butter and a bit of jam.",
-        "She ran to the bus. It left without her. So she took the next one.",
-        "The light was low. We lit a candle and sat and talked.",
-    ]
-    model = VoiceModel.fit(plain)
-    near = model.score("The bird flew off. It was quick and small.").distance
-    far = model.score(
-        "Henceforth the dialectical synthesis necessitates rigorous deconstruction of ontological categories."
-    ).distance
-    assert near < far, f"voice region failed to separate: near={near} far={far}"
-    print(f"ok: in-voice={near:.2f} < out-of-voice={far:.2f}")
