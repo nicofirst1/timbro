@@ -13,8 +13,8 @@ from unittest import mock
 
 import numpy as np
 
-import timbro.rubrics.features as features
 from timbro.flow import flow_report, novelty_curve
+from timbro.rubrics import features
 
 
 class CosineHelperTests(unittest.TestCase):
