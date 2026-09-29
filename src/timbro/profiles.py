@@ -114,7 +114,7 @@ def legacy_profile_warning(root: str | Path | None = None) -> str | None:
         return None
     return (
         f"warning: no profiles in {new}; profiles from Timbro 0.8.0 are still in {legacy}; "
-        f"move them with: mkdir -p {new} && mv {legacy}/* {new}/"
+        f"move them with: mkdir -p '{new}' && mv '{legacy}'/* '{new}'/"
     )
 
 
