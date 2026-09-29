@@ -23,7 +23,7 @@ import yaml
 from lexical_diversity import lex_div
 from wordfreq import zipf_frequency
 
-from timbro.model import POS_TAGS
+from timbro.model.direction import POS_TAGS
 from timbro.text import strip_markup
 
 _FRONTMATTER = re.compile(r"\A---[ \t]*\n(.*?)\n---[ \t]*\n?", re.DOTALL)

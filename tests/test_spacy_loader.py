@@ -8,7 +8,7 @@ from timbro import spacy_model
 
 # (module, function, disable, extra_pipes) per issue #114's call-site table.
 SITES = [
-    ("timbro.model", "_nlp", ("ner", "lemmatizer", "parser"), ()),
+    ("timbro.model.direction", "_nlp", ("ner", "lemmatizer", "parser"), ()),
     ("timbro.axes.tells", "_nlp", ("ner", "lemmatizer", "parser"), ("sentencizer",)),
     ("timbro.metric", "_nlp", ("ner", "parser"), ("sentencizer",)),
     (

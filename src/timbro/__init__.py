@@ -1,12 +1,6 @@
 from timbro.flow import FlowReport, flow_report
-from timbro.model import (
-    AxisReport,
-    FeatureMove,
-    ScoreResult,
-    VoiceModel,
-    features,
-    read_corpus,
-)
+from timbro.model import VoiceModel, read_corpus
+from timbro.model.direction import features
 from timbro.profiles import (
     Profile,
     add_file,
@@ -15,6 +9,7 @@ from timbro.profiles import (
     init_profile,
     list_profiles,
 )
+from timbro.report import AxisReport, FeatureMove, ScoreResult
 from timbro.rubrics import check_text
 
 __all__ = [

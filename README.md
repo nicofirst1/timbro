@@ -255,18 +255,22 @@ uv run timbro score draft.md --profile science-clarity,academic
 
 ```
 src/timbro/
-├── model.py         # corpus → POS features + StyleDistance embedding → VoiceModel
+├── model/           # VoiceModel orchestrator + the two scoring lenses
+│   ├── __init__.py  # VoiceModel: fit/score/axis_report, corpus reader, profile gating
+│   ├── embedding.py # "how far" lens: StyleDistance embedding kNN
+│   └── direction.py # "which way" lens: POS-unigram rates
 ├── text.py          # shared substrate: split_paragraphs/_sentences, strip_markup, MiniLM embedder
 ├── flow.py          # paragraph trajectory, circle-back, order gates
 ├── rewrite.py       # content-preservation guard + accept-rewrite loop
 ├── report.py        # the shared {distance, direction, flow} payload
-├── axes/            # the six standalone Metric axes (register at import)
+├── axes/            # the seven standalone Metric axes (register at import)
 │   ├── tells.py     # AI-tell detectors (regex + POS); feed the `slop` rubric and the score direction
 │   ├── hedge.py     # hedge/booster stance axis
 │   ├── fw.py        # function-word / analytical-thinking axis
 │   ├── concreteness.py  # concreteness axis (Brysbaert norms)
 │   ├── richness.py  # readability / lexical richness / entropy axis
-│   └── politeness.py  # politeness strategies axis (Tier C, manual)
+│   ├── politeness.py  # politeness strategies axis (Tier C, manual)
+│   └── markdown.py  # markdown-structure axis (#28)
 ├── rubrics/         # `check` rubrics (schimel/slop/density): features + rules + registry
 ├── cleanup/         # ingest-time corpus prep (LaTeX/paper extraction — not markdown)
 └── cli.py           # `timbro score` + `timbro check`
