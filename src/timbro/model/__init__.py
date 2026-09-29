@@ -50,9 +50,11 @@ from timbro.report import (  # dataclasses/labels: report.py formats for humans 
     ScoreResult,
     _label,
 )
+from timbro.text import (
+    _PARA,  # shared raw-text plumbing (same regex text.py has always used)
+)
 
 _FRONTMATTER = re.compile(r"\A---\n.*?\n---\n", re.DOTALL)
-_PARA = re.compile(r"\n\s*\n")
 _WORD = re.compile(r"\b\w+\b")
 
 # DEFAULT_EXEMPLARS / DEFAULT_CONTRAST (packaged sample corpus paths) live in priors.py

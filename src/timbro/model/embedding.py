@@ -11,6 +11,7 @@ from functools import lru_cache
 import numpy as np
 
 from timbro.metric import _knn
+from timbro.text import _PARA
 
 
 @lru_cache(maxsize=1)
@@ -40,10 +41,6 @@ def _style_model():
 def _style_vec(text: str) -> tuple[float, ...]:
     # one style vector per doc = mean of paragraph (chunk) style embeddings. cached
     # because the LOO harness re-scores the same docs across folds.
-    from timbro.model import (
-        _PARA,  # lazy: the package __init__ imports this module (#106), like _struct_vec's cycle-hiding lazy import
-    )
-
     chunks = [p.strip() for p in _PARA.split(text) if p.strip()] or [text[:2000]]
     return tuple(_style_model().encode(chunks, normalize_embeddings=True).mean(0))
 
