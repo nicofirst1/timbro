@@ -1,7 +1,6 @@
 """The "how far" lens: StyleDistance embedding kNN (one of the two lenses; the
-orchestrator lives in `timbro.model`). Moved verbatim from model.py (#106), plus
-`fit_embedding`, which holds the embedding-fit portion of `VoiceModel.fit` (also
-moved verbatim, same numpy ops in the same order)."""
+orchestrator lives in `timbro.model`), plus `fit_embedding`, which holds the
+embedding-fit portion of `VoiceModel.fit`."""
 
 from __future__ import annotations
 

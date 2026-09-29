@@ -1,6 +1,6 @@
 """AI-tell layer: named lexical/phrasal markers of LLM prose, as white-box features.
 
-The POS direction in `core` measures *grammatical texture* — it is blind to
+The POS direction in `timbro.model.direction` measures *grammatical texture* — it is blind to
 *lexical* tells. A draft can sit dead-centre in your POS cloud and still say
 "delve into the rich tapestry", carry an em-dash, or run "it's not X, it's Y".
 Those are exactly the markers two public corpora converge on: Wikipedia's "Signs
@@ -23,7 +23,7 @@ from functools import lru_cache
 
 from timbro.metric import Reference, register
 from timbro.priors import (
-    TELL_PRIOR,  # noqa: F401  (re-exported: model.py/checks.py/tests import it from here)
+    TELL_PRIOR,  # noqa: F401  (re-exported: the slop checks and tests import it from here)
 )
 
 # Plain-English labels so a flagged tell reads as advice, not a feature id.
@@ -50,9 +50,6 @@ TELL_LABEL = {
     "dropped_subject": "dropped-subject opener (bare finite verb, no subject)",
     "staccato_run": "staccato run (3+ consecutive sentences under 8 words)",
 }
-
-# TELL_PRIOR (confidence floor, seeded from the Reddit study's citation frequency) lives
-# in priors.py now (PR #57 review); re-imported above.
 
 _FRONTMATTER = re.compile(r"\A---\n.*?\n---\n", re.DOTALL)
 _WORD = re.compile(r"\b\w+\b")
@@ -164,7 +161,7 @@ TELL_NAMES = tuple(TELL_LABEL)  # stable order for the feature vector
 
 
 def _nlp():
-    # A second spaCy config (separate from model.py's, which disables the
+    # A second spaCy config (separate from direction.py's, which disables the
     # parser and can't give sentence boundaries): same disable list plus a
     # sentencizer -- rule-based boundaries, no statistical parser.
     from timbro.spacy_model import cached_pipeline

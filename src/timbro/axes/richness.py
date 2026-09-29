@@ -49,7 +49,7 @@ def _nlp():
 
 @lru_cache(maxsize=512)
 def _doc(text: str):
-    return _nlp()(text[:100000])  # same cap parsed_doc/model.py use
+    return _nlp()(text[:100000])  # same cap parsed_doc/direction.py use
 
 
 def _shannon_entropy(doc) -> float:

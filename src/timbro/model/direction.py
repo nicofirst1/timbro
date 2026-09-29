@@ -1,6 +1,5 @@
 """The "which way" lens: POS-unigram rates, confidence-weighted, white-box (one of
-the two lenses; the orchestrator lives in `timbro.model`). Moved verbatim from
-model.py (#106)."""
+the two lenses; the orchestrator lives in `timbro.model`)."""
 
 from __future__ import annotations
 

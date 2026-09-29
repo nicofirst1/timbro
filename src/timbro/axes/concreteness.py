@@ -27,10 +27,9 @@ from timbro.metric import parsed_doc, register
 from timbro.priors import CONCRETENESS_REFERENCE
 
 _CONTENT_POS = {"NOUN", "VERB", "ADJ", "ADV"}
-# Package-relative, same convention as model.py's `_SAMPLE = Path(__file__).parent /
-# "sample"` -- but one level up, since this file moved into axes/ (#117) and norms/
-# stayed at the package root. Resolves against the installed package dir, not CWD, so
-# the plugin cache sandbox and any CWD find it the same way.
+# Package-relative (like priors.py's `_SAMPLE`), one level up: this file lives in
+# axes/ while norms/ stays at the package root. Resolves against the installed
+# package dir, not CWD, so the plugin cache sandbox and any CWD find it the same way.
 _NORMS_PATH = Path(__file__).parent.parent / "norms" / "concreteness_brysbaert2014.csv.gz"
 
 
@@ -64,7 +63,6 @@ def concreteness_stats(text: str) -> tuple[float, float]:
 
 
 # --- Metric (#43/#46) -----------------------------------------------------------------
-# CONCRETENESS_REFERENCE lives in priors.py now (PR #57 review); re-imported above.
 
 
 class _ConcretenessMetric:

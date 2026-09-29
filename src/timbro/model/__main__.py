@@ -1,6 +1,6 @@
 """Smoke-test entry point: `uv run python -m timbro.model` (CLAUDE.md's core smoke
-test). The block moved verbatim from model.py's `if __name__ == "__main__":` (#106),
-which a package would otherwise swallow silently."""
+test). Lives in a module of its own because a package would otherwise swallow
+the `if __name__ == "__main__":` block silently."""
 
 from timbro.model import VoiceModel
 

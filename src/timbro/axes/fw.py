@@ -7,7 +7,7 @@ words, so they carry a strong voice signature. Article/preposition density corre
 with analytical thinking; first-person-singular correlates with status/self-focus
 (Atlas Sec3.1). Pure POS predicates over the shared cached Doc (`metric.parsed_doc`) --
 no lexicon, no new dependency -- reported standalone, the same way `hedge.py`/
-`MARKDOWN_METRIC` axes are (see model.py): it does not feed the embedding distance or
+`MARKDOWN_METRIC` axes are: it does not feed the embedding distance or
 POS direction/`_WEIGHTS`.
 
 Five sub-axes, each a rate per 1000 word-tokens (same convention as hedge.py/tells.py):
@@ -58,7 +58,6 @@ def function_word_rates(text: str) -> tuple[float, float, float, float, float]:
 
 
 # --- Metric (#43/#45) ----------------------------------------------------------------
-# FUNCTION_WORD_REFERENCE lives in priors.py now (PR #57 review); re-imported above.
 
 
 class _FunctionWordMetric:
