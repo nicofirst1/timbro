@@ -66,17 +66,18 @@ class FeaturesUseSharedCosineTests(unittest.TestCase):
 class FlowUsesCosineTests(unittest.TestCase):
     """flow must produce cosine-based values on hand-built NON-UNIT embeddings.
 
-    These fail on base, where flow uses raw dot products and never normalizes
-    its inputs.
+    Expected values are hand-computed literals from an integer matrix, NOT
+    values computed with cosine itself, so the tests stay valid even if the
+    helper's internals mutate (P1). They fail on base, where flow uses raw
+    dot products and never normalizes its inputs.
     """
 
-    # Hand-built non-unit embedding matrix: norms 3, 6, sqrt(2), sqrt(5).
+    # Integer non-unit matrix; vector norms 3, 4, 5 (two 3-4-5 triangles).
     EMB = np.array(
         [
             [3.0, 0.0],
-            [6.0, 0.0],
-            [1.0, 1.0],
-            [1.0, 2.0],
+            [0.0, 4.0],
+            [3.0, 4.0],
         ]
     )
 
@@ -85,28 +86,22 @@ class FlowUsesCosineTests(unittest.TestCase):
             return flow_report("paragraph text is ignored; embed is patched")
 
     def test_coherence_is_mean_of_pairwise_cosines(self):
-        from timbro.text import cosine
-
-        emb = self.EMB
-        expected = float(
-            np.mean([cosine(emb[i], emb[i + 1]) for i in range(len(emb) - 1)])
-        )
-        self.assertAlmostEqual(self._report().coherence, expected, places=12)
+        # cos(e0, e1) = (3*0 + 0*4) / (3*4)   =  0/12 = 0.0
+        # cos(e1, e2) = (0*3 + 4*4) / (4*5)   = 16/20 = 0.8
+        # coherence   = (0.0 + 0.8) / 2       = 0.4
+        self.assertAlmostEqual(self._report().coherence, 0.4, places=12)
 
     def test_novelty_curve_uses_cosine_not_raw_dot(self):
-        from timbro.text import cosine
-
-        emb = self.EMB
-        expected = np.array(
-            [1 - cosine(emb[i], emb[:i].mean(0)) for i in range(1, len(emb))]
-        )
-        np.testing.assert_allclose(novelty_curve(emb), expected, rtol=0, atol=1e-12)
+        # i=1: centroid is e0 = [3, 0]; cos(e1, [3, 0]) = (0*3 + 4*0) / (4*3) = 0.0
+        #      -> 1 - 0.0 = 1.0
+        # i=2: centroid is (e0 + e1) / 2 = [1.5, 2.0], norm sqrt(6.25) = 2.5;
+        #      cos(e2, [1.5, 2.0]) = (3*1.5 + 4*2) / (5*2.5) = 12.5 / 12.5 = 1.0
+        #      -> 1 - 1.0 = 0.0  ([3, 4] is exactly 2x its running centroid)
+        np.testing.assert_allclose(novelty_curve(self.EMB), [1.0, 0.0], rtol=0, atol=1e-12)
 
     def test_circle_back_is_cosine_of_first_and_last(self):
-        from timbro.text import cosine
-
-        expected = cosine(self.EMB[0], self.EMB[-1])
-        self.assertAlmostEqual(self._report().circle_back, expected, places=12)
+        # cos(e0, e2) = (3*3 + 0*4) / (3*5) = 9/15 = 0.6
+        self.assertAlmostEqual(self._report().circle_back, 0.6, places=12)
 
 
 if __name__ == "__main__":
