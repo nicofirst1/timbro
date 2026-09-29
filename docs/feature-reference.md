@@ -119,7 +119,7 @@ Runs on the **raw draft**, markup intact (the struct features live in the markup
 | `struct_long_paragraph_ratio`   | Paragraphs with > 6 sentences / total paragraphs | Density of chunky prose                      |
 | `struct_prose_ratio`            | Prose characters / total characters       | Proportion that is continuous text (vs. lists/code) |
 
-**When no corpus**: If the model has no fitted corpus stats (a `VoiceModel` built directly through the Python API with no `axis_stats`, rather than fitted from a corpus), markdown_report returns an empty list. CLI runs always fit a non-empty corpus or fall back to the packaged sample voice.
+**When no corpus**: If the model has no fitted corpus stats (a `VoiceModel` built directly through the Python API with no `axis_stats`, rather than fitted from a corpus), markdown_report returns an empty list. Every CLI run that fits a model fits a non-empty corpus or falls back to the packaged sample voice.
 
 ---
 
