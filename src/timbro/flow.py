@@ -19,10 +19,11 @@ from __future__ import annotations
 
 import sys
 from dataclasses import asdict, dataclass
+from itertools import pairwise
 
 import numpy as np
 
-from timbro.text import _model, split_paragraphs
+from timbro.text import _model, cosine, split_paragraphs
 
 
 def paragraphs(text: str, min_words: int = 15) -> list[str]:
@@ -40,7 +41,7 @@ def coherence(emb: np.ndarray) -> float:
     (the whole point: a shuffle should lower it)."""
     if len(emb) < 2:
         return 0.0
-    return float(np.mean(np.sum(emb[:-1] * emb[1:], axis=1)))
+    return float(np.mean([cosine(a, b) for a, b in pairwise(emb)]))
 
 
 def shuffle_test(emb: np.ndarray, rounds: int = 200, seed: int = 0) -> float:
@@ -81,9 +82,7 @@ def novelty_curve(emb: np.ndarray) -> np.ndarray:
     """1 - cos(e_i, running centroid of e_<i): how new each paragraph is vs the past."""
     out = []
     for i in range(1, len(emb)):
-        c = emb[:i].mean(0)
-        c /= np.linalg.norm(c) + 1e-9
-        out.append(1 - float(emb[i] @ c))
+        out.append(1 - cosine(emb[i], emb[:i].mean(0)))
     return np.array(out)
 
 
@@ -99,7 +98,7 @@ def flow_report(text: str) -> FlowReport:
         volume=float(np.mean(np.linalg.norm(emb - emb.mean(0), axis=1))),
         circuitousness=float(steps.sum() / direct),
         terminal_initial_ratio=float(nov[-1] / (nov[0] + 1e-9)),
-        circle_back=float(emb[0] @ emb[-1]),
+        circle_back=cosine(emb[0], emb[-1]),
         coherence=coherence(emb),
     )
 
