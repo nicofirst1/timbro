@@ -64,9 +64,7 @@ def function_word_rates(text: str) -> tuple[float, float, float, float, float]:
 class _FunctionWordMetric:
     """Function-word axis as a `Metric`. `extract` returns (first_person_sg,
     article_rate, preposition_rate, conjunction_rate, pronoun_rate) per-1000-words for
-    one raw document. Self-describing for the report layer (#108): `hint_axes` carries
-    the imperative revision phrase per direction; `axes` is derived from it so the two
-    cannot drift."""
+    one raw document."""
 
     # (axis, raise_hint, lower_hint): "raise" fires when the draft sits below the
     # reference (needs more of the marker); "lower" fires above it.

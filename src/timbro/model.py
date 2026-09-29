@@ -139,9 +139,7 @@ def _struct_vec(text: str) -> tuple[float, ...]:
 
 class _MarkdownMetric:
     """Markdown-structure axis group as a `Metric`. `extract` returns the struct feature
-    vector in `STRUCT_AXIS_NAMES` order for one raw document. Self-describing for the
-    report layer (#108): `hint_axes` carries the imperative revision phrase per
-    direction; `axes` is derived from it so the two cannot drift."""
+    vector in `STRUCT_AXIS_NAMES` order for one raw document."""
 
     # Markdown-structure axes scored as a SEPARATE group from the embedding/POS composite
     # (issue #28) -- these never feed the distance/direction, they get their own

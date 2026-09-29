@@ -89,9 +89,7 @@ def richness_stats(text: str) -> tuple[float, float, float]:
 
 class _RichnessMetric:
     """Readability/richness/entropy axis as a `Metric`. `extract` returns
-    (coleman_liau_index, hdd, shannon_entropy) for one raw document. Self-describing
-    for the report layer (#108): `hint_axes` carries the imperative revision phrase per
-    direction; `axes` is derived from it so the two cannot drift."""
+    (coleman_liau_index, hdd, shannon_entropy) for one raw document."""
 
     # (axis, raise_hint, lower_hint): "raise" fires when the draft sits below the
     # reference (needs more of the marker); "lower" fires above it.

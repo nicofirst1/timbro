@@ -69,9 +69,7 @@ def concreteness_stats(text: str) -> tuple[float, float]:
 class _ConcretenessMetric:
     """Concreteness axis as a `Metric`. `extract` returns (mean_concreteness,) for one
     raw document, per-lemma norms averaged over content words. Standalone axis group --
-    does not feed the embedding distance or POS direction (issue #46). Self-describing
-    for the report layer (#108): `hint_axes` carries the imperative revision phrase per
-    direction; `axes` is derived from it so the two cannot drift."""
+    does not feed the embedding distance or POS direction (issue #46)."""
 
     # (axis, raise_hint, lower_hint): "raise" fires when the draft sits below the
     # reference (needs more concrete language); "lower" fires above it (draft leans
