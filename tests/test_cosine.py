@@ -68,7 +68,7 @@ class FlowUsesCosineTests(unittest.TestCase):
 
     Expected values are hand-computed literals from an integer matrix, NOT
     values computed with cosine itself, so the tests stay valid even if the
-    helper's internals mutate (P1). They fail on base, where flow uses raw
+    helper's internals mutate. They fail on base, where flow uses raw
     dot products and never normalizes its inputs.
     """
 
