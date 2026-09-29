@@ -111,7 +111,7 @@ That floor is what "Reddit frequency" refers to. The two public compilations abo
 
 Scored independently against the exemplar corpus mean/std (no declared prior). Each axis is z-scored; directions are returned only if |z| ≥ 0.5 (the markdown metric's `z_tol`, `MARKDOWN_METRIC.z_tol`).
 
-Runs on the **raw markdown** text (markup intact), not the cleaned text.
+Runs on the **raw draft**, markup intact (the struct features live in the markup itself); the other standalone axis groups run on the prepared text.
 
 | Axis                            | Raw Value                                 | Meaning                                             |
 | ------------------------------- | ----------------------------------------- | --------------------------------------------------- |
@@ -135,7 +135,7 @@ Runs on the **raw markdown** text (markup intact), not the cleaned text.
 
 Per-1000-word rates. Uses declared prior [`HEDGE_BOOSTER_REFERENCE`](../src/timbro/priors.py#L57) blended with corpus mean/std via `Reference.blend` (see Shared Mechanics, below). Directions fire only if |z| ≥ 0.5 (the hedge metric's `z_tol`, `HEDGE_BOOSTER_METRIC.z_tol`).
 
-Runs on the **cleaned text** (markdown stripped).
+Runs on the **prepared text** (whitespace- and punctuation-spacing normalized; LaTeX stripped when the input looks like LaTeX; markup left intact).
 
 | Axis           | Rate Unit      | Meaning                                                                                                                                                   |
 | -------------- | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -152,7 +152,7 @@ Runs on the **cleaned text** (markdown stripped).
 
 Per-1000-word rates. Uses declared prior [`FUNCTION_WORD_REFERENCE`](../src/timbro/priors.py#L139) (derived from 750 chunks of 7 Project Gutenberg texts) blended with corpus mean/std via `Reference.blend`. Directions fire only if |z| ≥ 0.5 (the fw metric's `z_tol`, `FUNCTION_WORD_METRIC.z_tol`).
 
-Runs on the **cleaned text** (markdown stripped).
+Runs on the **prepared text** (whitespace- and punctuation-spacing normalized; LaTeX stripped when the input looks like LaTeX; markup left intact).
 
 | Axis               | Rate Unit      | Meaning                                         |
 | ------------------ | -------------- | ----------------------------------------------- |
@@ -179,7 +179,7 @@ Runs on the **cleaned text** (markdown stripped).
 
 Mean concreteness score (1–5 scale, where 1 is abstract and 5 is concrete/physical). Uses declared prior [`CONCRETENESS_REFERENCE`](../src/timbro/priors.py#L110) blended with corpus mean/std via `Reference.blend`. Directions fire only if |z| ≥ 0.5 (the concreteness metric's `z_tol`, `CONCRETENESS_METRIC.z_tol`).
 
-Runs on the **cleaned text** (markdown stripped). Word ratings come from Brysbaert, Warriner & Kuperman (2014) concreteness norms (37,058 lemmas, frequency-weighted).
+Runs on the **prepared text** (whitespace- and punctuation-spacing normalized; LaTeX stripped when the input looks like LaTeX; markup left intact). Word ratings come from Brysbaert, Warriner & Kuperman (2014) concreteness norms (37,058 lemmas, frequency-weighted).
 
 | Axis                | Scale | Meaning                                                                      |
 | ------------------- | ----- | ---------------------------------------------------------------------------- |
@@ -195,7 +195,7 @@ Runs on the **cleaned text** (markdown stripped). Word ratings come from Brysbae
 
 Per-draft "how the prose reads" signals, reported standalone (never feed the distance or direction). Uses declared prior [`RICHNESS_REFERENCE`](../src/timbro/priors.py#L164) (hand-reasoned; derivation in the code comment) blended with corpus mean/std via `Reference.blend`. Directions fire only if |z| ≥ 0.5 (the richness metric's `z_tol`, `RICHNESS_METRIC.z_tol`).
 
-Runs on the **cleaned text** (markdown stripped).
+Runs on the **prepared text** (whitespace- and punctuation-spacing normalized; LaTeX stripped when the input looks like LaTeX; markup left intact).
 
 | Axis          | Unit               | Meaning                                                                                         |
 | ------------- | ------------------ | ----------------------------------------------------------------------------------------------- |
