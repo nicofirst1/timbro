@@ -8,12 +8,17 @@ exit path and stderr are exercised.
 
 from __future__ import annotations
 
+import contextlib
+import io
 import os
 import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
+
+from timbro.cli import main
 
 _DRAFT = "I fixed the parser today. It dropped the last row, so I added a guard and a test."
 
@@ -95,6 +100,54 @@ class UnknownProfileTests(unittest.TestCase):
             proc = _run_cli(["score", str(draft), "--profile", "no-such-profile"], env)
         _assert_clean_error(self, proc)
         self.assertIn("no-such-profile", proc.stderr)
+
+
+class AcceptNamesTheFailingFileTests(unittest.TestCase):
+    def test_accept_bad_revised_names_revised_not_original(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            original = Path(tmp) / "orig.md"
+            original.write_text(_DRAFT, encoding="utf-8")
+            revised = Path(tmp) / "rev-latin1.md"
+            revised.write_bytes(b"caf\xe9 latte\n")
+            proc = _run_cli(["accept", str(original), str(revised)])
+        _assert_clean_error(self, proc)
+        self.assertIn(str(revised), proc.stderr)
+        self.assertNotIn(str(original), proc.stderr)
+
+
+class CorpusDecodeErrorDoesNotBlameTheDraftTests(unittest.TestCase):
+    def test_score_with_bad_corpus_file_does_not_name_the_draft(self):
+        # add-file copies bytes without UTF-8 validation, so a latin-1 file can
+        # enter a corpus legally; the error must not claim the draft is the
+        # non-UTF-8 one, and must not name any file it is not sure of.
+        with tempfile.TemporaryDirectory() as tmp:
+            draft = Path(tmp) / "draft.md"
+            draft.write_text(_DRAFT, encoding="utf-8")
+            exemplars = Path(tmp) / "profiles" / "corrupt" / "exemplars"
+            exemplars.mkdir(parents=True)
+            (exemplars / "good.md").write_text(_DRAFT, encoding="utf-8")
+            (exemplars / "old-note.md").write_bytes(b"caf\xe9 latte\n")
+            env = {"TIMBRO_PROFILE_ROOT": str(Path(tmp) / "profiles")}
+            proc = _run_cli(["score", str(draft), "--profile", "corrupt"], env)
+        _assert_clean_error(self, proc)
+        self.assertNotIn(str(draft), proc.stderr)
+
+
+class UncaughtExceptionsStillTracebackTests(unittest.TestCase):
+    def test_exception_outside_the_caught_types_still_propagates(self):
+        # Bugs must stay loud: a RuntimeError from a command must propagate out
+        # of main() (the interpreter then prints the traceback), not be turned
+        # into a clean 'timbro: error:' line + sys.exit(1).
+        stderr = io.StringIO()
+        with mock.patch(
+            "timbro.cli.cmd_check", side_effect=RuntimeError("injected bug must stay loud")
+        ):
+            with contextlib.redirect_stderr(stderr):
+                with mock.patch("sys.argv", ["timbro", "check", "unused.md"]):
+                    with self.assertRaises(RuntimeError):
+                        main()
+        self.assertNotIn("timbro: error:", stderr.getvalue())
+        self.assertNotIn("Traceback", stderr.getvalue())
 
 
 if __name__ == "__main__":
