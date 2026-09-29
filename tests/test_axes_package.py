@@ -7,6 +7,7 @@ from __future__ import annotations
 import importlib
 import importlib.util
 import unittest
+from pathlib import Path
 
 AXES = ("concreteness", "fw", "hedge", "politeness", "richness", "tells")
 
@@ -35,12 +36,12 @@ class AxesPackageTest(unittest.TestCase):
             spec = importlib.util.find_spec(f"timbro.{axis}")
             self.assertIsNone(spec, f"timbro.{axis} should no longer exist")
 
-    def test_axes_init_exports_nothing_public(self):
+    def test_axes_init_is_empty(self):
+        # No re-export hub: the file itself is empty, independent of which submodules
+        # other imports happen to have loaded into the package namespace.
         import timbro.axes
 
-        self.assertFalse(hasattr(timbro.axes, "__all__"))
-        public = {n for n in vars(timbro.axes) if not n.startswith("_")}
-        self.assertEqual(public, set(AXES))  # only the imported submodules themselves
+        self.assertEqual(Path(timbro.axes.__file__).read_text(), "")
 
     def test_concreteness_norms_load_after_the_move(self):
         from timbro.axes.concreteness import concreteness_stats
