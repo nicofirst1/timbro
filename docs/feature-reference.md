@@ -99,7 +99,7 @@ Named detections of lexical and phrasal patterns that show up in LLM prose more 
 
 **Tell confidence floor.** Confidence is how reliably a feature separates your voice from the contrast set (an R², 0–1). Tells have a problem here: a clean exemplar corpus contains almost none of them, so there is nothing for the correlation to measure, and their confidence would round to zero — they'd never surface, even in a draft that is full of them. So each tell gets a _floor_ on its confidence, seeded from outside your corpus.
 
-That floor is what "Reddit frequency" refers to. The two public compilations above rank how often each marker gets _cited_ as an AI tell — not how often it appears in text, but how often people name it as a giveaway. The more often a marker is called out, the higher its floor: em-dash overuse tops both lists at 0.70, "it's not X, it's Y" at 0.55, and so on (see [`TELL_PRIOR`](../src/timbro/config.py#L67)). The floor only lifts a tell's confidence; a strong in-corpus signal can still push it higher.
+That floor is what "Reddit frequency" refers to. The two public compilations above rank how often each marker gets _cited_ as an AI tell — not how often it appears in text, but how often people name it as a giveaway. The more often a marker is called out, the higher its floor: em-dash overuse tops both lists at 0.70, "it's not X, it's Y" at 0.55, and so on (see [`TELL_PRIOR`](../src/timbro/priors.py#L67)). The floor only lifts a tell's confidence; a strong in-corpus signal can still push it higher.
 
 **One-sidedness.** Tells are flagged only when **over-represented** (z > 0) in the draft. They are not penalized when under-represented, so the direction never says "add em-dashes." A tell is an LLM marker, not a feature to tune toward.
 
@@ -131,7 +131,7 @@ Runs on the **raw markdown** text (markup intact), not the cleaned text.
 
 ## Hedge/Booster Stance (2 axes)
 
-Per-1000-word rates. Uses declared prior [`HEDGE_BOOSTER_REFERENCE`](../src/timbro/config.py#L56) blended with corpus mean/std via `Reference.blend` (see Shared Mechanics, below). Directions fire only if |z| ≥ 0.5 (HEDGE_Z_TOL).
+Per-1000-word rates. Uses declared prior [`HEDGE_BOOSTER_REFERENCE`](../src/timbro/priors.py#L56) blended with corpus mean/std via `Reference.blend` (see Shared Mechanics, below). Directions fire only if |z| ≥ 0.5 (HEDGE_Z_TOL).
 
 Runs on the **cleaned text** (markdown stripped).
 
@@ -148,7 +148,7 @@ Runs on the **cleaned text** (markdown stripped).
 
 ## Function Words (5 axes)
 
-Per-1000-word rates. Uses declared prior [`FUNCTION_WORD_REFERENCE`](../src/timbro/config.py#L138) (derived from 750 chunks of 7 Project Gutenberg texts) blended with corpus mean/std via `Reference.blend`. Directions fire only if |z| ≥ 0.5 (FW_Z_TOL).
+Per-1000-word rates. Uses declared prior [`FUNCTION_WORD_REFERENCE`](../src/timbro/priors.py#L138) (derived from 750 chunks of 7 Project Gutenberg texts) blended with corpus mean/std via `Reference.blend`. Directions fire only if |z| ≥ 0.5 (FW_Z_TOL).
 
 Runs on the **cleaned text** (markdown stripped).
 
@@ -175,7 +175,7 @@ Runs on the **cleaned text** (markdown stripped).
 
 ## Concreteness (1 axis)
 
-Mean concreteness score (1–5 scale, where 1 is abstract and 5 is concrete/physical). Uses declared prior [`CONCRETENESS_REFERENCE`](../src/timbro/config.py#L109) blended with corpus mean/std via `Reference.blend`. Directions fire only if |z| ≥ 0.5 (CONCRETENESS_Z_TOL).
+Mean concreteness score (1–5 scale, where 1 is abstract and 5 is concrete/physical). Uses declared prior [`CONCRETENESS_REFERENCE`](../src/timbro/priors.py#L109) blended with corpus mean/std via `Reference.blend`. Directions fire only if |z| ≥ 0.5 (CONCRETENESS_Z_TOL).
 
 Runs on the **cleaned text** (markdown stripped). Word ratings come from Brysbaert, Warriner & Kuperman (2014) concreteness norms (37,058 lemmas, frequency-weighted).
 

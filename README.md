@@ -187,7 +187,7 @@ npx skills update                          # later: pulls newer instructions + C
 
 **Will it work on one author / a whole company?** Both. The "voice" is whatever you put in `data/exemplars/`. Mixed registers (blogs + papers) are fine — the scorer is multi-modal.
 
-**Can I keep several directions (academic vs. slop, clear vs. jargon)?** Yes — one folder pair per dimension, selected by env var. Profiles live under `~/.timbro/profiles/<name>/{exemplars,contrast}/` by default (override with `TIMBRO_PROFILE_ROOT`). Point the env vars at the one you want for a given task:
+**Can I keep several directions (academic vs. slop, clear vs. jargon)?** Yes — one folder pair per dimension, selected by env var. Profiles live under `~/.timbro/profiles/<name>/{exemplars,contrast}/` by default (`TIMBRO_HOME` relocates `~/.timbro`; `TIMBRO_PROFILE_ROOT` overrides just the profiles dir). `<TIMBRO_HOME>/settings.json` is created on first run; its `no_log` flag (or `TIMBRO_NO_LOG=1`) turns off the per-profile learn log. Point the env vars at the one you want for a given task:
 
 ```bash
 P=~/.timbro/profiles/academic

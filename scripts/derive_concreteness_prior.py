@@ -1,4 +1,4 @@
-"""Derive CONCRETENESS_REFERENCE (config.py) for issue #58.
+"""Derive CONCRETENESS_REFERENCE (priors.py) for issue #58.
 
 Two derivations, mixed deliberately because they answer different questions:
 
@@ -94,7 +94,7 @@ def derive(rows: list[tuple[str, float, float]], vendored_lemmas: set[str]) -> t
     """Frequency-weighted (mean, spread) over individual lemmas, restricted to the
     vendored lemma set. The spread this returns is the LEMMA-level spread -- kept for
     reference/testing but NOT what CONCRETENESS_REFERENCE.spread uses; see
-    `derive_document_spread` for the document-level number the config actually needs.
+    `derive_document_spread` for the document-level number the prior actually needs.
     """
     kept = [(conc, freq) for lemma, conc, freq in rows if lemma in vendored_lemmas]
     concreteness = [c for c, _ in kept]

@@ -22,8 +22,8 @@ from __future__ import annotations
 import re
 from functools import lru_cache
 
-from timbro.config import FUNCTION_WORD_REFERENCE
 from timbro.metric import parsed_doc, register
+from timbro.priors import FUNCTION_WORD_REFERENCE
 
 _WORD = re.compile(r"\b\w+\b")
 
@@ -58,7 +58,7 @@ def function_word_rates(text: str) -> tuple[float, float, float, float, float]:
 
 
 # --- Metric (#43/#45) ----------------------------------------------------------------
-# FUNCTION_WORD_REFERENCE lives in config.py now (PR #57 review); re-imported above.
+# FUNCTION_WORD_REFERENCE lives in priors.py now (PR #57 review); re-imported above.
 
 
 class _FunctionWordMetric:
