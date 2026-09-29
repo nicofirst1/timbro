@@ -43,7 +43,11 @@ def _install_model() -> None:
         cmd = [uv_path, "pip", "install", "--python", sys.executable, wheel_url]
     else:
         cmd = [sys.executable, "-m", "pip", "install", wheel_url]
-    subprocess.run(cmd, check=True)
+    # stdout -> sys.stderr (issue #136): with inherited stdio, a closed
+    # stdout pipe (`timbro check draft.md | head -5`) breaks pip mid-install
+    # and every piped cold start keeps failing. pip's progress belongs on
+    # stderr, next to the "downloading" notice.
+    subprocess.run(cmd, check=True, stdout=sys.stderr)
 
 
 def load_spacy(**kwargs) -> spacy.language.Language:  # noqa: F821
