@@ -184,9 +184,6 @@ class _MarkdownMetric:
 
 
 MARKDOWN_METRIC = register(_MarkdownMetric())
-# The structure-only reference (strength 0): kept as a name because priors.py/
-# politeness.py comments refer to it; it is the markdown metric's prior, not a second one.
-MARKDOWN_REFERENCE = MARKDOWN_METRIC.prior
 
 STRUCT_AXIS_NAMES: tuple[str, ...] = MARKDOWN_METRIC.axes
 

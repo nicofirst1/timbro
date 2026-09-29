@@ -9,8 +9,9 @@ it inline (PR #57 review) -- this is a move, not a retune.
 What does NOT belong here: detector/extractor code (regexes with matching logic,
 POS predicates, the `_count_*`/`*_rates` functions), scoring weights (`_PENALTY`,
 `_WEIGHTS`), verdict thresholds in `report.py`, or the structural zero-placeholder
-references (`TELL_REFERENCE`, `MARKDOWN_REFERENCE`) -- those derive their length
-from an axis-name tuple and live next to it, so the two can't drift apart.
+references (`TELL_REFERENCE`, and the markdown metric's prior `MARKDOWN_METRIC.prior`
+in `model.py`) -- those derive their length from an axis-name tuple and live next to
+it, so the two can't drift apart.
 """
 
 from __future__ import annotations
