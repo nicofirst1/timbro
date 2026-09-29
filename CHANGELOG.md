@@ -42,6 +42,19 @@ New voice axes, interchangeable rubrics, profile sync across machines, and a mod
 
 ### Fixed
 
+- A first run piped into `head` no longer breaks the spaCy model install. The install's output goes to stderr, not stdout (#136).
+- Parallel first runs no longer race the spaCy model install. It is serialized on a per-environment file lock, so the model installs once (#173).
+- Offline runs with cached models no longer stall for minutes on hub retries. Both sentence-transformer models load from the local cache first; offline `check` dropped from 2m44s to 4.7s. Cached models no longer auto-update from the hub (#139).
+- Expected user errors print one `timbro: error:` line and exit 1 instead of a traceback: a missing file, a non-UTF-8 file, a duplicate `add-file`, an unknown profile, and `add-file` on a `.tex` file without `detex`. A decode error names only the file that actually failed (#137, #147).
+- `check --profile` with no exemplars names the missing path, the same way `score` does (#161).
+- `profiles add-file --dest-name` rejects anything but a plain file name, so it can no longer write outside the profile (#150).
+- `add_text`/`add_file` reject an unknown bucket instead of silently filing it into `contrast/` (#165).
+- `profiles sync` works on a machine with no git identity once the remote has commits (#151).
+- A profile of near-duplicate exemplars no longer produces z-scores around 1e15 at confidence 1.0. Float-rounding spreads are floored like exact zeros (#160).
+- `flow_report` raises a clear `ValueError` on under 2 paragraphs instead of numpy errors (#164).
+- The `pkg_resources` deprecation warning no longer prints on every run (#140).
+- `scripts/release.sh` refuses to release a `main` that is missing `origin/dev` commits, or a version with no changelog section (#171).
+- Docs: the plugin downloads the spaCy model on first run rather than shipping it; PROFILE.md lists `.txt`; the README scopes `--json` to the commands that have it (#162).
 - `feature-reference.md` now matches the code: 8 of the 11 markdown-structure rows had been wrong, the Richness and Politeness sections were missing, and several stale references are fixed. Stale comments and docstrings were swept after the layout work (#128).
 
 ## [0.8.0] — 2026-08-25
