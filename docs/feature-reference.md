@@ -11,13 +11,7 @@ The design splits into two tools:
 - **Scalar distance ("how far")** — one number for how unlike your voice the whole draft reads. A pre-trained StyleDistance embedding scored by nearest-neighbor against your exemplar cloud. Empirically calibrated: LOO-AUC 0.859 on real 15-doc voices, vs. ~0.80 for classical features.
 - **Ranked direction ("which way")** — everything else, and all of it white-box. 17 grammar (POS) rates + 21 AI-tell detections, each named and weighted by how reliably it marks your voice. Returned as a ranked list of moves like "fewer adjectives, more verbs."
 
-Separately, these axis groups run independently and never feed the distance or ranked direction:
-
-- Markdown structure (11 axes)
-- Hedge/booster stance (2 axes)
-- Function words (5 axes)
-- Concreteness (1 axis)
-- Flow (6 axes, computed only on drafts with ≥4 paragraphs)
+Seven standalone axis groups (markdown, hedge/booster, function words, concreteness, richness, politeness, flow) run independently and never feed the distance or ranked direction; [Which Features Feed What](#which-features-feed-what) maps each to its payload key.
 
 And a **spans** report re-scores the top-3 worst paragraphs at paragraph granularity, using the same features.
 
@@ -76,7 +70,7 @@ Named detections of lexical and phrasal patterns that show up in LLM prose more 
 | Name                | Description                                  | Examples                                                                                                     | Meaning                                                                                       |
 | ------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
 | `dash`              | em/en dashes                                 | `—` `–`                                                                                                      | Overuse is the #1 tell in both source corpora; regex.                                         |
-| `diction`           | AI-tell word choice                          | full list in the [`_DICTION` regex](../src/timbro/axes/tells.py#L60): delve, tapestry, leverage, realm, robust, … | Terms over-represented in LLM prose; regex.                                                   |
+| `diction`           | AI-tell word choice                          | full list in the [`_DICTION` regex](../src/timbro/axes/tells.py#L62): delve, tapestry, leverage, realm, robust, … | Terms over-represented in LLM prose; regex.                                                   |
 | `not_x_y`           | "it's not X, it's Y" / "not only … but also" | "it's not just a tool, it's a tapestry"; "not only fast but also…"                                           | The "AI accent"; #2 tell in both corpora; regex.                                              |
 | `signpost`          | signposting phrases                          | let's dive in, deep dive, when it comes to, it's important to note                                           | Explicit textual navigation; over-scripted; regex.                                            |
 | `conclusion`        | wrap-up phrases                              | in conclusion, to sum up, the future looks bright                                                            | Meta wrap-up filler; regex.                                                                   |
@@ -99,7 +93,7 @@ Named detections of lexical and phrasal patterns that show up in LLM prose more 
 
 **Tell confidence floor.** Confidence is how reliably a feature separates your voice from the contrast set (an R², 0–1). Tells have a problem here: a clean exemplar corpus contains almost none of them, so there is nothing for the correlation to measure, and their confidence would round to zero — they'd never surface, even in a draft that is full of them. So each tell gets a _floor_ on its confidence, seeded from outside your corpus.
 
-That floor is what "Reddit frequency" refers to. The two public compilations above rank how often each marker gets _cited_ as an AI tell — not how often it appears in text, but how often people name it as a giveaway. The more often a marker is called out, the higher its floor: em-dash overuse tops both lists at 0.70, "it's not X, it's Y" at 0.55, and so on (see [`TELL_PRIOR`](../src/timbro/priors.py#L67)). The floor only lifts a tell's confidence; a strong in-corpus signal can still push it higher.
+That floor is what "Reddit frequency" refers to. The two public compilations above rank how often each marker gets _cited_ as an AI tell — not how often it appears in text, but how often people name it as a giveaway. The more often a marker is called out, the higher its floor: em-dash overuse tops both lists at 0.70, "it's not X, it's Y" at 0.55, and so on (see [`TELL_PRIOR`](../src/timbro/priors.py#L68)). The floor only lifts a tell's confidence; a strong in-corpus signal can still push it higher.
 
 **One-sidedness.** Tells are flagged only when **over-represented** (z > 0) in the draft. They are not penalized when under-represented, so the direction never says "add em-dashes." A tell is an LLM marker, not a feature to tune toward.
 
@@ -109,31 +103,31 @@ That floor is what "Reddit frequency" refers to. The two public compilations abo
 
 Scored independently against the exemplar corpus mean/std (no declared prior). Each axis is z-scored; directions are returned only if |z| ≥ 0.5 (the markdown metric's `z_tol`, `MARKDOWN_METRIC.z_tol`).
 
-Runs on the **raw markdown** text (markup intact), not the cleaned text.
+Runs on the **raw draft**, markup intact (the struct features live in the markup itself); the other standalone axis groups run on the prepared text.
 
 | Axis                            | Raw Value                                 | Meaning                                             |
 | ------------------------------- | ----------------------------------------- | --------------------------------------------------- |
-| `struct_heading_count`          | Count of top-level headings               | How many sections                                   |
+| `struct_heading_count`          | Count of headings (all depths)            | How many section headings                           |
 | `struct_max_heading_depth`      | Deepest heading level (1-6)               | Section nesting depth                               |
 | `struct_code_char_ratio`        | Code-block characters / total characters  | Proportion of content in code blocks                |
 | `struct_inline_code_char_ratio` | Inline code characters / total characters | Proportion of inline code                           |
-| `struct_list_item_ratio`        | List items / total paragraphs             | Density of list structure                           |
-| `struct_bullet_list_ratio`      | Bullet list items / total list items      | Bullet vs. numbered ratio                           |
-| `struct_ordered_list_ratio`     | Ordered list items / total list items     | Numbered list ratio                                 |
-| `struct_table_count`            | Count of markdown tables                  | How many tables                                     |
-| `struct_external_ref_count`     | Count of external hyperlinks              | How many outbound links                             |
-| `struct_long_paragraph_ratio`   | Paragraphs > 100 words / total paragraphs | Density of chunky prose                             |
-| `struct_prose_ratio`            | Prose paragraphs / total paragraphs       | Proportion that is continuous text (vs. lists/code) |
+| `struct_list_item_ratio`        | List-item lines / non-blank lines         | Density of list structure                           |
+| `struct_bullet_list_ratio`      | Bullet-item lines / non-blank lines       | How bullet-heavy the doc is                         |
+| `struct_ordered_list_ratio`     | Ordered-item lines / non-blank lines      | How step-by-step the doc is                         |
+| `struct_table_count`            | Count of table separator rows (no leading \|) | How many tables (pipe-less style only, see #132) |
+| `struct_external_ref_count`     | Count of `scripts/`, `references/`, or `assets/` path references | How many repo-path mentions   |
+| `struct_long_paragraph_ratio`   | Paragraphs with > 6 runs of `.!?` (naive: `e.g.` counts twice) / total paragraphs | Density of chunky prose                      |
+| `struct_prose_ratio`            | Prose characters / total characters       | Proportion that is continuous text (vs. lists/code) |
 
-**When no corpus**: If the model was built without exemplars (e.g., `--check` with no profile), markdown_report returns an empty list.
+**When no corpus**: If the model has no fitted corpus stats (a `VoiceModel` built directly through the Python API with no `axis_stats`, rather than fitted from a corpus), markdown_report returns an empty list. Every CLI run that fits a model fits a non-empty corpus or falls back to the packaged sample voice.
 
 ---
 
 ## Hedge/Booster Stance (2 axes)
 
-Per-1000-word rates. Uses declared prior [`HEDGE_BOOSTER_REFERENCE`](../src/timbro/priors.py#L56) blended with corpus mean/std via `Reference.blend` (see Shared Mechanics, below). Directions fire only if |z| ≥ 0.5 (the hedge metric's `z_tol`, `HEDGE_BOOSTER_METRIC.z_tol`).
+Per-1000-word rates. Uses declared prior [`HEDGE_BOOSTER_REFERENCE`](../src/timbro/priors.py#L57) (see Shared Mechanics).
 
-Runs on the **cleaned text** (markdown stripped).
+Runs on the prepared text.
 
 | Axis           | Rate Unit      | Meaning                                                                                                                                                   |
 | -------------- | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -142,15 +136,15 @@ Runs on the **cleaned text** (markdown stripped).
 
 **Declared Prior**: mean=(6.0, 4.0), spread=(4.0, 4.0). A typical prose passage carries a few hedges and a few boosters per 1000 words; dozens/1000 would read as mealy-mouthed or bombastic. The prior reflects Hyland's research that hedges are more common than boosters in careful prose.
 
-**Reports Even With No Corpus**: Unlike markdown (which is corpus-only), hedge/booster always has a reference (the declared prior). With no corpus, the prior passes through unchanged, so `hedge_report` returns usable advice even with `--check` and no profile.
+**Reports Even With No Corpus**: Unlike markdown (which is corpus-only), the declared prior always gives a reference, so `hedge_report` returns usable advice with no corpus stats.
 
 ---
 
 ## Function Words (5 axes)
 
-Per-1000-word rates. Uses declared prior [`FUNCTION_WORD_REFERENCE`](../src/timbro/priors.py#L138) (derived from 750 chunks of 7 Project Gutenberg texts) blended with corpus mean/std via `Reference.blend`. Directions fire only if |z| ≥ 0.5 (the fw metric's `z_tol`, `FUNCTION_WORD_METRIC.z_tol`).
+Per-1000-word rates. Uses declared prior [`FUNCTION_WORD_REFERENCE`](../src/timbro/priors.py#L139) (derived from 750 chunks of 7 Project Gutenberg texts; see Shared Mechanics).
 
-Runs on the **cleaned text** (markdown stripped).
+Runs on the prepared text.
 
 | Axis               | Rate Unit      | Meaning                                         |
 | ------------------ | -------------- | ----------------------------------------------- |
@@ -169,15 +163,13 @@ Runs on the **cleaned text** (markdown stripped).
 - pronoun_rate: mean=112.81, spread=40.16
 - Strength: 2.0 (modest pseudo-count; a 5+ doc profile corpus dominates, but the axis still reports something sane with zero corpus)
 
-**Reports Even With No Corpus**: Function-word rates always have a reference. With no corpus, the prior passes through unchanged.
-
 ---
 
 ## Concreteness (1 axis)
 
-Mean concreteness score (1–5 scale, where 1 is abstract and 5 is concrete/physical). Uses declared prior [`CONCRETENESS_REFERENCE`](../src/timbro/priors.py#L109) blended with corpus mean/std via `Reference.blend`. Directions fire only if |z| ≥ 0.5 (the concreteness metric's `z_tol`, `CONCRETENESS_METRIC.z_tol`).
+Mean concreteness score (1–5 scale, where 1 is abstract and 5 is concrete/physical). Uses declared prior [`CONCRETENESS_REFERENCE`](../src/timbro/priors.py#L110) (see Shared Mechanics).
 
-Runs on the **cleaned text** (markdown stripped). Word ratings come from Brysbaert, Warriner & Kuperman (2014) concreteness norms (37,058 lemmas, frequency-weighted).
+Runs on the prepared text. Word ratings come from Brysbaert, Warriner & Kuperman (2014) concreteness norms (37,058 lemmas, frequency-weighted).
 
 | Axis                | Scale | Meaning                                                                      |
 | ------------------- | ----- | ---------------------------------------------------------------------------- |
@@ -185,7 +177,25 @@ Runs on the **cleaned text** (markdown stripped). Word ratings come from Brysbae
 
 **Declared Prior**: mean=2.7094 (frequency-weighted over the norms), spread=0.2792 (population stdev of document-level concreteness, not lemma-level; derived from 750 x 1000-word chunks of Gutenberg texts), strength=2.0.
 
-**Reports Even With No Corpus**: Concreteness always has a reference. With no corpus, the prior passes through unchanged.
+---
+
+## Readability / Richness / Entropy (3 axes)
+
+Per-draft "how the prose reads" signals, reported standalone. Uses declared prior [`RICHNESS_REFERENCE`](../src/timbro/priors.py#L164) (hand-reasoned; derivation in the code comment; see Shared Mechanics).
+
+Runs on the prepared text.
+
+| Axis          | Unit               | Meaning                                                                                         |
+| ------------- | ------------------ | ----------------------------------------------------------------------------------------------- |
+| `readability` | Coleman-Liau grade | US school grade level of the draft (higher = harder to read)                                     |
+| `richness`    | 0–1                | HDD lexical diversity (higher = more varied vocabulary; length-robust, unlike type-token ratio)  |
+| `entropy`     | bits               | Shannon entropy of the lemma distribution (higher = more varied/unpredictable word choice)       |
+
+---
+
+## Politeness Strategies (reporting-only)
+
+Counts how many of Danescu-Niculescu-Mizil et al. (2013)'s 20 politeness strategies fire (gratitude, greetings, deference, apologies, hedges, …), matched by lemma/POS over the shared spaCy doc. No prior, no z-score, no direction: the axis makes no scored claim (Tier C per ADR 0005). These are correspondence signals (email, professional messaging), so narrative/expository prose typically fires none; when the count is zero the report is `null` ("not applicable"), not a zero score. Output is `{total, strategies: {<name>: count}}`: raw counts, not per-1000-word rates.
 
 ---
 
@@ -213,14 +223,16 @@ Top-3 worst paragraphs by distance, each re-scored with the same features (dista
 - Paragraph index
 - Paragraph distance and distance_z
 - First 280 characters of the paragraph
-- Local direction (top-2 POS/tell moves for that paragraph)
-- The worst sentence in that paragraph (longest at embedding distance, with its own top-2 direction)
+- Local direction (top-3 POS/tell moves for that paragraph)
+- The worst sentence in that paragraph (highest embedding distance among 8+-word sentences, with its own top-2 direction)
 
 No new features: spans reuse the distance and white-box features at paragraph granularity.
 
 ---
 
 ## Shared Mechanics
+
+**Input text**: every standalone axis group except markdown runs on the **prepared text**: whitespace- and punctuation-spacing normalized, with LaTeX stripped when the input looks like LaTeX and the `detex` tool is available (`preprocess_runtime_text`). Markdown markup is left intact, so the markdown axes run on the raw draft.
 
 ### Z-Scoring and Confidence Ranking
 
@@ -240,7 +252,7 @@ where `confidence` is R² (squared point-biserial correlation with the voice lab
 
 ### Prior-Blending for Standalone Axis Groups
 
-Hedge, function-word, and concreteness axes have **declared priors** (`Reference` objects with mean, spread, strength). When a corpus is supplied, the prior is blended with the corpus mean/std via [`Reference.blend`](../src/timbro/metric.py#L31):
+Hedge, function-word, concreteness, and richness axes have **declared priors** (`Reference` objects with mean, spread, strength). When a corpus is supplied, the prior is blended with the corpus mean/std via [`Reference.blend`](../src/timbro/metric.py#L33):
 
 ```python
 w = n / (n + strength)
@@ -252,11 +264,9 @@ where `n` is the number of corpus documents and `strength` is the prior's pseudo
 
 **With n = 0 (no corpus)**: The prior passes through unchanged (w = 0), so these axes always report something. **With large n**: The corpus dominates; the prior becomes a weak regularizer.
 
-This pattern lets these axes work in two modes: contrastive (when corpus is present) and absolute (when it's not).
+### Tolerance Thresholds (z_tol)
 
-### Tolerance Thresholds (Z_TOL)
-
-Markdown, hedge, function-word, and concreteness axes are only flagged with direction hints if |z| ≥ 0.5. This prevents noise from low-signal axes from cluttering the advice. Set once per axis group; not currently tunable.
+Markdown, hedge, function-word, concreteness, and richness axes are only flagged with direction hints if |z| ≥ 0.5 (each metric's `z_tol` field, e.g. `MARKDOWN_METRIC.z_tol`). This prevents noise from low-signal axes from cluttering the advice. Set once per axis group; not currently tunable.
 
 ---
 
@@ -271,6 +281,8 @@ Markdown, hedge, function-word, and concreteness axes are only flagged with dire
 | `hedge`              | Hedge/booster rates (2), scored vs. blended prior (no feed to distance/direction) |
 | `fw`                 | Function-word rates (5), scored vs. blended prior (no feed to distance/direction) |
 | `concreteness`       | Concreteness (1), scored vs. blended prior (no feed to distance/direction)        |
+| `richness`           | Readability/richness/entropy (3), scored vs. blended prior (no feed to distance/direction) |
+| `politeness`         | Politeness strategy counts (reporting-only, no z-score or direction)              |
 | `flow`               | Paragraph embeddings (6 axes), no z-score or direction                            |
 | `spans`              | Distance + direction at paragraph granularity (reuses all white-box features)     |
 
