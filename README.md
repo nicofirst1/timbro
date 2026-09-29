@@ -271,7 +271,7 @@ src/timbro/
 │   ├── concreteness.py  # concreteness axis (Brysbaert norms)
 │   ├── richness.py  # readability / lexical richness / entropy axis
 │   ├── politeness.py  # politeness strategies axis (Tier C, manual)
-│   └── markdown.py  # markdown-structure axis (#28)
+│   └── markdown.py  # markdown-structure axis
 ├── rubrics/         # `check` rubrics (schimel/slop/density): features + rules + registry
 ├── cleanup/         # ingest-time corpus prep (LaTeX/paper extraction — not markdown)
 ├── metric.py        # the Metric/Reference contract, REGISTRY, parsed_doc, kNN + confidence helpers
