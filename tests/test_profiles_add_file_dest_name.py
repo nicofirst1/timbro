@@ -99,6 +99,28 @@ class AddFileDestNameValidationTests(unittest.TestCase):
                         f"--dest-name must be a plain file name, got '{bad}'",
                     )
 
+    def test_nul_byte_rejected_before_any_write(self):
+        # NUL cannot arrive through real argv, so this is API-only (review R1,
+        # issue #150 round 2): a NUL name is a plain name by the Path.name rule
+        # but must still be rejected with the --dest-name message, before
+        # init_profile's side effects.
+        with tempfile.TemporaryDirectory() as td:
+            td_path = Path(td)
+            root = td_path / "profiles"
+            src = td_path / "draft.md"
+            src.write_text("draft text\n", encoding="utf-8")
+            before = _tree(td_path)
+
+            with self.assertRaises(ValueError) as ctx:
+                add_file("demo", src, bucket="exemplars", dest_name="plain\x00.md", root=root)
+
+            self.assertEqual(
+                str(ctx.exception),
+                "--dest-name must be a plain file name, got 'plain\x00.md'",
+            )
+            # Nothing written anywhere: no profile, no bucket file, no escape.
+            self.assertEqual(_tree(td_path), before)
+
     def test_plain_name_still_works(self):
         with tempfile.TemporaryDirectory() as td:
             td_path = Path(td)
