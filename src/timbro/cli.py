@@ -278,7 +278,7 @@ def cmd_profiles_add_file(args):
             dest_name=args.dest_name,
             overwrite=args.overwrite,
         )
-    except RuntimeError as exc:
+    except (RuntimeError, ValueError) as exc:
         print(f"timbro: error: {exc}", file=sys.stderr)
         sys.exit(1)
     print(dst)
