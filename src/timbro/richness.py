@@ -89,10 +89,22 @@ def richness_stats(text: str) -> tuple[float, float, float]:
 
 class _RichnessMetric:
     """Readability/richness/entropy axis as a `Metric`. `extract` returns
-    (coleman_liau_index, hdd, shannon_entropy) for one raw document."""
+    (coleman_liau_index, hdd, shannon_entropy) for one raw document. Self-describing
+    for the report layer (#108): `hint_axes` carries the imperative revision phrase per
+    direction; `axes` is derived from it so the two cannot drift."""
+
+    # (axis, raise_hint, lower_hint): "raise" fires when the draft sits below the
+    # reference (needs more of the marker); "lower" fires above it.
+    hint_axes: tuple[tuple[str, str, str], ...] = (
+        ("readability", "simplify sentences and word choice", "add more complex sentences and vocabulary"),
+        ("richness", "vary word choice more", "use a narrower, more repeated vocabulary"),
+        ("entropy", "vary word choice more", "use a narrower, more repeated vocabulary"),
+    )
+    # Fixed tolerance; promote to a knob only if a caller needs to tune it.
+    z_tol: float = 0.5
 
     name = "richness"
-    axes = ("readability", "richness", "entropy")
+    axes = tuple(a for a, _, _ in hint_axes)
     prior = RICHNESS_REFERENCE
 
     def extract(self, text: str) -> tuple[float, ...]:

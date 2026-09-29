@@ -84,10 +84,23 @@ def hedge_booster_rates(text: str) -> tuple[float, float]:
 
 class _HedgeBoosterMetric:
     """Hedge/booster stance axis as a `Metric`. `extract` returns (hedge_rate,
-    booster_rate) per-1000-words for one raw document."""
+    booster_rate) per-1000-words for one raw document. Self-describing for the report
+    layer (#108): `hint_axes` carries the imperative revision phrase per direction,
+    (axis, raise_hint, lower_hint). "raise" fires when the draft sits below the
+    reference (needs more of the marker); "lower" fires above it. `axes` is derived
+    from `hint_axes` so the two cannot drift."""
+
+    # (axis, raise_hint, lower_hint): "raise" fires when the draft sits below the
+    # reference (needs more of the marker); "lower" fires above it.
+    hint_axes: tuple[tuple[str, str, str], ...] = (
+        ("hedge_rate", "hedge claims more (might/perhaps/seems)", "hedge claims less, state more directly"),
+        ("booster_rate", "assert claims more directly (clearly/must/in fact)", "soften strong claims"),
+    )
+    # Fixed tolerance; promote to a knob only if a caller needs to tune it.
+    z_tol: float = 0.5
 
     name = "hedge"
-    axes = ("hedge_rate", "booster_rate")
+    axes = tuple(a for a, _, _ in hint_axes)
     prior = HEDGE_BOOSTER_REFERENCE
 
     def extract(self, text: str) -> tuple[float, ...]:

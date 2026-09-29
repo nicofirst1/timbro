@@ -9,7 +9,7 @@ from timbro.hedge import (
     hedge_booster_rates,
 )
 from timbro.metric import REGISTRY, Reference
-from timbro.model import HEDGE_AXES, VoiceModel
+from timbro.model import VoiceModel
 
 
 class SelfCheckTest(unittest.TestCase):
@@ -101,16 +101,18 @@ class VoiceModelHedgeReportTest(unittest.TestCase):
 
     def test_profiled_model_reports_hedge_axes(self):
         model = VoiceModel.fit(self._CORPUS)
-        self.assertGreater(model.hn, 0)
+        self.assertGreater(model._axis_stats["hedge"][2], 0)
         axes = {a.axis: a for a in model.hedge_report("It might work, perhaps.")}
-        self.assertEqual(set(axes), {axis for axis, _, _ in HEDGE_AXES})
+        self.assertEqual(set(axes), {axis for axis, _, _ in HEDGE_BOOSTER_METRIC.hint_axes})
         for a in axes.values():
             self.assertTrue(a.axis)
 
     def test_no_profile_still_reports_via_prior(self):
-        # A model with hn=0 falls back to the declared prior alone (n=0 blend passthrough).
+        # A model with the hedge corpus count forced to 0 falls back to the declared
+        # prior alone (n=0 blend passthrough) -- the old `model.hn = 0`.
         model = VoiceModel.fit(self._CORPUS)
-        model.hn = 0
+        mean, std, _ = model._axis_stats["hedge"]
+        model._axis_stats["hedge"] = (mean, std, 0)
         axes = {a.axis: a for a in model.hedge_report("It might work.")}
         self.assertAlmostEqual(axes["hedge_rate"].reference_mean, HEDGE_BOOSTER_REFERENCE.mean[0])
         self.assertAlmostEqual(axes["booster_rate"].reference_mean, HEDGE_BOOSTER_REFERENCE.mean[1])

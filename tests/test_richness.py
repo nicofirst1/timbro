@@ -4,7 +4,7 @@ from __future__ import annotations
 import unittest
 
 from timbro.metric import REGISTRY, Reference
-from timbro.model import RICHNESS_AXES, VoiceModel
+from timbro.model import VoiceModel
 from timbro.richness import (
     RICHNESS_METRIC,
     RICHNESS_REFERENCE,
@@ -87,15 +87,16 @@ class VoiceModelRichnessReportTest(unittest.TestCase):
 
     def test_profiled_model_reports_richness_axes(self):
         model = VoiceModel.fit(self._CORPUS)
-        self.assertGreater(model.rn, 0)
+        self.assertGreater(model._axis_stats["richness"][2], 0)
         axes = {a.axis: a for a in model.richness_report(_DENSE)}
-        self.assertEqual(set(axes), {axis for axis, _, _ in RICHNESS_AXES})
+        self.assertEqual(set(axes), {axis for axis, _, _ in RICHNESS_METRIC.hint_axes})
         for a in axes.values():
             self.assertTrue(a.axis)
 
     def test_no_profile_still_reports_via_prior(self):
         model = VoiceModel.fit(self._CORPUS)
-        model.rn = 0
+        mean, std, _ = model._axis_stats["richness"]
+        model._axis_stats["richness"] = (mean, std, 0)  # the old `model.rn = 0`
         axes = {a.axis: a for a in model.richness_report(_DENSE)}
         self.assertAlmostEqual(axes["readability"].reference_mean, RICHNESS_REFERENCE.mean[0])
         self.assertAlmostEqual(axes["richness"].reference_mean, RICHNESS_REFERENCE.mean[1])

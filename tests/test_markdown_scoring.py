@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import unittest
 
-from timbro.model import STRUCT_AXIS_NAMES, MARKDOWN_Z_TOL, VoiceModel
+from timbro.model import MARKDOWN_METRIC, STRUCT_AXIS_NAMES, VoiceModel
 
 
 # Three docs with two headings each and no code -> heading axis has variance,
@@ -36,7 +36,7 @@ class StructScoringTests(unittest.TestCase):
         draft = "# A\n## B\n### C\n#### D\n##### E\n###### F\n\nlots of headings."
         axes = {a.axis: a for a in model.markdown_report(draft)}
         hc = axes["struct_heading_count"]
-        self.assertGreater(hc.z, MARKDOWN_Z_TOL)  # clearly above corpus mean
+        self.assertGreater(hc.z, MARKDOWN_METRIC.z_tol)  # clearly above corpus mean
         self.assertEqual(hc.direction, "merge section headings")
 
     def test_zero_variance_axis_is_finite_and_ontarget(self):
@@ -67,7 +67,7 @@ class StructScoringTests(unittest.TestCase):
 
     def test_no_struct_stats_yields_empty(self):
         model = _model()
-        model.smean = None
+        del model._axis_stats["markdown"]  # the old `model.smean = None`
         self.assertEqual(model.markdown_report("# anything"), [])
 
 

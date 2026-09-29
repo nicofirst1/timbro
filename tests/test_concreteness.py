@@ -10,7 +10,7 @@ from timbro.concreteness import (
     concreteness_stats,
 )
 from timbro.metric import REGISTRY, Reference
-from timbro.model import CONCRETENESS_AXES, VoiceModel
+from timbro.model import VoiceModel
 
 
 class LookupTest(unittest.TestCase):
@@ -94,15 +94,16 @@ class VoiceModelConcretenessReportTest(unittest.TestCase):
 
     def test_profiled_model_reports_concreteness_axis(self):
         model = VoiceModel.fit(self._CORPUS)
-        self.assertGreater(model.cn, 0)
+        self.assertGreater(model._axis_stats["concreteness"][2], 0)
         axes = {a.axis: a for a in model.concreteness_report("The hammer hit the table.")}
-        self.assertEqual(set(axes), {axis for axis, _, _ in CONCRETENESS_AXES})
+        self.assertEqual(set(axes), {axis for axis, _, _ in CONCRETENESS_METRIC.hint_axes})
         for a in axes.values():
             self.assertTrue(a.axis)
 
     def test_no_profile_still_reports_via_prior(self):
         model = VoiceModel.fit(self._CORPUS)
-        model.cn = 0
+        mean, std, _ = model._axis_stats["concreteness"]
+        model._axis_stats["concreteness"] = (mean, std, 0)  # the old `model.cn = 0`
         axes = {a.axis: a for a in model.concreteness_report("The hammer hit the table.")}
         self.assertAlmostEqual(
             axes["mean_concreteness"].reference_mean, CONCRETENESS_REFERENCE.mean[0]
