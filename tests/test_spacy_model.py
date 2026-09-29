@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import shutil
 import subprocess
 import sys
+import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -15,10 +17,20 @@ _WHEEL_URL = (
 
 
 class LoadSpacyColdStartTests(unittest.TestCase):
+    def setUp(self):
+        # load_spacy takes its install lock under tempfile.gettempdir(); keep
+        # that (and everything else) out of the real tmp dir.
+        self._tmp = tempfile.mkdtemp(prefix="timbro-spacy-model-")
+        self.addCleanup(shutil.rmtree, self._tmp, True)
+
     def test_installs_with_uv_python_flag_and_returns_loaded_model(self):
         loaded = MagicMock(name="loaded_model")
         with (
-            patch("spacy.load", side_effect=[OSError("missing"), loaded]) as mock_load,
+            patch("tempfile.gettempdir", return_value=self._tmp),
+            patch(
+                "spacy.load",
+                side_effect=[OSError("missing"), OSError("still missing"), loaded],
+            ) as mock_load,
             patch("spacy.cli.download.get_compatibility", return_value=_COMPAT),
             patch("shutil.which", return_value="/opt/homebrew/bin/uv"),
             patch("subprocess.run") as mock_run,
@@ -26,7 +38,7 @@ class LoadSpacyColdStartTests(unittest.TestCase):
             result = spacy_model.load_spacy()
 
         self.assertIs(result, loaded)
-        self.assertEqual(mock_load.call_count, 2)
+        self.assertEqual(mock_load.call_count, 3)
         mock_run.assert_called_once()
         cmd = mock_run.call_args.args[0]
         self.assertEqual(
@@ -45,7 +57,11 @@ class LoadSpacyColdStartTests(unittest.TestCase):
     def test_falls_back_to_pip_when_uv_unavailable(self):
         loaded = MagicMock(name="loaded_model")
         with (
-            patch("spacy.load", side_effect=[OSError("missing"), loaded]),
+            patch("tempfile.gettempdir", return_value=self._tmp),
+            patch(
+                "spacy.load",
+                side_effect=[OSError("missing"), OSError("still missing"), loaded],
+            ),
             patch("spacy.cli.download.get_compatibility", return_value=_COMPAT),
             patch("shutil.which", return_value=None),
             patch("subprocess.run") as mock_run,
@@ -57,6 +73,7 @@ class LoadSpacyColdStartTests(unittest.TestCase):
 
     def test_install_failure_propagates_instead_of_silent_e050(self):
         with (
+            patch("tempfile.gettempdir", return_value=self._tmp),
             patch("spacy.load", side_effect=OSError("missing")),
             patch("spacy.cli.download.get_compatibility", return_value=_COMPAT),
             patch("shutil.which", return_value="/opt/homebrew/bin/uv"),
