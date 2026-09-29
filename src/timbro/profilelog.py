@@ -8,21 +8,21 @@ stored, only a content hash for correlation.
 Logging must never break `learn()`: any failure here is swallowed and reported
 as `None`, not raised.
 
-Opt out with `TIMBRO_NO_LOG=1` in the environment (a user/test switch, read here,
-not set anywhere in code).
+Opt out with `TIMBRO_NO_LOG=1` in the environment, or `"no_log": true` in
+`<TIMBRO_HOME>/settings.json` (see `timbro.settings.no_log`).
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
-import os
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from timbro.report import voice_report
+from timbro.settings import no_log
 
 if TYPE_CHECKING:
     from timbro.model import VoiceModel
@@ -70,11 +70,12 @@ def log_learn(
     """Append one JSONL record of a learn() event to <profile_dir>/runs.jsonl.
 
     Best-effort: never raises into the caller. Returns the path written, or None
-    if logging is disabled (TIMBRO_NO_LOG) or anything went wrong.
+    if logging is disabled (TIMBRO_NO_LOG env or `no_log` in settings.json) or
+    anything went wrong, including an invalid settings file.
     """
-    if os.environ.get("TIMBRO_NO_LOG"):
-        return None
     try:
+        if no_log():
+            return None
         record = {
             "ts": datetime.now(UTC).isoformat(),
             "profile": profile.name,

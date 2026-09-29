@@ -1,4 +1,4 @@
-"""Derive `FUNCTION_WORD_REFERENCE` (config.py, #59) from a public-domain corpus.
+"""Derive `FUNCTION_WORD_REFERENCE` (priors.py, #59) from a public-domain corpus.
 
 Downloads a fixed set of Project Gutenberg texts (fiction + non-fiction, no lexicon,
 no NLTK -- stdlib `urllib` only), strips the Gutenberg header/footer boilerplate,

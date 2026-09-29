@@ -23,8 +23,8 @@ import gzip
 from functools import lru_cache
 from pathlib import Path
 
-from timbro.config import CONCRETENESS_REFERENCE
 from timbro.metric import parsed_doc, register
+from timbro.priors import CONCRETENESS_REFERENCE
 
 _CONTENT_POS = {"NOUN", "VERB", "ADJ", "ADV"}
 # Package-relative, same convention as model.py's `_SAMPLE = Path(__file__).parent /
@@ -63,7 +63,7 @@ def concreteness_stats(text: str) -> tuple[float, float]:
 
 
 # --- Metric (#43/#46) -----------------------------------------------------------------
-# CONCRETENESS_REFERENCE lives in config.py now (PR #57 review); re-imported above.
+# CONCRETENESS_REFERENCE lives in priors.py now (PR #57 review); re-imported above.
 
 
 class _ConcretenessMetric:

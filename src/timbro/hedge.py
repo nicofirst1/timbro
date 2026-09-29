@@ -23,22 +23,22 @@ from __future__ import annotations
 import re
 from functools import lru_cache
 
-from timbro.config import (
+from timbro.metric import parsed_doc, register
+from timbro.priors import (
     BOOSTER_LEMMAS as _BOOSTER_LEMMAS,
 )
-from timbro.config import (
+from timbro.priors import (
     BOOSTER_PHRASES as _BOOSTER_PHRASES,
 )
-from timbro.config import (
+from timbro.priors import (
     HEDGE_BOOSTER_REFERENCE,
 )
-from timbro.config import (
+from timbro.priors import (
     HEDGE_LEMMAS as _HEDGE_LEMMAS,
 )
-from timbro.config import (
+from timbro.priors import (
     HEDGE_PHRASES as _HEDGE_PHRASES,
 )
-from timbro.metric import parsed_doc, register
 
 _WORD = re.compile(r"\b\w+\b")
 
@@ -79,7 +79,7 @@ def hedge_booster_rates(text: str) -> tuple[float, float]:
 
 
 # --- Metric (#43/#44) ----------------------------------------------------------------
-# HEDGE_BOOSTER_REFERENCE lives in config.py now (PR #57 review); re-imported above.
+# HEDGE_BOOSTER_REFERENCE lives in priors.py now (PR #57 review); re-imported above.
 
 
 class _HedgeBoosterMetric:

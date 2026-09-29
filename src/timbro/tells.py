@@ -21,10 +21,10 @@ from __future__ import annotations
 import re
 from functools import lru_cache
 
-from timbro.config import (
+from timbro.metric import Reference, register
+from timbro.priors import (
     TELL_PRIOR,  # noqa: F401  (re-exported: model.py/checks.py/tests import it from here)
 )
-from timbro.metric import Reference, register
 
 # Plain-English labels so a flagged tell reads as advice, not a feature id.
 TELL_LABEL = {
@@ -52,7 +52,7 @@ TELL_LABEL = {
 }
 
 # TELL_PRIOR (confidence floor, seeded from the Reddit study's citation frequency) lives
-# in config.py now (PR #57 review); re-imported above.
+# in priors.py now (PR #57 review); re-imported above.
 
 _FRONTMATTER = re.compile(r"\A---\n.*?\n---\n", re.DOTALL)
 _WORD = re.compile(r"\b\w+\b")
@@ -284,7 +284,7 @@ def tell_baseline(texts: list[str]) -> dict[str, tuple[float, float]]:
     return out
 
 
-# Structural zero placeholder, not a tunable prior (those live in config.py): a clean
+# Structural zero placeholder, not a tunable prior (those live in priors.py): a clean
 # exemplar corpus carries ~0 tells, and strength=0 means a real corpus fully sets the
 # mean/std at fit. Derived from TELL_NAMES so the length can't drift from the detectors.
 TELL_REFERENCE = Reference(

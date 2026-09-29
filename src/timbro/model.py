@@ -27,7 +27,6 @@ import numpy as np
 from timbro.concreteness import (
     CONCRETENESS_METRIC,
 )
-from timbro.config import DEFAULT_CONTRAST, DEFAULT_EXEMPLARS, TELL_PRIOR
 from timbro.fw import (
     FUNCTION_WORD_METRIC,
 )
@@ -35,6 +34,7 @@ from timbro.hedge import (
     HEDGE_BOOSTER_METRIC,
 )
 from timbro.metric import Reference, register
+from timbro.priors import DEFAULT_CONTRAST, DEFAULT_EXEMPLARS, TELL_PRIOR
 from timbro.report import (  # dataclasses/axis tuples/labels: report.py formats for humans (PR #57 review)
     CONCRETENESS_AXES,
     CONCRETENESS_Z_TOL,
@@ -74,7 +74,7 @@ _FRONTMATTER = re.compile(r"\A---\n.*?\n---\n", re.DOTALL)
 _PARA = re.compile(r"\n\s*\n")
 _WORD = re.compile(r"\b\w+\b")
 
-# DEFAULT_EXEMPLARS / DEFAULT_CONTRAST (packaged sample corpus paths) live in config.py
+# DEFAULT_EXEMPLARS / DEFAULT_CONTRAST (packaged sample corpus paths) live in priors.py
 # now (PR #57 review); re-imported above.
 
 
@@ -150,7 +150,7 @@ def _struct_vec(text: str) -> tuple[float, ...]:
     return tuple(float(struct.get(name) or 0.0) for name in STRUCT_AXIS_NAMES)
 
 
-# Structural neutral placeholder, not a tunable prior (those live in config.py): this
+# Structural neutral placeholder, not a tunable prior (those live in priors.py): this
 # axis group runs only contrastively today -- the reference is corpus-derived at fit
 # (smean/sstd) and `markdown_report` returns [] with no corpus. Derived from
 # STRUCT_AXIS_NAMES so the length can't drift from the axis tuple.

@@ -28,8 +28,8 @@ import math
 from collections import Counter
 from functools import lru_cache
 
-from timbro.config import RICHNESS_REFERENCE
 from timbro.metric import register
+from timbro.priors import RICHNESS_REFERENCE
 
 _CONTENT_POS = {"NOUN", "PROPN", "VERB", "ADJ", "ADV"}  # same set analyze.py uses for lex_mtld/lex_hdd
 
