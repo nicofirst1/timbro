@@ -1,10 +1,8 @@
-"""The markdown axis owns `_struct_features` end to end (issue #120).
-
-The extractor moved verbatim out of the deleted analyze module, so the
+"""The markdown axis owns `_struct_features` end to end (issue #120): the
 `struct_*`/`fm_desc_*` features live beside the `MARKDOWN_METRIC` that scores them.
-The fm-description token count must stay identical to the deleted pipeline's
-`len(doc)`: only the tokenizer is run, and pipeline components never retokenize.
-"""
+The fm-description token count must match what the pre-#120 four-pipe spaCy
+pipeline's `len(doc)` produced: only the tokenizer is run, and pipeline components
+never retokenize, so the counts stay comparable across the switch."""
 
 from __future__ import annotations
 
@@ -19,8 +17,8 @@ import timbro
 
 
 def _moved():
-    """The moved extractor, imported lazily so a pre-#120 tree fails with an
-    ImportError naming the missing implementation, not a collection error."""
+    """The moved extractor, imported lazily so a missing implementation fails with
+    an ImportError naming it, not a collection error."""
     from timbro.axes.markdown import _struct_features
 
     return _struct_features
