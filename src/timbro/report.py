@@ -3,8 +3,9 @@ one payload the CLI returns (score + flow).
 
 `timbro.model` keeps the statistical model (corpus loading, spaCy pipeline,
 feature extraction, z-scores/distances, Metric orchestration); this module formats
-those results as named advice. Imports from model only where needed, never the
-reverse -- model builds and returns the dataclasses defined below.
+those results as named advice. It never imports `timbro.model` (the model is passed
+in); the dependency runs the other way -- model builds and returns the dataclasses
+defined below.
 """
 
 from dataclasses import asdict, dataclass
