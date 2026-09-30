@@ -65,7 +65,7 @@ npx skills update    # later: pull the latest version
 /plugin install timbro@timbro
 ```
 
-The plugin ships the skill, the spaCy model, and a small **sample voice**, so it works right away: ask Claude to _"score this against the Timbro sample voice"_. To use your own voice, ask Claude to run the `timbro-setup` skill for a guided walkthrough (see [Profiles](#profiles)).
+The plugin ships the skill and a small **sample voice**, so it works right away (the first run downloads the spaCy model): ask Claude to _"score this against the Timbro sample voice"_. To use your own voice, ask Claude to run the `timbro-setup` skill for a guided walkthrough (see [Profiles](#profiles)).
 
 ### Command line
 
