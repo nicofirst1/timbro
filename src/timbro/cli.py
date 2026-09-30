@@ -246,6 +246,11 @@ def cmd_profiles_sync(args):
         result = sync_profiles(init_remote=args.init)
     except (RuntimeError, OSError, ValueError) as exc:
         _fail(f"sync failed: {exc}", code=2)
+    if not args.json and "previous_remote" in result:
+        print(
+            f"warning: sync --init repointed origin from {result['previous_remote']} to {args.init}",
+            file=sys.stderr,
+        )
     if args.json:
         print(json.dumps(result))
     elif result["status"] == "ok":

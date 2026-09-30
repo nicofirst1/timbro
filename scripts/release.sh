@@ -24,6 +24,17 @@ if [[ "$branch" != "main" ]]; then
   exit 1
 fi
 
+git fetch -q origin
+if ! git merge-base --is-ancestor origin/dev HEAD; then
+  echo "error: main is missing commits from origin/dev; merge dev into main first" >&2
+  exit 1
+fi
+
+if ! grep -q "^## \[$VERSION\]" CHANGELOG.md; then
+  echo "error: CHANGELOG.md has no '## [$VERSION]' section" >&2
+  exit 1
+fi
+
 echo "==> bumping version to $VERSION"
 uv version "$VERSION"
 python3 - "$VERSION" <<'EOF'
@@ -73,4 +84,4 @@ claude plugin marketplace update timbro
 claude plugin update timbro@timbro
 uv sync --directory "$HOME/.claude/plugins/cache/timbro/timbro/$VERSION"
 
-echo "==> done. Restart Claude Code to load the new MCP server."
+echo "==> done. Restart Claude Code to load the updated plugin."
