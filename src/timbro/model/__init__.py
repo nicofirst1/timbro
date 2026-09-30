@@ -140,7 +140,8 @@ class VoiceModel:
         # POS path (direction)
         X, names = feature_matrix(texts)
         pmean, pstd = X.mean(0), X.std(0)
-        pstd[pstd == 0] = 1.0
+        # POS and tell rates live in [0, 1], so a std below 1e-9 is float rounding, not spread.
+        pstd[pstd < 1e-9] = 1.0
         conf = _confidence(X, feature_matrix(contrast)[0]) if contrast else np.ones(len(names))
         # tells get an empirical floor (Reddit frequency ranks) so they surface even
         # when the contrast set is clean -- no separate AI-slop corpus needed.
