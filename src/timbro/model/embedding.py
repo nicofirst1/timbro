@@ -33,7 +33,14 @@ def _style_model():
         pass
     from sentence_transformers import SentenceTransformer
 
-    return SentenceTransformer("StyleDistance/styledistance")  # content-invariant style
+    # local-first (#139): with the model cached, the online call still does a hub
+    # HEAD request whose retry backoff stalls minutes with the network down. Try
+    # the cache first; on failure (model not cached, first-run download) fall back
+    # to the unchanged online call.
+    try:
+        return SentenceTransformer("StyleDistance/styledistance", local_files_only=True)
+    except Exception:  # noqa: BLE001 -- cache miss must not block the online fallback
+        return SentenceTransformer("StyleDistance/styledistance")  # content-invariant style
 
 
 @lru_cache(maxsize=512)
