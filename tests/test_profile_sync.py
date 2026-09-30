@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import contextlib
 import io
+import json
 import shutil
 import subprocess
 from pathlib import Path
@@ -45,8 +46,8 @@ def _git_fails(root: Path, *args: str) -> bool:
     return res.returncode != 0
 
 
-def _bare_remote(tmp_path: Path) -> Path:
-    remote = tmp_path / "profiles-remote.git"
+def _bare_remote(tmp_path: Path, name: str = "profiles-remote.git") -> Path:
+    remote = tmp_path / name
     subprocess.run(["git", "init", "--bare", str(remote)], check=True, capture_output=True, text=True)
     return remote
 
@@ -217,6 +218,60 @@ def test_reinit_does_not_duplicate_attribute_lines(tmp_path):
 
     assert (root / ".gitattributes").read_text(encoding="utf-8") == attrs
     assert (root / ".gitignore").read_text(encoding="utf-8") == ignore
+
+
+def test_reinit_new_url_reports_previous_remote_and_warns(tmp_path, monkeypatch):
+    remote_a = _bare_remote(tmp_path, "remote-a.git")
+    remote_b = _bare_remote(tmp_path, "remote-b.git")
+    root = tmp_path / "machine-a"
+    assert sync_profiles(root, init_remote=str(remote_a)) == {"status": "ok"}
+
+    result = sync_profiles(root, init_remote=str(remote_b))
+
+    assert result["status"] == "ok"
+    assert result["previous_remote"] == str(remote_a)
+    assert _git(root, "remote", "get-url", "origin").strip() == str(remote_b)
+
+    # The human CLI warns on stderr, naming both URLs.
+    out, err, code = _run_cli(monkeypatch, root, "sync", "--init", str(remote_a))
+    assert code == 0
+    assert out == "synced\n"
+    assert f"warning: sync --init repointed origin from {remote_b} to {remote_a}" in err
+
+    # In --json mode the key is part of the payload, with no extra stderr line.
+    out, err, code = _run_cli(monkeypatch, root, "sync", "--init", str(remote_b), "--json")
+    assert code == 0
+    assert json.loads(out) == {"status": "ok", "previous_remote": str(remote_a)}
+    assert err == ""
+
+
+def test_reinit_same_url_has_no_previous_remote_and_no_warning(tmp_path, monkeypatch):
+    remote = _bare_remote(tmp_path)
+    root = tmp_path / "machine-a"
+    assert sync_profiles(root, init_remote=str(remote)) == {"status": "ok"}
+
+    result = sync_profiles(root, init_remote=str(remote))
+
+    assert result == {"status": "ok"}
+
+    out, err, code = _run_cli(monkeypatch, root, "sync", "--init", str(remote))
+    assert code == 0
+    assert out == "synced\n"
+    assert err == ""
+
+
+def test_first_init_has_no_previous_remote_and_no_warning(tmp_path, monkeypatch):
+    remote = _bare_remote(tmp_path)
+    root = tmp_path / "machine-a"
+
+    result = sync_profiles(root, init_remote=str(remote))
+
+    assert result == {"status": "ok"}
+
+    out, err, code = _run_cli(monkeypatch, tmp_path / "machine-cli", "sync", "--init", str(remote))
+    assert code == 0
+    assert out == "synced\n"
+    assert err == ""
 
 
 def test_bogus_remote_is_error_cli_exit_2_no_traceback(tmp_path, monkeypatch):
