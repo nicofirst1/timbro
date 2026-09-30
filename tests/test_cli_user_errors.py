@@ -80,6 +80,51 @@ class MissingFileTests(unittest.TestCase):
         self.assertIn("missing.md", proc.stderr)
 
 
+class DebugShowsTracebackTests(unittest.TestCase):
+    """Debug mode (TIMBRO_DEBUG or `"debug": true` in settings.json) prints the
+    full traceback before the one-line error, with the same exit code."""
+
+    def _missing(self, tmp: str) -> str:
+        return str(Path(tmp) / "missing.md")
+
+    def _assert_traceback_then_error(self, proc: subprocess.CompletedProcess[str]) -> None:
+        self.assertEqual(proc.returncode, 1, proc.stderr)
+        self.assertIn("Traceback", proc.stderr)
+        self.assertIn("FileNotFoundError", proc.stderr)
+        self.assertTrue(proc.stderr.splitlines()[-1].startswith("timbro: error:"), proc.stderr)
+
+    def test_env_var_enables_traceback(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            proc = _run_cli(["check", self._missing(tmp)], {"TIMBRO_DEBUG": "1"})
+        self._assert_traceback_then_error(proc)
+
+    def test_settings_json_enables_traceback(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp) / "home"
+            home.mkdir()
+            (home / "settings.json").write_text('{"debug": true}', encoding="utf-8")
+            proc = _run_cli(["check", self._missing(tmp)], {"TIMBRO_HOME": str(home)})
+        self._assert_traceback_then_error(proc)
+
+    def test_malformed_settings_still_prints_the_original_error(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp) / "home"
+            home.mkdir()
+            (home / "settings.json").write_text("{not json", encoding="utf-8")
+            proc = _run_cli(["check", self._missing(tmp)], {"TIMBRO_HOME": str(home)})
+        _assert_clean_error(self, proc)
+        self.assertIn("missing.md", proc.stderr)
+
+    def test_learn_error_shows_traceback_in_debug(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            proc = _run_cli(
+                ["profiles", "learn", "nope", "--draft", self._missing(tmp), "--final", self._missing(tmp)],
+                {"TIMBRO_DEBUG": "1", "TIMBRO_PROFILE_ROOT": str(Path(tmp) / "profiles")},
+            )
+        self.assertEqual(proc.returncode, 1, proc.stderr)
+        self.assertIn("Traceback", proc.stderr)
+
+
 class NonUtf8FileTests(unittest.TestCase):
     def test_check_non_utf8_file_prints_clean_error_naming_the_file(self):
         with tempfile.TemporaryDirectory() as tmp:
