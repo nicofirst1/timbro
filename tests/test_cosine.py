@@ -82,8 +82,14 @@ class FlowUsesCosineTests(unittest.TestCase):
     )
 
     def _report(self):
+        # Text must satisfy the #164 guard (2 paragraphs of 15+ words) even
+        # though embed is patched and the text is never encoded.
+        text = (
+            "The embed call is patched so this paragraph text is never really encoded by any model here.\n\n"
+            "The second paragraph exists only so the short input guard above lets this report run."
+        )
         with mock.patch("timbro.flow.embed", return_value=self.EMB):
-            return flow_report("paragraph text is ignored; embed is patched")
+            return flow_report(text)
 
     def test_coherence_is_mean_of_pairwise_cosines(self):
         # cos(e0, e1) = (3*0 + 0*4) / (3*4)   =  0/12 = 0.0
