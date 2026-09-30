@@ -493,6 +493,9 @@ def sync_profiles(root: str | Path | None = None, init_remote: str | None = None
     - {"status": "conflict", "files": ...}   merge conflicts, left for the user
     - {"status": "error", "message": ...}    a git step failed or timed out
 
+    With `init_remote`, when an existing `origin` was repointed to the new URL,
+    the result also carries `"previous_remote": <old url>`.
+
     `init_remote` runs first-time setup (same command on every machine): init on
     branch `main`, write `.gitattributes` (`runs.jsonl merge=union`) and
     `.gitignore` (`.DS_Store`), point `origin` at the remote, then sync. The
@@ -502,6 +505,7 @@ def sync_profiles(root: str | Path | None = None, init_remote: str | None = None
         raise RuntimeError("git not found on PATH; profile sync needs git")
     base = profile_root(root)
     allow_unrelated_histories = init_remote is not None
+    previous_remote: str | None = None
     try:
         if not (base / ".git").exists():
             if not allow_unrelated_histories:
@@ -510,10 +514,20 @@ def sync_profiles(root: str | Path | None = None, init_remote: str | None = None
             # Report and stop: never stage or commit over a merge in progress.
             return {"status": "conflict", "files": _sync_conflict_files(base)}
         if allow_unrelated_histories:
+            # `remote add` fails when origin exists, and `_sync_init` then
+            # repoints it silently; remember the old URL so the caller can
+            # tell the user.
+            if (base / ".git").exists():
+                probe = _sync_git(base, "remote", "get-url", "origin")
+                if probe.returncode == 0:
+                    previous_remote = probe.stdout.strip()
             error = _sync_init(base, init_remote)
             if error is not None:
                 return error
-        return _sync_run(base, allow_unrelated_histories)
+        result = _sync_run(base, allow_unrelated_histories)
+        if previous_remote is not None and previous_remote != init_remote:
+            result["previous_remote"] = previous_remote
+        return result
     except subprocess.TimeoutExpired as exc:
         stderr = exc.stderr
         if isinstance(stderr, bytes):
