@@ -432,15 +432,15 @@ def _sync_init(root: Path, remote_url: str) -> dict | None:
 
 
 def _sync_run(root: Path, allow_unrelated_histories: bool) -> dict:
+    identity: list[str] = []
+    if _sync_git(root, "config", "user.email").returncode != 0:
+        identity = ["-c", "user.name=timbro", "-c", "user.email=timbro@localhost"]
     # 1. Commit local changes.
     res = _sync_git(root, "add", "-A")
     if res.returncode != 0:
         return _sync_error(res)
     res = _sync_git(root, "diff", "--cached", "--quiet")
     if res.returncode != 0:
-        identity: list[str] = []
-        if _sync_git(root, "config", "user.email").returncode != 0:
-            identity = ["-c", "user.name=timbro", "-c", "user.email=timbro@localhost"]
         stamp = datetime.now(UTC).isoformat(timespec="seconds")
         res = _sync_git(root, *identity, "commit", "-m", f"timbro sync {stamp}")
         if res.returncode != 0:
@@ -459,7 +459,7 @@ def _sync_run(root: Path, allow_unrelated_histories: bool) -> dict:
         if allow_unrelated_histories:
             merge_args.append("--allow-unrelated-histories")
         merge_args.append("origin/main")
-        res = _sync_git(root, *merge_args)
+        res = _sync_git(root, *identity, *merge_args)
         if res.returncode != 0:
             files = _sync_conflict_files(root)
             if files:
