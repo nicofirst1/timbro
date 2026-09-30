@@ -39,14 +39,26 @@ def split_frontmatter(text: str) -> tuple[str, str]:
     return "", text.strip()
 
 
+def _collapse_whitespace(m: re.Match[str], replacement: str) -> str:
+    """Collapse a whitespace run, unless it spans a paragraph break (#179).
+
+    Runs without a ``\n\n`` (the paragraph break, after the ``\n{3,}``
+    normalization) are line wraps and collapse to ``replacement``. Runs with
+    one are kept unchanged so paragraphs don't fuse around punctuation.
+    """
+    if "\n\n" in m.group(0):
+        return m.group(0)
+    return replacement
+
+
 def clean_extracted_text(text: str) -> str:
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     text = text.replace("\x0c", "\n").replace("\u00ad", "")
     text = re.sub(r"([A-Za-z])\-\n([a-z])", r"\1\2", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
-    text = re.sub(r"\s+([,.;:?!])", r"\1", text)
-    text = re.sub(r"\(\s+", "(", text)
-    text = re.sub(r"\s+\)", ")", text)
+    text = re.sub(r"\s+([,.;:?!])", lambda m: _collapse_whitespace(m, m.group(1)), text)
+    text = re.sub(r"\(\s+", lambda m: _collapse_whitespace(m, "("), text)
+    text = re.sub(r"\s+\)", lambda m: _collapse_whitespace(m, ")"), text)
     return text.strip()
 
 
