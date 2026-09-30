@@ -42,11 +42,13 @@ def split_frontmatter(text: str) -> tuple[str, str]:
 def _collapse_whitespace(m: re.Match[str], replacement: str) -> str:
     """Collapse a whitespace run, unless it spans a paragraph break (#179).
 
-    Runs without a ``\n\n`` (the paragraph break, after the ``\n{3,}``
-    normalization) are line wraps and collapse to ``replacement``. Runs with
-    one are kept unchanged so paragraphs don't fuse around punctuation.
+    A run with 2 or more newlines contains a ``\\n\\s*\\n`` span (a blank
+    line, possibly whitespace-only), which is the paragraph break
+    ``_paragraphs`` splits on, so the run is kept unchanged and paragraphs
+    don't fuse around punctuation. Shorter runs are line wraps and collapse
+    to ``replacement``.
     """
-    if "\n\n" in m.group(0):
+    if m.group(0).count("\n") >= 2:
         return m.group(0)
     return replacement
 
