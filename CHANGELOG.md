@@ -22,7 +22,7 @@ New voice axes, interchangeable rubrics, profile sync across machines, and a mod
 
 - **Breaking:** rubrics are interchangeable peers. `timbro check` runs all of them by default, and `--rubric a,b` narrows it (#98).
 - **Breaking:** markdown-axis JSON rows use `reference_mean` instead of `corpus_mean`, matching every other axis. `timbro.MarkdownAxis` is replaced by `timbro.AxisReport` (#108).
-- **Breaking:** profiles resolve as `TIMBRO_PROFILE_ROOT` → `$TIMBRO_HOME/profiles`. The XDG (`$XDG_DATA_HOME/timbro/profiles`) fallback and the legacy-dir check are gone, so move any profiles kept under XDG (#116).
+- **Breaking:** profiles resolve as `TIMBRO_PROFILE_ROOT` → `$TIMBRO_HOME/profiles`. The XDG (`$XDG_DATA_HOME/timbro/profiles`) fallback and the legacy-dir check are gone. Profiles that 0.8.0 kept under XDG (`~/.local/share/timbro/profiles` by default) no longer show up, and nothing warns about it. Move them with `mkdir -p ~/.timbro/profiles && mv ~/.local/share/timbro/profiles/* ~/.timbro/profiles/` (#116, #138).
 - **Breaking for importers:** internal modules moved.
   - `timbro.config` → `timbro.priors` (#116).
   - The axis modules → `timbro.axes.*` (#117).
