@@ -30,7 +30,7 @@ class DetexTimeoutTests(unittest.TestCase):
                 "timbro.cleanup.latex.subprocess.run",
                 side_effect=subprocess.TimeoutExpired(cmd="detex", timeout=60),
             ),
+            self.assertRaises(RuntimeError) as ctx,
         ):
-            with self.assertRaises(RuntimeError) as ctx:
-                detex_text(r"\section{Intro}" "\nHello.")
+            detex_text(r"\section{Intro}" "\nHello.")
         self.assertIn("timed out", str(ctx.exception))
