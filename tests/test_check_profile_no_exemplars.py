@@ -35,6 +35,20 @@ class CheckProfileNoExemplarsTests(unittest.TestCase):
                 check_text("x", ["slop"], profile="nope")
         self.assertIn("No .md/.txt exemplars found at", str(ctx.exception))
 
+    def test_error_message_points_at_managed_profiles(self):
+        # round 3: one message for everyone, pointing at managed profiles; the env
+        # var is no longer suggested (#161 addendum, direction #96)
+        with TemporaryDirectory() as tmp, self._patched_root(tmp):
+            (Path(tmp) / "profiles").mkdir()
+            with self.assertRaises(FileNotFoundError) as ctx:
+                check_text("x", ["slop"], profile="nope")
+        exemplars = (Path(tmp) / "profiles" / "nope" / "exemplars").resolve()
+        expected = (
+            f"No .md/.txt exemplars found at {exemplars}. "
+            "Add posts that define your voice with: timbro profiles add-file <profile> <file> --to exemplars"
+        )
+        self.assertEqual(str(ctx.exception), expected)
+
     def test_message_matches_voice_model_from_dir_wording(self):
         # the wording is VoiceModel.from_dir's; reuse it, don't invent a new one (#161)
         with TemporaryDirectory() as tmp, self._patched_root(tmp):
