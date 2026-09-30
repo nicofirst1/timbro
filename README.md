@@ -182,7 +182,7 @@ git add <files> && git commit && timbro profiles sync
 
 `settings.json` (per machine, including the `no_log` switch for the learn log) is not synced.
 
-Errors print as one `timbro: error: ...` line. To see the full traceback behind one, set `TIMBRO_DEBUG=1` or `"debug": true` in `settings.json`.
+Expected errors (a missing file, a bad profile name) print as one line. To see the full traceback behind one, set `TIMBRO_DEBUG=1` or `"debug": true` in `settings.json`.
 
 ## FAQ
 
