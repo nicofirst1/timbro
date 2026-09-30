@@ -16,6 +16,7 @@ from pathlib import Path
 @dataclass
 class Settings:
     no_log: bool = False
+    debug: bool = False
 
 
 def timbro_home() -> Path:
@@ -54,3 +55,10 @@ def no_log() -> bool:
     if os.environ.get("TIMBRO_NO_LOG"):
         return True
     return load_settings().no_log
+
+
+def debug() -> bool:
+    """`TIMBRO_DEBUG` (any non-empty value) wins, else the `debug` setting."""
+    if os.environ.get("TIMBRO_DEBUG"):
+        return True
+    return load_settings().debug

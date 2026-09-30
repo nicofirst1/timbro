@@ -41,7 +41,7 @@ class TimbroHomeTests(unittest.TestCase):
 class LoadSettingsTests(_HomeCase):
     def test_seeds_defaults_on_first_run(self):
         self.assertEqual(load_settings(), Settings())
-        self.assertEqual(json.loads(settings_path().read_text()), {"no_log": False})
+        self.assertEqual(json.loads(settings_path().read_text()), {"no_log": False, "debug": False})
 
     def test_malformed_json_raises_naming_path(self):
         self.write("{nope")

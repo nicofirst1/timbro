@@ -182,6 +182,8 @@ git add <files> && git commit && timbro profiles sync
 
 `settings.json` (per machine, including the `no_log` switch for the learn log) is not synced.
 
+Errors print as one `timbro: error: ...` line. To see the full traceback behind one, set `TIMBRO_DEBUG=1` or `"debug": true` in `settings.json`.
+
 ## FAQ
 
 **My voice uses em dashes. Won't `slop` nag me?** By default it flags against zero. Add `--profile <name>` to `check` and a tell is flagged only where the draft uses it more than you normally do. Without a profile it answers "is this AI-generated?"; with one, "is this driftier than my own writing?".

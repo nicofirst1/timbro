@@ -11,6 +11,7 @@ Corpus comes from TIMBRO_EXEMPLARS / TIMBRO_CONTRAST (falls back to the packaged
 import argparse
 import json
 import sys
+import traceback
 
 from timbro.model import VoiceModel, default_model
 from timbro.profiles import (
@@ -28,6 +29,7 @@ from timbro.rewrite import evaluate_rewrite
 from timbro.rubrics import check_text
 from timbro.rubrics.registry import RUBRIC_NAMES
 from timbro.rubrics.report import combine_verdicts, render_text
+from timbro.settings import debug
 
 
 def cmd_score(args):
@@ -165,8 +167,7 @@ def cmd_check(args):
     try:
         results = check_text(text, rubrics=names, profile=args.profile)
     except ValueError as exc:
-        print(f"error: {exc}", file=sys.stderr)
-        sys.exit(1)
+        _fail(f"error: {exc}")
 
     if args.json:
         payload = {
@@ -244,8 +245,7 @@ def cmd_profiles_sync(args):
     try:
         result = sync_profiles(init_remote=args.init)
     except (RuntimeError, OSError, ValueError) as exc:
-        print(f"sync failed: {exc}", file=sys.stderr)
-        sys.exit(2)
+        _fail(f"sync failed: {exc}", code=2)
     if args.json:
         print(json.dumps(result))
     elif result["status"] == "ok":
@@ -315,8 +315,7 @@ def cmd_profiles_learn(args):
             force=args.force,
         )
     except (FileExistsError, FileNotFoundError, ValueError) as exc:
-        print(f"error: {exc}", file=sys.stderr)
-        sys.exit(1)
+        _fail(f"error: {exc}")
 
     if args.json:
         print(json.dumps(result))
@@ -348,6 +347,23 @@ def _read_text(path: str) -> str:
         except UnicodeDecodeError as e:
             e.filename = path
             raise
+
+
+def _fail(message: str, code: int = 1):
+    """Print a one-line error and exit; call only from an `except` block.
+
+    With debug on (`TIMBRO_DEBUG` or `"debug": true` in settings.json), the
+    traceback of the exception being handled is printed first. A broken
+    settings file must not mask the original error, so it counts as debug off.
+    """
+    try:
+        show_trace = debug()
+    except (ValueError, OSError):
+        show_trace = False
+    if show_trace:
+        traceback.print_exc()
+    print(message, file=sys.stderr)
+    sys.exit(code)
 
 
 def _user_error_message(exc: Exception) -> str:
@@ -450,8 +466,7 @@ def main():
         # Expected user errors (missing file, non-UTF-8 text, duplicate add-file,
         # unknown profile): one clean line, not a traceback (issue #137). Every
         # other exception must still traceback, because bugs should stay loud.
-        print(f"timbro: error: {_user_error_message(e)}", file=sys.stderr)
-        sys.exit(1)
+        _fail(f"timbro: error: {_user_error_message(e)}")
 
 
 if __name__ == "__main__":
