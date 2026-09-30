@@ -69,10 +69,11 @@ def read_corpus(directory: str | Path) -> list[str]:
 
 def no_exemplars_error(exemplars: str | Path) -> FileNotFoundError:
     """The one wording for an empty/missing corpus, shared by every caller (#161):
-    name the env var AND the absolute path actually checked."""
+    name the absolute path actually checked, and point at managed profiles for the
+    fix (round 3: no env-var suggestion, direction #96)."""
     return FileNotFoundError(
         f"No .md/.txt exemplars found at {Path(exemplars).resolve()}. "
-        f"Set TIMBRO_EXEMPLARS to a folder of posts that define your voice."
+        "Add posts that define your voice with: timbro profiles add-file <profile> <file> --to exemplars"
     )
 
 
@@ -192,7 +193,10 @@ class VoiceModel:
     def profile_report(self) -> dict:
         warning = self.warning
         if getattr(self, "sample_fallback", False):
-            sample_warning = "Using packaged sample voice, not a user profile. Set TIMBRO_EXEMPLARS/TIMBRO_CONTRAST or use --profile."
+            sample_warning = (
+                "Using packaged sample voice, not a user profile. "
+                "Use --profile <name> (create one with: timbro profiles init <name>)."
+            )
             warning = f"{warning} {sample_warning}".strip() if warning else sample_warning
         return {
             "health": self.health,
