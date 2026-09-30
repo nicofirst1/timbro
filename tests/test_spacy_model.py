@@ -13,6 +13,42 @@ _WHEEL_URL = (
     "en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl"
 )
 
+# Child harness for the closed-stdout repro (issue #136): the child points its
+# own fd 1 at a pipe, closes the pipe's read end (as a `| head -2` reader that
+# exits early would), then calls _install_model with subprocess.run mocked to
+# emit pip-sized output on whatever stream it was handed. If the install
+# inherits stdout, the write hits the dead pipe and the child dies with
+# BrokenPipeError; if it targets sys.stderr, the child prints CHILD-OK.
+_CHILD_CLOSED_STDOUT_SCRIPT = """\
+import os
+import sys
+from unittest import mock
+
+
+def fake_run(cmd, check=False, **kwargs):
+    stream = kwargs.get("stdout")
+    if stream is None:
+        stream = sys.stdout
+    stream.write("x" * (1 << 20))
+    stream.flush()
+    return mock.Mock(returncode=0)
+
+
+read_end, write_end = os.pipe()
+os.dup2(write_end, 1)
+os.close(read_end)
+os.close(write_end)
+
+import timbro.spacy_model as spacy_model
+
+with mock.patch("subprocess.run", fake_run):
+    spacy_model._install_model()
+
+devnull = os.open(os.devnull, os.O_WRONLY)
+os.dup2(devnull, 1)
+sys.stderr.write("CHILD-OK\\n")
+"""
+
 
 class LoadSpacyColdStartTests(unittest.TestCase):
     def test_installs_with_uv_python_flag_and_returns_loaded_model(self):
@@ -67,6 +103,35 @@ class LoadSpacyColdStartTests(unittest.TestCase):
         ):
             with self.assertRaises(subprocess.CalledProcessError):
                 spacy_model.load_spacy()
+
+
+class InstallStdoutRedirectTests(unittest.TestCase):
+    """Issue #136: pip's output must never touch the user's stdout."""
+
+    def test_install_targets_stderr_and_keeps_check(self):
+        with (
+            patch("spacy.cli.download.get_compatibility", return_value=_COMPAT),
+            patch("shutil.which", return_value="/opt/homebrew/bin/uv"),
+            patch("subprocess.run") as mock_run,
+        ):
+            spacy_model._install_model()
+
+        mock_run.assert_called_once()
+        self.assertIs(mock_run.call_args.kwargs.get("stdout"), sys.stderr)
+        self.assertTrue(mock_run.call_args.kwargs.get("check"))
+
+    def test_install_survives_closed_stdout_pipe(self):
+        proc = subprocess.run(
+            [sys.executable, "-c", _CHILD_CLOSED_STDOUT_SCRIPT],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+
+        self.assertEqual(
+            proc.returncode, 0, f"child failed:\n{proc.stderr}"
+        )
+        self.assertIn("CHILD-OK", proc.stderr)
 
 
 if __name__ == "__main__":
