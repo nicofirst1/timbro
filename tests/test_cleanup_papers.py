@@ -23,12 +23,34 @@ class CleanExtractedTextParagraphBreakTests(unittest.TestCase):
         # A blank line between paragraphs must not be swallowed by the collapse.
         self.assertEqual(clean_extracted_text("a\n\n, b"), "a\n\n, b")
 
+    def test_whitespace_only_blank_line_before_punctuation_is_kept(self):
+        # A blank line made of spaces is still a paragraph break for
+        # _paragraphs (it splits on \n\s*\n), so the collapse must keep it.
+        self.assertEqual(clean_extracted_text("para.\n \n!!!"), "para.\n \n!!!")
+
+    def test_tab_only_blank_line_before_punctuation_is_kept(self):
+        # Same, with the blank line made of a tab.
+        self.assertEqual(clean_extracted_text("para.\n\t\n!!!"), "para.\n\t\n!!!")
+
+    def test_paragraph_break_before_open_paren_is_kept(self):
+        # The (\s+ rule has the same paragraph-fusing flaw (#179).
+        self.assertEqual(clean_extracted_text("(\n\nfoo"), "(\n\nfoo")
+
+    def test_paragraph_break_before_close_paren_is_kept(self):
+        # The \s+) rule has the same paragraph-fusing flaw (#179).
+        self.assertEqual(clean_extracted_text("foo\n\n)"), "foo\n\n)")
+
 
 class ExtractProseExcerptPunctuationBlockTests(unittest.TestCase):
     """Issue #179: a punctuation block after a paragraph must not eat the paragraph."""
 
     def test_repro_paragraph_survives_punctuation_block(self):
         text = REPRO_PARAGRAPH + "\n\n" + "!!!???...,;;:" * 20
+        self.assertEqual(extract_prose_excerpt(text), REPRO_PARAGRAPH + "\n")
+
+    def test_repro_paragraph_survives_block_after_space_blank_line(self):
+        # A blank line made of whitespace still separates the paragraphs (#179).
+        text = REPRO_PARAGRAPH + "\n \n" + "!!!???...,;;:" * 20
         self.assertEqual(extract_prose_excerpt(text), REPRO_PARAGRAPH + "\n")
 
 
