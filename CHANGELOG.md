@@ -49,6 +49,7 @@ New voice axes, interchangeable rubrics, profile sync across machines, and a mod
 - `check --profile` with no exemplars names the missing path, the same way `score` does (#161).
 - `profiles add-file --dest-name` rejects anything but a plain file name, so it can no longer write outside the profile (#150).
 - `add_text`/`add_file` reject an unknown bucket instead of silently filing it into `contrast/` (#165).
+- `profiles sync --init` warns when it repoints an existing `origin` to a new URL, instead of doing it silently (#185).
 - `profiles sync` works on a machine with no git identity once the remote has commits (#151).
 - A profile of near-duplicate exemplars no longer produces z-scores around 1e15 at confidence 1.0. Float-rounding spreads are floored like exact zeros (#160).
 - One punctuation-only file in a profile's exemplars no longer makes the richness axis `NaN` for every draft, which had put a literal `NaN` in `score --json` (#177).
