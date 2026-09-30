@@ -25,7 +25,8 @@ def content_similarity(original: str, revised: str) -> float:
     )
     # float32 unit vectors make a self-dot land at 1 + 1 ulp; clamp to the
     # contract range the guard and `accept --json` report.
-    return min(1.0, max(0.0, float(np.dot(e[0], e[1]))))
+    similarity = float(np.dot(e[0], e[1]))
+    return min(1.0, max(0.0, similarity))
 
 
 def preserves_content(original: str, revised: str, threshold: float = 0.85) -> tuple[bool, float]:
