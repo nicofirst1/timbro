@@ -51,6 +51,9 @@ New voice axes, interchangeable rubrics, profile sync across machines, and a mod
 - `add_text`/`add_file` reject an unknown bucket instead of silently filing it into `contrast/` (#165).
 - `profiles sync` works on a machine with no git identity once the remote has commits (#151).
 - A profile of near-duplicate exemplars no longer produces z-scores around 1e15 at confidence 1.0. Float-rounding spreads are floored like exact zeros (#160).
+- One punctuation-only file in a profile's exemplars no longer makes the richness axis `NaN` for every draft, which had put a literal `NaN` in `score --json` (#177).
+- Ingest cleanup no longer fuses a paragraph with a following punctuation block, which could drop the whole paragraph from `extract_prose_excerpt` (#179).
+- `content_similarity` stays within [0, 1], and a hung `detex` times out after 60s instead of hanging (#180).
 - `flow_report` raises a clear `ValueError` on under 2 paragraphs instead of numpy errors (#164).
 - The `pkg_resources` deprecation warning no longer prints on every run (#140).
 - `scripts/release.sh` refuses to release a `main` that is missing `origin/dev` commits, or a version with no changelog section (#171).
