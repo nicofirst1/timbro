@@ -44,7 +44,7 @@ def _style_model():
 
 
 _STYLE_CACHE_MAX = 4096
-_style_cache: dict[str, tuple[float, ...]] = {}
+_style_cache: dict[str, np.ndarray] = {}
 
 
 def _chunks(text: str) -> list[str]:
@@ -54,14 +54,17 @@ def _chunks(text: str) -> list[str]:
     return [p.strip() for p in _PARA.split(text) if p.strip()] or [text[:2000]]
 
 
-def _style_cache_put(text: str, vec: tuple[float, ...]) -> None:
+def _style_cache_put(text: str, vec: np.ndarray) -> None:
     # explicit dict instead of lru_cache (issue #153) so the batched path can warm
     # the same cache. Insertion-order eviction of the oldest entry stands in for
     # lru_cache's least-recently-used rule. The window is 8x the old lru maxsize:
     # one big draft now works through thousands of span texts in one pass, and a
     # 512-entry window would evict the paragraphs the per-span direction pass
-    # re-requests right after the batch (measured on a 300 KB draft: 447
-    # re-encodes at 512, zero at 4096). Same behavior for any repeated text: hit.
+    # re-requests right after the batch (measured on a 300 KB draft: ~450
+    # re-encodes at 512, zero at 4096). Entries are float32 arrays (~3 KB each),
+    # so the full window costs ~12 MB (tracemalloc, 4096 realistic entries);
+    # tuples of boxed floats would cost ~103 MB. Same behavior for any repeated
+    # text: hit.
     if text not in _style_cache and len(_style_cache) >= _STYLE_CACHE_MAX:
         _style_cache.pop(next(iter(_style_cache)))
     _style_cache[text] = vec
@@ -69,13 +72,14 @@ def _style_cache_put(text: str, vec: tuple[float, ...]) -> None:
 
 def _style_vec(text: str) -> tuple[float, ...]:
     # one style vector per doc. cached because the LOO harness re-scores the same
-    # docs across folds.
+    # docs across folds. Entries are float32 arrays for memory; the tuple
+    # contract is preserved on read.
     cached = _style_cache.get(text)
     if cached is not None:
-        return cached
-    vec = tuple(_style_vecs([text])[0])
+        return tuple(cached)
+    vec = _style_vecs([text])[0]
     _style_cache_put(text, vec)
-    return vec
+    return tuple(vec)
 
 
 def _style_vecs(texts: list[str]) -> np.ndarray:
@@ -99,7 +103,7 @@ def _style_vecs(texts: list[str]) -> np.ndarray:
         rows.append(embeddings[at : at + len(chunks)].mean(0))
         at += len(chunks)
     for text, row in zip(texts, rows):
-        _style_cache_put(text, tuple(row))
+        _style_cache_put(text, row)
     return np.array(rows)
 
 
