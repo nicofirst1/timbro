@@ -21,89 +21,92 @@ from pathlib import Path
 _DRAFT = "I fixed the parser today. It dropped the last row, so I added a guard and a test."
 
 
-def _run_cli(argv: list[str], stdin_text: str | None = None) -> subprocess.CompletedProcess[str]:
+def _run_cli(
+    argv: list[str],
+    stdin_text: str | None = None,
+    env_overrides: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess[str]:
+    env = dict(os.environ)
+    if env_overrides:
+        env.update(env_overrides)
     return subprocess.run(
         [sys.executable, "-m", "timbro.cli", *argv],
         input=stdin_text,
         capture_output=True,
         text=True,
         timeout=120,
-        env=dict(os.environ),
+        env=env,
         check=False,
     )
 
 
-class ScoreEmptyDraftTests(unittest.TestCase):
-    def _assert_empty_draft_error(self, proc: subprocess.CompletedProcess[str]) -> None:
-        self.assertEqual(proc.returncode, 1, proc.stderr)
-        self.assertEqual(proc.stdout, "")
-        self.assertEqual(proc.stderr, "timbro: error: draft is empty\n")
+def _assert_empty_draft_error(test: unittest.TestCase, proc: subprocess.CompletedProcess[str]) -> None:
+    test.assertEqual(proc.returncode, 1, proc.stderr)
+    test.assertEqual(proc.stdout, "")
+    test.assertEqual(proc.stderr, "timbro: error: draft is empty\n")
 
+
+class ScoreEmptyDraftTests(unittest.TestCase):
     def test_score_stdin_empty_text(self):
         proc = _run_cli(["score", "-"], stdin_text="")
-        self._assert_empty_draft_error(proc)
+        _assert_empty_draft_error(self, proc)
 
     def test_score_stdin_empty_json(self):
         proc = _run_cli(["score", "-", "--json"], stdin_text="")
-        self._assert_empty_draft_error(proc)
+        _assert_empty_draft_error(self, proc)
 
     def test_score_stdin_whitespace_only_text(self):
         proc = _run_cli(["score", "-"], stdin_text="   \n\t\n")
-        self._assert_empty_draft_error(proc)
+        _assert_empty_draft_error(self, proc)
 
     def test_score_stdin_whitespace_only_json(self):
         proc = _run_cli(["score", "-", "--json"], stdin_text="   \n\t\n")
-        self._assert_empty_draft_error(proc)
+        _assert_empty_draft_error(self, proc)
 
     def test_score_empty_file_text(self):
         with tempfile.TemporaryDirectory() as tmp:
             empty = Path(tmp) / "empty.md"
             empty.write_text("", encoding="utf-8")
             proc = _run_cli(["score", str(empty)])
-        self._assert_empty_draft_error(proc)
+        _assert_empty_draft_error(self, proc)
 
     def test_score_empty_file_json(self):
         with tempfile.TemporaryDirectory() as tmp:
             empty = Path(tmp) / "empty.md"
             empty.write_text("", encoding="utf-8")
             proc = _run_cli(["score", str(empty), "--json"])
-        self._assert_empty_draft_error(proc)
+        _assert_empty_draft_error(self, proc)
 
     def test_score_whitespace_only_file_text(self):
         with tempfile.TemporaryDirectory() as tmp:
             ws = Path(tmp) / "ws.md"
             ws.write_text("  \n\t\n", encoding="utf-8")
             proc = _run_cli(["score", str(ws)])
-        self._assert_empty_draft_error(proc)
+        _assert_empty_draft_error(self, proc)
 
     def test_score_whitespace_only_file_json(self):
         with tempfile.TemporaryDirectory() as tmp:
             ws = Path(tmp) / "ws.md"
             ws.write_text("  \n\t\n", encoding="utf-8")
             proc = _run_cli(["score", str(ws), "--json"])
-        self._assert_empty_draft_error(proc)
+        _assert_empty_draft_error(self, proc)
 
 
 class CheckEmptyDraftTests(unittest.TestCase):
-    def _assert_empty_draft_error(self, proc: subprocess.CompletedProcess[str]) -> None:
-        self.assertEqual(proc.returncode, 1, proc.stderr)
-        self.assertEqual(proc.stdout, "")
-        self.assertEqual(proc.stderr, "timbro: error: draft is empty\n")
-
     def test_check_empty_file(self):
         with tempfile.TemporaryDirectory() as tmp:
             empty = Path(tmp) / "empty.md"
             empty.write_text("", encoding="utf-8")
             proc = _run_cli(["check", str(empty)])
-        self._assert_empty_draft_error(proc)
+        _assert_empty_draft_error(self, proc)
 
     def test_check_stdin_empty_text(self):
         proc = _run_cli(["check", "-"], stdin_text="")
-        self._assert_empty_draft_error(proc)
+        _assert_empty_draft_error(self, proc)
 
     def test_check_stdin_whitespace_only_json(self):
         proc = _run_cli(["check", "-", "--json"], stdin_text=" \n\t")
-        self._assert_empty_draft_error(proc)
+        _assert_empty_draft_error(self, proc)
 
 
 class AcceptEmptyDraftTests(unittest.TestCase):
@@ -129,6 +132,24 @@ class AcceptEmptyDraftTests(unittest.TestCase):
         self.assertEqual(proc.stdout, "")
         self.assertEqual(proc.stderr, f"timbro: error: {revised} is empty\n")
         self.assertNotIn(str(original), proc.stderr)
+
+
+class EmptyDraftCheckedBeforeProfileLoadTests(unittest.TestCase):
+    """The empty check must fire before any profile or model load (issue #152).
+
+    With empty stdin and an unknown profile, the draft error wins: an edit
+    that moves _require_draft_text after the profile/model block flips this
+    to the unknown-profile error (or a traceback) and fails here.
+    """
+
+    def test_score_empty_stdin_unknown_profile_reports_the_draft(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = {"TIMBRO_PROFILE_ROOT": str(Path(tmp) / "profiles")}
+            proc = _run_cli(
+                ["score", "-", "--profile", "nonexistent"], stdin_text="", env_overrides=env
+            )
+        _assert_empty_draft_error(self, proc)
+        self.assertNotIn("nonexistent", proc.stderr)
 
 
 class DumpJsonNonFiniteTests(unittest.TestCase):
