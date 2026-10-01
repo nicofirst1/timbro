@@ -3,7 +3,7 @@
 A corpus whose two exemplars differ by one character has a real but tiny
 markdown std (~1e-6): not float noise, so #160's exact-zero spread guard never
 fires and a far-off draft z-scored into the 1e5-1e6 range. The owner decision
-(#178) is option 3: cap every blend-style axis z at |z| = 10 (`_Z_SATURATION`)
+(#178) is option 3: cap every blend-style axis z at |z| = 10 (`AXIS_Z_SATURATION`)
 and mark the row saturated; the direction logic consumes the clamped z. The
 embedding path (distance/distance_z, #160's fix) is untouched.
 """

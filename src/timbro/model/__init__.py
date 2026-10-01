@@ -43,7 +43,12 @@ from timbro.axes.tells import (  # noqa: F401  (import registers the tells metri
 from timbro.metric import REGISTRY, Metric, _confidence, _knn
 from timbro.model.direction import feature_matrix, features
 from timbro.model.embedding import _style_vec, fit_embedding
-from timbro.priors import DEFAULT_CONTRAST, DEFAULT_EXEMPLARS, TELL_PRIOR
+from timbro.priors import (
+    AXIS_Z_SATURATION,
+    DEFAULT_CONTRAST,
+    DEFAULT_EXEMPLARS,
+    TELL_PRIOR,
+)
 from timbro.report import (  # dataclasses/labels: report.py formats for humans
     AxisReport,
     FeatureMove,
@@ -56,12 +61,6 @@ from timbro.text import (
 
 _FRONTMATTER = re.compile(r"\A---\n.*?\n---\n", re.DOTALL)
 _WORD = re.compile(r"\b\w+\b")
-
-# Cap on every blend-style axis z (#178): a near-duplicate corpus has a tiny but real
-# std, so the raw z can reach 1e5-1e6. Past the cap the row is marked saturated and
-# the direction consumes the clamped value. The embedding distance/distance_z (#160)
-# and the POS direction are not clamped.
-_Z_SATURATION = 10.0
 
 
 def read_corpus(directory: str | Path) -> list[str]:
@@ -263,7 +262,7 @@ class VoiceModel:
         direction names the way back toward the reference in the metric's own
         `hint_axes` vocabulary. Zero-variance axes get spread forced to 1.0, so a
         degenerate corpus yields z=0 (on-target), never inf/NaN. Axis z is capped
-        at ±_Z_SATURATION (#178): a row whose raw |z| exceeds the cap is marked
+        at ±AXIS_Z_SATURATION (#178): a row whose raw |z| exceeds the cap is marked
         saturated, and the direction consumes the clamped z. Never touches the
         embedding distance or POS direction -- standalone axis group. Raises KeyError
         for a name that is not a registered blend-style metric.
@@ -287,8 +286,8 @@ class VoiceModel:
         for i, (axis, raise_hint, lower_hint) in enumerate(metric.hint_axes):
             spread = ref_spread[i] or 1.0  # zero-std guard: degenerate axis is on-target
             raw_z = float((vec[i] - ref_mean[i]) / spread)
-            z = max(-_Z_SATURATION, min(_Z_SATURATION, raw_z))
-            saturated = abs(raw_z) > _Z_SATURATION
+            z = max(-AXIS_Z_SATURATION, min(AXIS_Z_SATURATION, raw_z))
+            saturated = abs(raw_z) > AXIS_Z_SATURATION
             direction = "" if abs(z) < metric.z_tol else (lower_hint if z > 0 else raise_hint)
             out.append(AxisReport(axis, float(vec[i]), float(ref_mean[i]), z, direction, saturated))
         return out
