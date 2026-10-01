@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Fixed
 
 - `check` parses and embeds each paragraph once, roughly halving its runtime on long drafts (#192).
+- GFM tables with leading pipes now count in struct_table_count; scores and fitted corpus stats change for any text containing tables. Bug fix, not a retune (#132).
 
 ## [0.9.0] — 2026-10-01
 
