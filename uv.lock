@@ -1955,6 +1955,7 @@ source = { editable = "." }
 dependencies = [
     { name = "lexical-diversity" },
     { name = "numpy" },
+    { name = "pyyaml" },
     { name = "scikit-learn" },
     { name = "sentence-transformers" },
     { name = "setuptools" },
@@ -1974,6 +1975,7 @@ dev = [
 requires-dist = [
     { name = "lexical-diversity", specifier = ">=0.1.1" },
     { name = "numpy", specifier = ">=2.4.6" },
+    { name = "pyyaml", specifier = ">=6" },
     { name = "scikit-learn", specifier = ">=1.9.0" },
     { name = "sentence-transformers", specifier = ">=5.5.1" },
     { name = "setuptools", specifier = "<81" },

@@ -5,9 +5,8 @@ Hyland's metadiscourse taxonomy names two opposed families of stance marker: hed
 "must", "in fact") sharpen it. Neither is good or bad prose -- they are a dial a
 writer sets on purpose, and a voice has a resting position on that dial. This axis
 measures where a draft sits, per-1000-words, the same length-normalised way
-`tells.py::tell_rates` does, and reports it standalone (it does not feed the
-embedding distance or POS direction -- see `metric.MARKDOWN`-style axes in model.py
-for the precedent).
+`tells.py::tell_rates` does, and reports it standalone: it does not feed the
+embedding distance or POS direction.
 
 Matching is lemma + POS over the shared cached Doc (`metric.parsed_doc`), not regex:
 a few lemmas have a genuine non-hedge/non-booster reading in ordinary prose ("might"
@@ -23,22 +22,22 @@ from __future__ import annotations
 import re
 from functools import lru_cache
 
-from timbro.config import (
+from timbro.metric import parsed_doc, register
+from timbro.priors import (
     BOOSTER_LEMMAS as _BOOSTER_LEMMAS,
 )
-from timbro.config import (
+from timbro.priors import (
     BOOSTER_PHRASES as _BOOSTER_PHRASES,
 )
-from timbro.config import (
+from timbro.priors import (
     HEDGE_BOOSTER_REFERENCE,
 )
-from timbro.config import (
+from timbro.priors import (
     HEDGE_LEMMAS as _HEDGE_LEMMAS,
 )
-from timbro.config import (
+from timbro.priors import (
     HEDGE_PHRASES as _HEDGE_PHRASES,
 )
-from timbro.metric import parsed_doc, register
 
 _WORD = re.compile(r"\b\w+\b")
 
@@ -79,15 +78,23 @@ def hedge_booster_rates(text: str) -> tuple[float, float]:
 
 
 # --- Metric (#43/#44) ----------------------------------------------------------------
-# HEDGE_BOOSTER_REFERENCE lives in config.py now (PR #57 review); re-imported above.
 
 
 class _HedgeBoosterMetric:
     """Hedge/booster stance axis as a `Metric`. `extract` returns (hedge_rate,
     booster_rate) per-1000-words for one raw document."""
 
+    # (axis, raise_hint, lower_hint): "raise" fires when the draft sits below the
+    # reference (needs more of the marker); "lower" fires above it.
+    hint_axes: tuple[tuple[str, str, str], ...] = (
+        ("hedge_rate", "hedge claims more (might/perhaps/seems)", "hedge claims less, state more directly"),
+        ("booster_rate", "assert claims more directly (clearly/must/in fact)", "soften strong claims"),
+    )
+    # Fixed tolerance; promote to a knob only if a caller needs to tune it.
+    z_tol: float = 0.5
+
     name = "hedge"
-    axes = ("hedge_rate", "booster_rate")
+    axes = tuple(a for a, _, _ in hint_axes)
     prior = HEDGE_BOOSTER_REFERENCE
 
     def extract(self, text: str) -> tuple[float, ...]:

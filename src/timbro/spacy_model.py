@@ -18,9 +18,22 @@ shell outranks the running interpreter -- installing the model somewhere
 
 from __future__ import annotations
 
+import hashlib
+import importlib
 import shutil
 import subprocess
 import sys
+import tempfile
+from functools import cache
+from pathlib import Path
+
+try:
+    import fcntl
+except ImportError:
+    # ponytail: fcntl is POSIX-only; on Windows the install falls back to
+    # today's unlocked path, so concurrent first runs there can still race
+    # the model install (double download, possible pip unpack failure).
+    fcntl = None
 
 _MODEL = "en_core_web_sm"
 
@@ -42,19 +55,73 @@ def _install_model() -> None:
         cmd = [uv_path, "pip", "install", "--python", sys.executable, wheel_url]
     else:
         cmd = [sys.executable, "-m", "pip", "install", wheel_url]
-    subprocess.run(cmd, check=True)
+    # stdout -> sys.stderr (issue #136): with inherited stdio, a closed
+    # stdout pipe (`timbro check draft.md | head -5`) breaks pip mid-install
+    # and every piped cold start keeps failing. pip's progress belongs on
+    # stderr, next to the "downloading" notice.
+    subprocess.run(cmd, check=True, stdout=sys.stderr)
+
+
+def _install_lock_path() -> Path:
+    """Exclusive-install lock file, one per environment (the running venv)."""
+    digest = hashlib.sha256(sys.prefix.encode()).hexdigest()[:12]
+    return Path(tempfile.gettempdir()) / f"timbro-spacy-install-{digest}.lock"
+
+
+def _install_and_load(**kwargs) -> spacy.language.Language:  # noqa: F821
+    """Print the cold-start notice, install the model, then load it."""
+    print(
+        f"timbro: downloading spaCy model '{_MODEL}' (first run only)...",
+        file=sys.stderr,
+    )
+    _install_model()
+    import spacy
+
+    return spacy.load(_MODEL, **kwargs)
 
 
 def load_spacy(**kwargs) -> spacy.language.Language:  # noqa: F821
-    """spacy.load(_MODEL, **kwargs), downloading the model first if missing."""
+    """spacy.load(_MODEL, **kwargs), downloading the model first if missing.
+
+    Concurrent cold starts serialize on a per-environment lock file: the
+    first process installs, the others re-check under the lock and load what
+    it installed, so the model is fetched and pip-installed exactly once
+    (issue #173).
+    """
     import spacy
 
     try:
         return spacy.load(_MODEL, **kwargs)
     except OSError:
-        print(
-            f"timbro: downloading spaCy model '{_MODEL}' (first run only)...",
-            file=sys.stderr,
-        )
-        _install_model()
-        return spacy.load(_MODEL, **kwargs)
+        pass
+    if fcntl is None:
+        return _install_and_load(**kwargs)
+    with open(_install_lock_path(), "w") as lock_fd:
+        try:
+            fcntl.flock(lock_fd.fileno(), fcntl.LOCK_EX)
+            # Another process may have installed the model while we waited.
+            importlib.invalidate_caches()
+            try:
+                return spacy.load(_MODEL, **kwargs)
+            except OSError:
+                return _install_and_load(**kwargs)
+        finally:
+            fcntl.flock(lock_fd.fileno(), fcntl.LOCK_UN)
+
+
+@cache
+def cached_pipeline(
+    disable: tuple[str, ...], extra_pipes: tuple[str, ...] = ()
+) -> spacy.language.Language:  # noqa: F821
+    """One shared spaCy pipeline per (disable, extra_pipes) config.
+
+    Cached per config and shared across call sites: do not mutate the returned
+    pipeline (no add_pipe/remove_pipe, no enabling/disabling components).
+    """
+    # functools.cache == lru_cache(maxsize=None); unbounded is deliberate: the
+    # cache is bounded by the number of distinct call-site configs (5 today), and
+    # a small maxsize would evict and reload spaCy repeatedly.
+    nlp = load_spacy(disable=list(disable))
+    for name in extra_pipes:
+        nlp.add_pipe(name)
+    return nlp

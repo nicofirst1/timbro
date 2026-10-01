@@ -23,14 +23,14 @@ import gzip
 from functools import lru_cache
 from pathlib import Path
 
-from timbro.config import CONCRETENESS_REFERENCE
 from timbro.metric import parsed_doc, register
+from timbro.priors import CONCRETENESS_REFERENCE
 
 _CONTENT_POS = {"NOUN", "VERB", "ADJ", "ADV"}
-# Package-relative, same convention as model.py's `_SAMPLE = Path(__file__).parent /
-# "sample"` -- resolves against the installed package dir, not CWD, so the plugin cache
-# sandbox and any CWD find it the same way.
-_NORMS_PATH = Path(__file__).parent / "norms" / "concreteness_brysbaert2014.csv.gz"
+# Package-relative (like priors.py's `_SAMPLE`), one level up: this file lives in
+# axes/ while norms/ stays at the package root. Resolves against the installed
+# package dir, not CWD, so the plugin cache sandbox and any CWD find it the same way.
+_NORMS_PATH = Path(__file__).parent.parent / "norms" / "concreteness_brysbaert2014.csv.gz"
 
 
 @lru_cache(maxsize=1)
@@ -63,7 +63,6 @@ def concreteness_stats(text: str) -> tuple[float, float]:
 
 
 # --- Metric (#43/#46) -----------------------------------------------------------------
-# CONCRETENESS_REFERENCE lives in config.py now (PR #57 review); re-imported above.
 
 
 class _ConcretenessMetric:
@@ -71,8 +70,17 @@ class _ConcretenessMetric:
     raw document, per-lemma norms averaged over content words. Standalone axis group --
     does not feed the embedding distance or POS direction (issue #46)."""
 
+    # (axis, raise_hint, lower_hint): "raise" fires when the draft sits below the
+    # reference (needs more concrete language); "lower" fires above it (draft leans
+    # more concrete than the reference).
+    hint_axes: tuple[tuple[str, str, str], ...] = (
+        ("mean_concreteness", "use more concrete, physical language", "use more abstract language"),
+    )
+    # Fixed tolerance; promote to a knob only if a caller needs to tune it.
+    z_tol: float = 0.5
+
     name = "concreteness"
-    axes = ("mean_concreteness",)
+    axes = tuple(a for a, _, _ in hint_axes)
     prior = CONCRETENESS_REFERENCE
 
     def extract(self, text: str) -> tuple[float, ...]:

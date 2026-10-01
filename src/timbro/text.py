@@ -1,8 +1,8 @@
 """Shared text substrate: split, strip, embed.
 
 The one place both analysis families reach for their raw-text plumbing:
-  - the profile engine (model.py) and the profile-free diagnostics
-    (flow, rubrics, tells, analyze, rewrite) all split and embed the same way.
+  - the profile engine (timbro.model) and the profile-free diagnostics
+    (flow, rubrics, tells, rewrite) all split and embed the same way.
 
 Keeping it here (not inside flow or rubrics) means callers import *down* into
 substrate instead of *sideways* into a sibling that happens to own the helper.
@@ -11,8 +11,9 @@ Contents:
   - split_paragraphs / split_sentences: the two regexes, one filter, a min_words knob
   - strip_markup: runtime markdown removal (#16) -- distinct from cleanup/, which is
     ingest-time paper/LaTeX prep, not markdown stripping
+  - cosine: explicit-norm cosine similarity shared by rubrics/flow (#115)
   - _model: the general-purpose MiniLM semantic embedder shared by flow/rewrite/rubrics
-    (model.py owns the *style* embedder separately -- different job, different weights)
+    (timbro.model owns the *style* embedder separately -- different job, different weights)
 """
 
 from __future__ import annotations
@@ -20,6 +21,8 @@ from __future__ import annotations
 import os
 import re
 from functools import lru_cache
+
+import numpy as np
 
 # ---- splitting ---------------------------------------------------------------
 
@@ -136,6 +139,14 @@ def strip_markup(text: str) -> str:
     return text.strip()
 
 
+# ---- cosine (#115) -----------------------------------------------------------
+
+def cosine(a: np.ndarray, b: np.ndarray) -> float:
+    """Explicit-norm cosine: safe for non-unit inputs; returns 0.0 for a zero vector."""
+    denom = (np.linalg.norm(a) * np.linalg.norm(b)) or 1.0
+    return float(np.dot(a, b) / denom)
+
+
 # ---- embedding ---------------------------------------------------------------
 
 @lru_cache(maxsize=1)
@@ -158,7 +169,14 @@ def _model():
         pass
     from sentence_transformers import SentenceTransformer
 
-    return SentenceTransformer("all-MiniLM-L6-v2")  # fast CPU model (NFR1)
+    # local-first (#139): with the model cached, the online call still does a hub
+    # HEAD request whose retry backoff stalls minutes with the network down. Try
+    # the cache first; on failure (model not cached, first-run download) fall back
+    # to the unchanged online call.
+    try:
+        return SentenceTransformer("all-MiniLM-L6-v2", local_files_only=True)
+    except Exception:  # noqa: BLE001 -- cache miss must not block the online fallback
+        return SentenceTransformer("all-MiniLM-L6-v2")  # fast CPU model (NFR1)
 
 
 if __name__ == "__main__":

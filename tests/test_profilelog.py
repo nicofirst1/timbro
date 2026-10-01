@@ -7,8 +7,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from timbro.profiles import init_profile, learn
 from timbro.profilelog import log_learn
+from timbro.profiles import init_profile, learn
 
 FINAL_TEXT = (
     "The committee reviewed the annual budget with care. Members raised concerns about "
@@ -105,6 +105,36 @@ class LearnLoggingTests(unittest.TestCase):
 
             log_path = root / "demo" / "runs.jsonl"
             self.assertFalse(log_path.exists())
+
+    def test_settings_no_log_true_writes_nothing(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td) / "profiles"
+            _seed(root)
+            home = Path(td) / "home"
+            home.mkdir()
+            (home / "settings.json").write_text('{"no_log": true}', encoding="utf-8")
+            profile = init_profile("demo", root=root)
+            with patch.dict(os.environ, {"TIMBRO_HOME": str(home)}, clear=False):
+                os.environ.pop("TIMBRO_NO_LOG", None)
+                result = log_learn(
+                    profile, None, "a", "b", title="t", outcome="saved", guard=None
+                )
+            self.assertIsNone(result)
+            self.assertFalse((root / "demo" / "runs.jsonl").exists())
+
+    def test_malformed_settings_is_swallowed(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td) / "profiles"
+            profile = init_profile("demo", root=root)
+            home = Path(td) / "home"
+            home.mkdir()
+            (home / "settings.json").write_text("{nope", encoding="utf-8")
+            with patch.dict(os.environ, {"TIMBRO_HOME": str(home)}, clear=False):
+                os.environ.pop("TIMBRO_NO_LOG", None)
+                result = log_learn(
+                    profile, None, "a", "b", title="t", outcome="saved", guard=None
+                )
+            self.assertIsNone(result)
 
     def test_logging_failure_is_swallowed(self):
         with tempfile.TemporaryDirectory() as td:

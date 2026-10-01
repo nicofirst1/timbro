@@ -120,8 +120,8 @@ class SpreadUnitRegressionTest(unittest.TestCase):
         # interchangeable. The lemma-level weighted spread over the full norms table
         # is ~1.05; the config's document-level spread must stay well under half of
         # that, or CONCRETENESS_REFERENCE.spread has silently been fed the wrong unit
-        # again (model.py's z-score divides by it directly).
-        from timbro.config import CONCRETENESS_REFERENCE
+        # again (the axis_report z-score divides by it directly).
+        from timbro.priors import CONCRETENESS_REFERENCE
 
         self.assertLess(CONCRETENESS_REFERENCE.spread[0], 0.5)
 

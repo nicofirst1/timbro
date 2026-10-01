@@ -7,7 +7,7 @@ words, so they carry a strong voice signature. Article/preposition density corre
 with analytical thinking; first-person-singular correlates with status/self-focus
 (Atlas Sec3.1). Pure POS predicates over the shared cached Doc (`metric.parsed_doc`) --
 no lexicon, no new dependency -- reported standalone, the same way `hedge.py`/
-`MARKDOWN_METRIC` axes are (see model.py): it does not feed the embedding distance or
+`MARKDOWN_METRIC` axes are: it does not feed the embedding distance or
 POS direction/`_WEIGHTS`.
 
 Five sub-axes, each a rate per 1000 word-tokens (same convention as hedge.py/tells.py):
@@ -22,8 +22,8 @@ from __future__ import annotations
 import re
 from functools import lru_cache
 
-from timbro.config import FUNCTION_WORD_REFERENCE
 from timbro.metric import parsed_doc, register
+from timbro.priors import FUNCTION_WORD_REFERENCE
 
 _WORD = re.compile(r"\b\w+\b")
 
@@ -58,7 +58,6 @@ def function_word_rates(text: str) -> tuple[float, float, float, float, float]:
 
 
 # --- Metric (#43/#45) ----------------------------------------------------------------
-# FUNCTION_WORD_REFERENCE lives in config.py now (PR #57 review); re-imported above.
 
 
 class _FunctionWordMetric:
@@ -66,8 +65,20 @@ class _FunctionWordMetric:
     article_rate, preposition_rate, conjunction_rate, pronoun_rate) per-1000-words for
     one raw document."""
 
+    # (axis, raise_hint, lower_hint): "raise" fires when the draft sits below the
+    # reference (needs more of the marker); "lower" fires above it.
+    hint_axes: tuple[tuple[str, str, str], ...] = (
+        ("first_person_sg", "use more first-person singular (I/me/my)", "use less first-person singular"),
+        ("article_rate", "add more articles (a/an/the)", "trim articles"),
+        ("preposition_rate", "add more prepositions", "trim prepositions"),
+        ("conjunction_rate", "add more conjunctions", "trim conjunctions"),
+        ("pronoun_rate", "add more pronouns", "trim pronouns"),
+    )
+    # Fixed tolerance; promote to a knob only if a caller needs to tune it.
+    z_tol: float = 0.5
+
     name = "fw"
-    axes = ("first_person_sg", "article_rate", "preposition_rate", "conjunction_rate", "pronoun_rate")
+    axes = tuple(a for a, _, _ in hint_axes)
     prior = FUNCTION_WORD_REFERENCE
 
     def extract(self, text: str) -> tuple[float, ...]:

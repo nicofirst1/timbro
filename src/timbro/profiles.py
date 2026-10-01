@@ -1,16 +1,16 @@
 """Manage named Timbro corpus profiles.
 
 Profiles are folder pairs under a root directory. Root resolution precedence
-(highest first): the `root` argument, `TIMBRO_PROFILE_ROOT` env var, an existing
-legacy `~/.timbro/profiles/` directory, then the XDG default
-`$XDG_DATA_HOME/timbro/profiles` (`$XDG_DATA_HOME` falls back to `~/.local/share`):
+(highest first): the `root` argument, `TIMBRO_PROFILE_ROOT` env var, then
+`<TIMBRO_HOME>/profiles` (`TIMBRO_HOME` defaults to `~/.timbro`):
 
     <root>/<name>/exemplars/
     <root>/<name>/contrast/
     <root>/<name>/README.md
 
 The README describes what the profile is for; the corpus folders hold `.md` / `.txt`
-documents that Timbro scores against.
+documents that Timbro scores against. The whole root can be kept in sync across
+machines with `sync_profiles` (git remote, no server).
 """
 
 from __future__ import annotations
@@ -18,7 +18,9 @@ from __future__ import annotations
 import os
 import re
 import shutil
+import subprocess
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 
 import numpy as np
@@ -26,9 +28,11 @@ from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
 
 from timbro.cleanup import tex_to_markdown
-from timbro.model import VoiceModel, _style_vec
+from timbro.model import VoiceModel
+from timbro.model.embedding import _style_vec
 from timbro.profilelog import log_learn
 from timbro.rewrite import evaluate_rewrite
+from timbro.settings import timbro_home
 
 _VALID_NAME = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
 
@@ -74,11 +78,7 @@ def profile_root(root: str | Path | None = None) -> Path:
         return Path(root).expanduser().resolve()
     if "TIMBRO_PROFILE_ROOT" in os.environ:
         return Path(os.environ["TIMBRO_PROFILE_ROOT"]).expanduser().resolve()
-    legacy = Path.home() / ".timbro" / "profiles"
-    if legacy.exists():
-        return legacy.resolve()
-    xdg_data_home = os.environ.get("XDG_DATA_HOME") or str(Path.home() / ".local" / "share")
-    return (Path(xdg_data_home).expanduser() / "timbro" / "profiles").resolve()
+    return (timbro_home() / "profiles").resolve()
 
 
 def normalize_profile_name(name: str) -> str:
@@ -215,6 +215,8 @@ def add_text(
     root: str | Path | None = None,
     overwrite: bool = False,
 ) -> Path:
+    if bucket not in ("exemplars", "contrast"):
+        raise ValueError(f"bucket must be 'exemplars' or 'contrast', got {bucket!r}")
     profile = init_profile(profile_name, root=root)
     target_dir = profile.exemplars_dir if bucket == "exemplars" else profile.contrast_dir
     path = target_dir / f"{_slug_filename(title)}.md"
@@ -233,6 +235,23 @@ def add_file(
     root: str | Path | None = None,
     overwrite: bool = False,
 ) -> Path:
+    # Unknown buckets used to fall through to contrast/ (the else-branch below),
+    # silently filing the user's own writing into the away-voice corpus. Reject
+    # before any write (init_profile included).
+    if bucket not in ("exemplars", "contrast"):
+        raise ValueError(f"bucket must be 'exemplars' or 'contrast', got {bucket!r}")
+    # Issue #150: dest_name used to be joined verbatim (dst = target_dir / name),
+    # so '../x.md' escaped the bucket, an absolute path wrote anywhere, and
+    # 'subdir/x.md' crashed with FileNotFoundError. Reject anything that is not
+    # a plain file name before any write (init_profile included). A NUL byte is
+    # also rejected here: it equals its own Path.name but would only fail late
+    # inside shutil with a generic 'embedded null byte' ValueError (review R1).
+    if dest_name is not None and (
+        dest_name in {"", ".", ".."}
+        or "\x00" in dest_name
+        or dest_name != Path(dest_name).name
+    ):
+        raise ValueError(f"--dest-name must be a plain file name, got '{dest_name}'")
     profile = init_profile(profile_name, root=root)
     src = Path(source)
     if not src.exists():
@@ -360,3 +379,200 @@ def learn(
         "title": title,
         **res,
     }
+
+
+_SYNC_TIMEOUT_SECONDS = 60
+
+
+def _sync_git(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    """Run one git command in the profile root; never prompts, never hangs."""
+    return subprocess.run(
+        ["git", "-C", str(root), *args],
+        env={**os.environ, "GIT_TERMINAL_PROMPT": "0"},
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        timeout=_SYNC_TIMEOUT_SECONDS,
+        check=False,
+    )
+
+
+def _sync_error(res: subprocess.CompletedProcess[str]) -> dict:
+    return {"status": "error", "message": (res.stderr or "").strip() or "git failed"}
+
+
+def _sync_missing_remote(root: Path) -> dict | None:
+    """Error when the root is a git repo with no `origin` remote (#154).
+
+    Checked before the sync touches anything: without it, the local commit
+    happens first and only then git dies with "'origin' does not appear to be
+    a git repository" and no hint at `--init`.
+    """
+    res = _sync_git(root, "remote", "get-url", "origin")
+    if res.returncode == 0:
+        return None
+    return {
+        "status": "error",
+        "message": (
+            "this profile root is a git repo but has no 'origin' remote; "
+            "run 'timbro profiles sync --init <git-url>' to point it at one"
+        ),
+    }
+
+
+def _sync_merge_in_progress(root: Path) -> bool:
+    git_dir = root / ".git"
+    if (
+        (git_dir / "MERGE_HEAD").exists()
+        or (git_dir / "rebase-merge").exists()
+        or (git_dir / "rebase-apply").exists()
+    ):
+        return True
+    return bool(_sync_git(root, "ls-files", "-u").stdout.strip())
+
+
+def _sync_conflict_files(root: Path) -> list[str]:
+    res = _sync_git(root, "diff", "--name-only", "--diff-filter=U")
+    return [line for line in res.stdout.splitlines() if line.strip()]
+
+
+def _sync_append_line(path: Path, line: str) -> None:
+    """Append `line` to `path` unless a line with that exact text is already there."""
+    if path.exists():
+        content = path.read_text(encoding="utf-8", errors="ignore")
+        if line in content.splitlines():
+            return
+        prefix = "\n" if content and not content.endswith("\n") else ""
+        path.write_text(content + prefix + line + "\n", encoding="utf-8")
+    else:
+        path.write_text(line + "\n", encoding="utf-8")
+
+
+def _sync_init(root: Path, remote_url: str) -> dict | None:
+    """First-time setup; returns an error dict on failure, None on success."""
+    root.mkdir(parents=True, exist_ok=True)
+    if not (root / ".git").exists():
+        res = _sync_git(root, "init")
+        if res.returncode != 0:
+            return _sync_error(res)
+        # Pin the branch to main explicitly; `git init -b` needs git >= 2.28.
+        res = _sync_git(root, "symbolic-ref", "HEAD", "refs/heads/main")
+        if res.returncode != 0:
+            return _sync_error(res)
+    _sync_append_line(root / ".gitattributes", "runs.jsonl merge=union")
+    _sync_append_line(root / ".gitignore", ".DS_Store")
+    res = _sync_git(root, "remote", "add", "origin", remote_url)
+    if res.returncode != 0:
+        res = _sync_git(root, "remote", "set-url", "origin", remote_url)
+        if res.returncode != 0:
+            return _sync_error(res)
+    return None
+
+
+def _sync_run(root: Path, allow_unrelated_histories: bool) -> dict:
+    identity: list[str] = []
+    if _sync_git(root, "config", "user.email").returncode != 0:
+        identity = ["-c", "user.name=timbro", "-c", "user.email=timbro@localhost"]
+    # 1. Commit local changes.
+    res = _sync_git(root, "add", "-A")
+    if res.returncode != 0:
+        return _sync_error(res)
+    res = _sync_git(root, "diff", "--cached", "--quiet")
+    if res.returncode != 0:
+        stamp = datetime.now(UTC).isoformat(timespec="seconds")
+        res = _sync_git(root, *identity, "commit", "-m", f"timbro sync {stamp}")
+        if res.returncode != 0:
+            return _sync_error(res)
+    # 2. Does the remote branch exist yet?
+    res = _sync_git(root, "ls-remote", "--exit-code", "--heads", "origin", "main")
+    if res.returncode not in (0, 2):
+        return _sync_error(res)
+    # 3. Explicit fetch and merge, not pull: the user's pull.rebase / pull.ff
+    # config must not change behaviour.
+    if res.returncode == 0:
+        res = _sync_git(root, "fetch", "origin", "main")
+        if res.returncode != 0:
+            return _sync_error(res)
+        merge_args = ["merge", "--no-edit", "--no-ff"]
+        if allow_unrelated_histories:
+            merge_args.append("--allow-unrelated-histories")
+        merge_args.append("origin/main")
+        res = _sync_git(root, *identity, *merge_args)
+        if res.returncode != 0:
+            files = _sync_conflict_files(root)
+            if files:
+                # Collect the paths first, then abort: the local commit is kept,
+                # nothing is auto-resolved, no conflict markers get committed.
+                _sync_git(root, "merge", "--abort")
+                return {"status": "conflict", "files": files}
+            return _sync_error(res)
+    # 4. Push, unless nothing was ever committed (empty root, empty remote).
+    res = _sync_git(root, "rev-parse", "--verify", "HEAD")
+    if res.returncode != 0:
+        return {"status": "ok"}
+    res = _sync_git(root, "push", "-u", "origin", "main")
+    if res.returncode != 0:
+        return _sync_error(res)
+    return {"status": "ok"}
+
+
+def sync_profiles(root: str | Path | None = None, init_remote: str | None = None) -> dict:
+    """Sync the whole profile root with a git remote.
+
+    Syncs everything under the root (`<name>/exemplars`, `<name>/contrast`,
+    `README.md`, `runs.jsonl`); `settings.json` lives outside the root and is
+    per-machine, so it is never synced. Merges only -- no rebase, no force push,
+    no auto-resolved conflicts.
+
+    Returns one of:
+
+    - {"status": "ok"}
+    - {"status": "not-configured"}          no `.git` in the root, no remote given
+    - {"status": "conflict", "files": ...}   merge conflicts, left for the user
+    - {"status": "error", "message": ...}    a git step failed, the root has no
+        `origin` remote, or a step timed out
+
+    With `init_remote`, when an existing `origin` was repointed to the new URL,
+    the result also carries `"previous_remote": <old url>`.
+
+    `init_remote` runs first-time setup (same command on every machine): init on
+    branch `main`, write `.gitattributes` (`runs.jsonl merge=union`) and
+    `.gitignore` (`.DS_Store`), point `origin` at the remote, then sync. The
+    remote must be a private repo -- profiles hold private writing.
+    """
+    if shutil.which("git") is None:
+        raise RuntimeError("git not found on PATH; profile sync needs git")
+    base = profile_root(root)
+    allow_unrelated_histories = init_remote is not None
+    previous_remote: str | None = None
+    try:
+        if not (base / ".git").exists():
+            if not allow_unrelated_histories:
+                return {"status": "not-configured"}
+        elif _sync_merge_in_progress(base):
+            # Report and stop: never stage or commit over a merge in progress.
+            return {"status": "conflict", "files": _sync_conflict_files(base)}
+        elif not allow_unrelated_histories:
+            error = _sync_missing_remote(base)
+            if error is not None:
+                return error
+        if allow_unrelated_histories:
+            # `remote add` fails when origin exists, and `_sync_init` then
+            # repoints it silently; remember the old URL so the caller can
+            # tell the user.
+            if (base / ".git").exists():
+                probe = _sync_git(base, "remote", "get-url", "origin")
+                if probe.returncode == 0:
+                    previous_remote = probe.stdout.strip()
+            error = _sync_init(base, init_remote)
+            if error is not None:
+                return error
+        result = _sync_run(base, allow_unrelated_histories)
+        if previous_remote is not None and previous_remote != init_remote:
+            result["previous_remote"] = previous_remote
+        return result
+    except subprocess.TimeoutExpired as exc:
+        stderr = exc.stderr
+        if isinstance(stderr, bytes):
+            stderr = stderr.decode("utf-8", errors="replace")
+        return {"status": "error", "message": (stderr or "").strip() or "timed out"}

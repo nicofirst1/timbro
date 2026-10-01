@@ -2,21 +2,21 @@
 delve/tapestry diction, curly quotes, staccato rhythm, ...) surfaced through the same
 findings/verdict machinery as `check`. No model, no voice corpus, no LLM-as-judge.
 
-The detectors live in `timbro.tells` (they also feed the voice `score` direction as
+The detectors live in `timbro.axes.tells` (they also feed the voice `score` direction as
 lexical features); this module just turns their spans into RubricFindings. Recall-first,
 like every rubric: prefer false positives and let the consumer filter — see CLAUDE.md.
 """
 
 from __future__ import annotations
 
-from timbro.rubrics.base import RubricFinding
-from timbro.tells import (
+from timbro.axes.tells import (
     TELL_LABEL,
     TELL_NAMES,
     TELL_PRIOR,
     tell_occurrences,
     tell_rates,
 )
+from timbro.rubrics.base import RubricFinding
 
 # Each tell rolls up under one report dimension. Grouped by what the reader would fix:
 # word choice, phrase templates, sentence cadence, surface markup.
@@ -82,7 +82,8 @@ def tell_findings(text: str, baseline: dict[str, tuple[float, float]] | None = N
             continue
         mean, std = baseline[name]
         # Zero-variance corpus (a tell it never uses, or uses uniformly): 1 rate-unit
-        # (one occurrence per 1000 words) sets the scale, matching model.py's std guard.
+        # (one occurrence per 1000 words) sets the scale, matching the `spread or 1.0`
+        # guard VoiceModel.axis_report applies to degenerate axes.
         z = (rates[f"tell_{name}"] - mean) / (std or 1.0)
         if z <= _REL_FLAG_Z:
             continue

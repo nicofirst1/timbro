@@ -1,6 +1,6 @@
 """AI-tell layer: named lexical/phrasal markers of LLM prose, as white-box features.
 
-The POS direction in `core` measures *grammatical texture* — it is blind to
+The POS direction in `timbro.model.direction` measures *grammatical texture* — it is blind to
 *lexical* tells. A draft can sit dead-centre in your POS cloud and still say
 "delve into the rich tapestry", carry an em-dash, or run "it's not X, it's Y".
 Those are exactly the markers two public corpora converge on: Wikipedia's "Signs
@@ -21,10 +21,10 @@ from __future__ import annotations
 import re
 from functools import lru_cache
 
-from timbro.config import (
-    TELL_PRIOR,  # noqa: F401  (re-exported: model.py/checks.py/tests import it from here)
-)
 from timbro.metric import Reference, register
+from timbro.priors import (
+    TELL_PRIOR,  # noqa: F401  (re-exported: the slop checks and tests import it from here)
+)
 
 # Plain-English labels so a flagged tell reads as advice, not a feature id.
 TELL_LABEL = {
@@ -50,9 +50,6 @@ TELL_LABEL = {
     "dropped_subject": "dropped-subject opener (bare finite verb, no subject)",
     "staccato_run": "staccato run (3+ consecutive sentences under 8 words)",
 }
-
-# TELL_PRIOR (confidence floor, seeded from the Reddit study's citation frequency) lives
-# in config.py now (PR #57 review); re-imported above.
 
 _FRONTMATTER = re.compile(r"\A---\n.*?\n---\n", re.DOTALL)
 _WORD = re.compile(r"\b\w+\b")
@@ -163,16 +160,13 @@ _HR = re.compile(r"^(?:-{3,}|\*{3,}|_{3,})\s*$", re.MULTILINE)
 TELL_NAMES = tuple(TELL_LABEL)  # stable order for the feature vector
 
 
-@lru_cache(maxsize=1)
 def _nlp():
-    # A second spaCy load (separate from model.py's, which disables the
-    # parser and can't give sentence boundaries). Deliberately kept as its own
-    # lru_cache(size=1) loader rather than threading a Doc through every call site.
-    from timbro.spacy_model import load_spacy
+    # A second spaCy config (separate from direction.py's, which disables the
+    # parser and can't give sentence boundaries): same disable list plus a
+    # sentencizer -- rule-based boundaries, no statistical parser.
+    from timbro.spacy_model import cached_pipeline
 
-    nlp = load_spacy(disable=["ner", "lemmatizer", "parser"])
-    nlp.add_pipe("sentencizer")  # rule-based boundaries; no statistical parser
-    return nlp
+    return cached_pipeline(("ner", "lemmatizer", "parser"), ("sentencizer",))
 
 
 # Penn finite/participle tags that mark a bare-verb opener; base-form VB is an
@@ -284,7 +278,7 @@ def tell_baseline(texts: list[str]) -> dict[str, tuple[float, float]]:
     return out
 
 
-# Structural zero placeholder, not a tunable prior (those live in config.py): a clean
+# Structural zero placeholder, not a tunable prior (those live in priors.py): a clean
 # exemplar corpus carries ~0 tells, and strength=0 means a real corpus fully sets the
 # mean/std at fit. Derived from TELL_NAMES so the length can't drift from the detectors.
 TELL_REFERENCE = Reference(

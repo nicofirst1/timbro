@@ -3,7 +3,7 @@ from __future__ import annotations
 import unittest
 from types import SimpleNamespace
 
-from timbro.model import FeatureMove
+from timbro.report import FeatureMove
 from timbro.report import voice_report
 
 
@@ -31,6 +31,9 @@ class ReportAttributionTests(unittest.TestCase):
                 return []
 
             def concreteness_report(self, text: str):
+                return []
+
+            def richness_report(self, text: str):
                 return []
 
             def profile_report(self):

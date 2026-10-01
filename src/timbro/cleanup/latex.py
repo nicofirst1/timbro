@@ -76,7 +76,8 @@ def looks_like_latex(text: str) -> bool:
 def detex_text(text: str, *, replace_math: bool = True) -> str:
     """Strip LaTeX commands from raw `.tex` content using the external `detex` tool.
 
-    Raises `RuntimeError` if `detex` is not installed or returns a non-zero exit code.
+    Raises `RuntimeError` if `detex` is not installed, does not finish within
+    60 seconds, or returns a non-zero exit code.
     """
     exe = shutil.which("detex")
     if exe is None:
@@ -85,13 +86,17 @@ def detex_text(text: str, *, replace_math: bool = True) -> str:
     cmd = [exe, "-n"]
     if replace_math:
         cmd.append("-r")
-    proc = subprocess.run(
-        cmd,
-        input=_strip_latex_source_noise(text),
-        text=True,
-        capture_output=True,
-        check=False,
-    )
+    try:
+        proc = subprocess.run(
+            cmd,
+            input=_strip_latex_source_noise(text),
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=60,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError("detex timed out after 60s") from exc
     if proc.returncode != 0:
         raise RuntimeError(proc.stderr.strip() or "detex failed")
     return _normalize_detex_output(proc.stdout)

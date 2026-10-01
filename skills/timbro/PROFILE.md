@@ -12,14 +12,15 @@ Point Timbro at a corpus with a managed profile: `uvx timbro@<version> profiles 
 
 list of accepted file input:
 
-- tex
 - md
+- txt
+- tex (converted on ingest when `detex` is installed)
 
 If no profile is set, Timbro falls back to a small packaged sample voice so it runs, but that is **not** the user's voice. Never silently score a real draft against the sample.
 
 ## Every run
 
-1. **Pick a direction: always ask.** List profiles with `uvx timbro@<version> profiles list`, tell the user what's available, and ask which set to move _toward_ (exemplars) and which to move _away from_ (contrast). Do not assume.
+1. **Pick a direction: always ask.** First run `uvx timbro@<version> profiles sync` so this machine has the user's latest profiles. If it says the profile root is not configured, say nothing about it; on `conflict` or `error`, tell the user in one line and continue with the local profiles -- sync must never block scoring. Then list profiles with `uvx timbro@<version> profiles list`, tell the user what's available, and ask which set to move _toward_ (exemplars) and which to move _away from_ (contrast). Do not assume.
 
 2. **Score the draft.** Write the draft to a file and run:
 
@@ -52,5 +53,7 @@ If no profile is set, Timbro falls back to a small packaged sample voice so it r
    The final becomes an exemplar (move-toward), the raw draft becomes contrast (move-away). Because the two are topic-matched, this pair is an unusually clean voice signal, and the profile sharpens with each one you add.
 
    `learn` reuses the same guard as `timbro accept`: it refuses to save unless the final actually scored closer to the voice **and** preserved meaning. A rejected `learn` is a sign the loop didn't really converge. Go back to step 3.
+
+   When the pair is saved, push it to the user's other machines: run `uvx timbro@<version> profiles sync` once, after `learn` (not after every `init` / `add-file` -- one push per file would be noise). On `conflict` or `error`, one line to the user, then continue with the local profiles.
 
    Only save finals a human has approved. That human gate is what keeps the profile from drifting toward generic LLM-polished prose over time.

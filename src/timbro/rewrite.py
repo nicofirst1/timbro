@@ -18,12 +18,15 @@ from timbro.text import _model  # all-MiniLM-L6-v2: general semantic embedding
 
 
 def content_similarity(original: str, revised: str) -> float:
-    """Semantic cosine in [0, 1-ish]. High = same meaning, regardless of style."""
+    """Semantic cosine in [0, 1]. High = same meaning, regardless of style."""
     e = _model().encode(
         [preprocess_runtime_text(original), preprocess_runtime_text(revised)],
         normalize_embeddings=True,
     )
-    return float(np.dot(e[0], e[1]))
+    # float32 unit vectors make a self-dot land at 1 + 1 ulp; clamp to the
+    # contract range the guard and `accept --json` report.
+    similarity = float(np.dot(e[0], e[1]))
+    return min(1.0, max(0.0, similarity))
 
 
 def preserves_content(original: str, revised: str, threshold: float = 0.85) -> tuple[bool, float]:

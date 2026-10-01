@@ -49,7 +49,7 @@ def _paragraphs(dir_path: Path) -> list[str]:
 
 
 def flag_rate(paragraphs: list[str]) -> tuple[int, int]:
-    flagged = sum(bool(check_text(p, rubric="slop").findings) for p in paragraphs)
+    flagged = sum(bool(check_text(p, rubrics=["slop"])[0].findings) for p in paragraphs)
     return flagged, len(paragraphs)
 
 

@@ -1,4 +1,4 @@
-"""Derive CONCRETENESS_REFERENCE (config.py) for issue #58.
+"""Derive CONCRETENESS_REFERENCE (priors.py) for issue #58.
 
 Two derivations, mixed deliberately because they answer different questions:
 
@@ -14,7 +14,7 @@ shipped; this script does not overwrite the vendored norms file.
 
 SPREAD: population stdev of DOCUMENT-level mean concreteness, not lemma-level. The
 axis this prior feeds (`concreteness.py:concreteness_stats`) scores one draft as a
-single averaged number, and `model.py`'s z-score divides by this spread -- so the
+single averaged number, and the axis z-score divides by this spread -- so the
 spread must be measured in the same units the z-score consumes: how much a
 ~1000-word document's mean concreteness varies, not how much individual words'
 ratings vary (~3.5x wider and the wrong unit -- see #58 verifier finding). Reuses
@@ -94,7 +94,7 @@ def derive(rows: list[tuple[str, float, float]], vendored_lemmas: set[str]) -> t
     """Frequency-weighted (mean, spread) over individual lemmas, restricted to the
     vendored lemma set. The spread this returns is the LEMMA-level spread -- kept for
     reference/testing but NOT what CONCRETENESS_REFERENCE.spread uses; see
-    `derive_document_spread` for the document-level number the config actually needs.
+    `derive_document_spread` for the document-level number the prior actually needs.
     """
     kept = [(conc, freq) for lemma, conc, freq in rows if lemma in vendored_lemmas]
     concreteness = [c for c, _ in kept]
@@ -123,7 +123,7 @@ def chunk_words(text: str, chunk_words: int = CHUNK_WORDS) -> list[str]:
 
 def derive_document_spread(chunks: list[str], mean_concreteness_fn) -> float:
     """Population stdev of per-chunk mean concreteness -- the document-level unit the
-    z-score in `model.py` actually divides by. `mean_concreteness_fn` is injected so
+    z-score in `VoiceModel.axis_report` actually divides by. `mean_concreteness_fn` is injected so
     this is testable without spaCy/network."""
     per_chunk_means = [mean_concreteness_fn(c) for c in chunks]
     return statistics.pstdev(per_chunk_means)
@@ -136,7 +136,7 @@ def fetch_text(gutenberg_id: int) -> str:
 
 
 def main() -> None:
-    from timbro.concreteness import concreteness_stats
+    from timbro.axes.concreteness import concreteness_stats
 
     with urllib.request.urlopen(_ORIGINAL_URL) as resp:
         text = resp.read().decode("utf-8")
