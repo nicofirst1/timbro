@@ -77,11 +77,18 @@ def _local_direction(model, text: str, top_k: int = 2) -> list[dict]:
     ]
 
 
-def _top_sentence(model, paragraph: str) -> dict | None:
+def _top_sentence(model, paragraph: str, sent_distances: list[float]) -> dict | None:
+    """Farthest-from-voice sentence of one paragraph, or None when it has no
+    candidate sentence (fewer than 8 words).
+
+    `sent_distances` carries the batched embedding distances of the candidate
+    sentences, in split_sentences order (issue #153): spans used to give every
+    candidate sentence its own model call.
+    """
     candidates = split_sentences(paragraph, min_words=8)
     if not candidates:
         return None
-    scored = [{"text": s, "distance": model._dist(s)} for s in candidates]
+    scored = [{"text": s, "distance": d} for s, d in zip(candidates, sent_distances)]
     best = max(scored, key=lambda row: row["distance"])
     best["direction"] = _local_direction(model, best["text"], top_k=2)
     return best
@@ -91,17 +98,28 @@ def _span_guidance(model, text: str, top_k: int = 3) -> list[dict]:
     paras = paragraphs(text)
     if len(paras) < 2:
         return []
-    scored = [
-        {
-            "index": i + 1,
-            "distance": model._dist(p),
-            "distance_z": model.normalized_distance(p),
-            "text": p[:280],
-            "direction": _local_direction(model, p, top_k=3),
-            "sentence": _top_sentence(model, p),
-        }
-        for i, p in enumerate(paras)
-    ]
+    sent_lists = [split_sentences(p, min_words=8) for p in paras]
+    # One batched encode for every paragraph and candidate sentence (issue #153).
+    # Texts are collected in one order -- paragraphs first, then each paragraph's
+    # sentences -- and the results are consumed in that same order.
+    distances = model._dists(paras + [s for cands in sent_lists for s in cands])
+    para_dists = distances[: len(paras)]
+    sent_dists = distances[len(paras) :]
+    scored = []
+    at = 0
+    for i, p in enumerate(paras):
+        n = len(sent_lists[i])
+        scored.append(
+            {
+                "index": i + 1,
+                "distance": para_dists[i],
+                "distance_z": model.normalized_distance(p),
+                "text": p[:280],
+                "direction": _local_direction(model, p, top_k=3),
+                "sentence": _top_sentence(model, p, sent_dists[at : at + n]),
+            }
+        )
+        at += n
     return sorted(scored, key=lambda row: row["distance"], reverse=True)[:top_k]
 
 

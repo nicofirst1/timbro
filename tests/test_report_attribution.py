@@ -52,6 +52,11 @@ class ReportAttributionTests(unittest.TestCase):
             def _dist(self, text: str):
                 return 4.0 if "we" in text.lower() else 1.0
 
+            def _dists(self, texts: list[str]):
+                # batched twin of _dist (issue #153): report.py collects the span
+                # texts and asks for their distances in one call.
+                return [self._dist(t) for t in texts]
+
         text = (
             "We explain the approach in detail for the broader evaluation setting. We also mention why it is limited for several realistic deployment cases.\n\n"
             "The method section is compact and concrete for the target audience. It names the variables clearly and avoids unnecessary jargon throughout."
