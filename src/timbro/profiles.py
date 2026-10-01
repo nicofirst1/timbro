@@ -401,6 +401,25 @@ def _sync_error(res: subprocess.CompletedProcess[str]) -> dict:
     return {"status": "error", "message": (res.stderr or "").strip() or "git failed"}
 
 
+def _sync_missing_remote(root: Path) -> dict | None:
+    """Error when the root is a git repo with no `origin` remote (#154).
+
+    Checked before the sync touches anything: without it, the local commit
+    happens first and only then git dies with "'origin' does not appear to be
+    a git repository" and no hint at `--init`.
+    """
+    res = _sync_git(root, "remote", "get-url", "origin")
+    if res.returncode == 0:
+        return None
+    return {
+        "status": "error",
+        "message": (
+            "this profile root is a git repo but has no 'origin' remote; "
+            "run 'timbro profiles sync --init <git-url>' to point it at one"
+        ),
+    }
+
+
 def _sync_merge_in_progress(root: Path) -> bool:
     git_dir = root / ".git"
     if (
@@ -510,7 +529,8 @@ def sync_profiles(root: str | Path | None = None, init_remote: str | None = None
     - {"status": "ok"}
     - {"status": "not-configured"}          no `.git` in the root, no remote given
     - {"status": "conflict", "files": ...}   merge conflicts, left for the user
-    - {"status": "error", "message": ...}    a git step failed or timed out
+    - {"status": "error", "message": ...}    a git step failed, the root has no
+        `origin` remote, or a step timed out
 
     With `init_remote`, when an existing `origin` was repointed to the new URL,
     the result also carries `"previous_remote": <old url>`.
@@ -532,6 +552,10 @@ def sync_profiles(root: str | Path | None = None, init_remote: str | None = None
         elif _sync_merge_in_progress(base):
             # Report and stop: never stage or commit over a merge in progress.
             return {"status": "conflict", "files": _sync_conflict_files(base)}
+        elif not allow_unrelated_histories:
+            error = _sync_missing_remote(base)
+            if error is not None:
+                return error
         if allow_unrelated_histories:
             # `remote add` fails when origin exists, and `_sync_init` then
             # repoints it silently; remember the old URL so the caller can
