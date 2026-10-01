@@ -270,6 +270,25 @@ class SingleHandlerTests(unittest.TestCase):
         self.assertNotIn("run log skipped", proc.stderr)
         _assert_clean_error(self, proc)
 
+    def test_learn_missing_file_error_line_starts_with_timbro_error_prefix(self):
+        # #191 (round 2 pin): learn errors used to print the bare `error: `
+        # prefix through the deleted per-command catch; pin the unified prefix
+        # literally so a re-added per-command `_fail(f"error: ...")` fails CI.
+        with tempfile.TemporaryDirectory() as tmp:
+            env = {"TIMBRO_PROFILE_ROOT": str(Path(tmp) / "profiles")}
+            proc = _run_cli(
+                [
+                    "profiles", "learn", "demo",
+                    "--draft", str(Path(tmp) / "no-draft.md"),
+                    "--final", str(Path(tmp) / "no-final.md"),
+                ],
+                env,
+            )
+        self.assertEqual(proc.returncode, 1, proc.stderr)
+        self.assertTrue(proc.stderr.startswith("timbro: error: "), proc.stderr)
+        self.assertIn("no-draft.md", proc.stderr)
+        _assert_clean_error(self, proc)
+
     def test_fail_with_broken_settings_still_suppresses_traceback(self):
         # kept behavior (#191 spec item 5i): _fail's own debug() lookup treats a
         # broken settings file as debug off, so the original error stays one
