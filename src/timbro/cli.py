@@ -471,10 +471,13 @@ def main():
     args = ap.parse_args()
     try:
         args.func(args)
-    except (FileNotFoundError, FileExistsError, IsADirectoryError, UnicodeDecodeError) as e:
-        # Expected user errors (missing file, non-UTF-8 text, duplicate add-file,
-        # unknown profile): one clean line, not a traceback (issue #137). Every
-        # other exception must still traceback, because bugs should stay loud.
+    except (OSError, UnicodeDecodeError) as e:
+        # Expected user errors: one clean line, not a traceback. Issue #137
+        # covered missing files, non-UTF-8 text, duplicate add-file and unknown
+        # profiles; #154 widens the catch to OSError, so the other filesystem
+        # refusals (PermissionError, ENAMETOOLONG, EROFS) are one line too.
+        # Full traces come from the debug switch. Every other exception must
+        # still traceback, because bugs should stay loud.
         _fail(f"timbro: error: {_user_error_message(e)}")
 
 
