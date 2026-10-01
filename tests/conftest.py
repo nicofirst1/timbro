@@ -11,9 +11,11 @@ def _isolated_timbro_home(monkeypatch, tmp_path):
 
     - ``TIMBRO_HOME``: pointed at a per-test tmp dir, so tests never seed or
       read the real ``~/.timbro``.
-    - ``XDG_DATA_HOME``: pointed at a per-test tmp dir, so dependency
-      caches (spacy, sentence-transformers) land outside the developer's
-      real XDG data dir.
+    - ``XDG_DATA_HOME``: pointed at a per-test tmp dir (#202). Nothing in
+      timbro or its dependencies reads it today; it guards the pre-0.9.0
+      XDG profile location. Model caches follow ``HF_HOME`` /
+      ``XDG_CACHE_HOME``, which stay unsandboxed on purpose so tests reuse
+      the downloaded models.
     - ``TIMBRO_PROFILE_ROOT``: deleted. It takes precedence over
       ``$TIMBRO_HOME/profiles``, so an inherited value would send test
       writes (e.g. ``profiles add-file``) into the developer's real
