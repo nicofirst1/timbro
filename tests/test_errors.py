@@ -36,7 +36,7 @@ class _SandboxCase(unittest.TestCase):
     def setUp(self):
         td = tempfile.TemporaryDirectory()
         self.addCleanup(td.cleanup)
-        self.tmp = Path(td)
+        self.tmp = Path(td.name)
         env = {
             "TIMBRO_HOME": str(self.tmp / "home"),
             "TIMBRO_PROFILE_ROOT": str(self.tmp / "profiles"),
@@ -87,8 +87,10 @@ class ConvertedRaiseSitesTests(_SandboxCase):
     def test_add_file_bad_extension(self):
         from timbro.profiles import add_file
 
+        src = self.tmp / "src.rst"
+        src.write_text(_TEXT, encoding="utf-8")
         with self.assertRaises(ValueError) as ctx:
-            add_file("demo", "src.rst", bucket="exemplars")
+            add_file("demo", str(src), bucket="exemplars")
         self.assertIsInstance(ctx.exception, UserError)
         self.assertIsInstance(ctx.exception, UserValueError)
 
