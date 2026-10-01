@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- The packaged sample voice is 8 trimmed posts from the 18F blog (US public domain, CC0 1.0), replacing the 4 synthetic exemplars. The sample now reaches health "ok" and shows a direction; provenance in `src/timbro/sample/README.md` (#163).
+
+### Added
+
+- `timbro profiles diagnose` prints a `health:` line (and includes `health` in JSON) plus the thin-corpus evidence warning `score` already shows, so a thin corpus finally has signal to relay (#163).
+
 ## [0.9.0] — 2026-10-01
 
 New voice axes, interchangeable rubrics, profile sync across machines, and a module layout that matches the architecture (#110). Several changes are **breaking**; see Removed and Changed.

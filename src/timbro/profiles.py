@@ -28,7 +28,7 @@ from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
 
 from timbro.cleanup import tex_to_markdown
-from timbro.model import VoiceModel
+from timbro.model import VoiceModel, _profile_evidence
 from timbro.model.embedding import _style_vec
 from timbro.profilelog import log_learn
 from timbro.rewrite import evaluate_rewrite
@@ -117,6 +117,7 @@ def diagnose_profile(name: str, root: str | Path | None = None) -> dict:
         return {
             "name": profile.name,
             "exemplars": 0,
+            "health": "insufficient",
             "coherence": None,
             "mixed_profile": False,
             "silhouette": None,
@@ -127,8 +128,10 @@ def diagnose_profile(name: str, root: str | Path | None = None) -> dict:
 
     rows = []
     vecs = []
+    texts = []  # raw file texts, reused for the evidence health check (#163)
     for path in files:
         text = path.read_text(encoding="utf-8", errors="ignore")
+        texts.append(text)
         words = len(re.findall(r"\b\w+\b", text))
         paragraphs = len([p for p in re.split(r"\n\s*\n", text) if len(re.findall(r"\b\w+\b", p)) >= 30])
         rows.append({
@@ -170,9 +173,18 @@ def diagnose_profile(name: str, root: str | Path | None = None) -> dict:
     elif mean_similarity < 0.75:
         warning = "Profile coherence is low; exemplars may not represent one writing mode."
 
+    # Evidence health (#163): the same signal `score` shows, so diagnose can relay
+    # it for thin corpora. Merged last: outliers > mixed > low coherence > evidence.
+    # _total_words/_total_paragraphs are unpacked per spec but unused here: the
+    # per-file rows above already carry word/paragraph counts.
+    _total_words, _total_paragraphs, health, evidence_warning = _profile_evidence(texts)
+    if warning is None and evidence_warning is not None:
+        warning = evidence_warning
+
     return {
         "name": profile.name,
         "exemplars": len(files),
+        "health": health,
         "coherence": mean_similarity,
         "mixed_profile": mixed_profile,
         "silhouette": silhouette,
