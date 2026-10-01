@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- **Breaking:** a FAIL check and a rejected accept exit 3 instead of 0. Printed output is unchanged; scripts that branch on the exit code must handle 3 (#142).
+
 ### Fixed
 
 - HD-D (richness axis) is computed locally in a deterministic order, so values no longer depend on PYTHONHASHSEED. Values may differ from 0.9.0 in the last digit (~1 ULP) (#123).

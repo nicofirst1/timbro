@@ -7,6 +7,8 @@ description: Align a draft to a target voice, yours or your brand's ("make this 
 
 Pinned CLI version: `timbro@0.9.0`. Commands in the files below substitute `<version>` for it; never hand-edit this line, `scripts/release.sh` keeps it in sync with the release tag.
 
+Exit codes: 0 success, 1 user error, 2 sync/environment failure, 3 verdict gate (check FAIL, accept rejected): read the command's output for the reason.
+
 You (the agent) are the rewriter, Timbro is the measurer. Every capability below runs the same loop: **run the check → edit what it flags → re-run → repeat until it stops improving.** They differ only in what "check" means and what "improving" means. Jump to the one that matches the request:
 
 - **Match a voice** (needs a corpus): improving = `distance` drops → `PROFILE.md`.
