@@ -62,7 +62,7 @@ def _style_cache_put(text: str, vec: np.ndarray) -> None:
     # 512-entry window would evict the paragraphs the per-span direction pass
     # re-requests right after the batch (measured on a 300 KB draft: ~450
     # re-encodes at 512, zero at 4096). Entries are float32 arrays (~3 KB each),
-    # so the full window costs ~12 MB (tracemalloc, 4096 realistic entries);
+    # so the full window costs ~13 MB (tracemalloc, 4096 realistic entries);
     # tuples of boxed floats would cost ~103 MB. Same behavior for any repeated
     # text: hit.
     if text not in _style_cache and len(_style_cache) >= _STYLE_CACHE_MAX:
