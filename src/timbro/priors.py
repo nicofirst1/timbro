@@ -2,8 +2,9 @@
 
 What belongs here: hand-curated lexicon and phrase lists (hedge/booster, AI-tell
 diction), declared `Reference` priors for each scalar axis (the "expected value"
-a metric judges a draft against with no corpus), and the packaged-sample corpus
-paths.
+a metric judges a draft against with no corpus), the packaged-sample corpus
+paths, and the axis z saturation cap (`AXIS_Z_SATURATION`, a modelling
+constant, not a user setting).
 
 What does NOT belong here: detector/extractor code (regexes with matching logic,
 POS predicates, the `_count_*`/`*_rates` functions), scoring weights (`_PENALTY`,
@@ -165,3 +166,14 @@ RICHNESS_REFERENCE = Reference(
     spread=(3.0, 0.08, 0.5),
     strength=2.0,
 )
+
+
+# --- model/__init__.py: standalone-axis z saturation cap (#178) -------------------------
+
+# Cap on every blend-style axis z: a near-duplicate corpus has a tiny but real std,
+# so the raw z can reach 1e5-1e6. Past the cap the row is marked saturated and the
+# direction consumes the clamped value. The embedding distance/distance_z (#160)
+# and the POS direction are not clamped. A modelling constant, NOT a user setting:
+# scores must stay comparable across machines. Decision and rejected alternatives:
+# docs/adr/0007-axis-z-saturation-cap.md.
+AXIS_Z_SATURATION = 10.0
