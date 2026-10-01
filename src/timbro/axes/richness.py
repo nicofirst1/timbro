@@ -85,7 +85,10 @@ def richness_stats(text: str) -> tuple[float, float, float]:
         from lexical_diversity import lex_div
 
     doc = _doc(text)
-    readability = float(doc._.readability.get("coleman_liau_index") or 0.0)
+    # textdescriptives returns NaN (0/0) for a doc with no words (#177), and NaN is
+    # truthy, so the old `or 0.0` never fired -- screen missing/non-finite explicitly.
+    index = doc._.readability.get("coleman_liau_index")
+    readability = float(index) if index is not None and math.isfinite(index) else 0.0
     content_lemmas = [t.lemma_.lower() for t in doc if t.is_alpha and t.pos_ in _CONTENT_POS]
     richness = float(lex_div.hdd(content_lemmas)) if len(content_lemmas) >= 2 else 0.0
     entropy = _shannon_entropy(doc)

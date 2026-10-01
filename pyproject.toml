@@ -31,6 +31,8 @@ dependencies = [
     "wordfreq>=3.1.1",
     "textdescriptives>=2.8.2",
     "lexical-diversity>=0.1.1",
+    # yaml is imported at module level by axes/markdown.py for front matter (#141).
+    "pyyaml>=6",
     # lexical-diversity imports pkg_resources at module load time. setuptools isn't
     # guaranteed present in a `uv tool install` env, and setuptools>=81 dropped
     # pkg_resources entirely, so pin below that boundary (#42).

@@ -169,7 +169,14 @@ def _model():
         pass
     from sentence_transformers import SentenceTransformer
 
-    return SentenceTransformer("all-MiniLM-L6-v2")  # fast CPU model (NFR1)
+    # local-first (#139): with the model cached, the online call still does a hub
+    # HEAD request whose retry backoff stalls minutes with the network down. Try
+    # the cache first; on failure (model not cached, first-run download) fall back
+    # to the unchanged online call.
+    try:
+        return SentenceTransformer("all-MiniLM-L6-v2", local_files_only=True)
+    except Exception:  # noqa: BLE001 -- cache miss must not block the online fallback
+        return SentenceTransformer("all-MiniLM-L6-v2")  # fast CPU model (NFR1)
 
 
 if __name__ == "__main__":

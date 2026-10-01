@@ -89,7 +89,12 @@ def novelty_curve(emb: np.ndarray) -> np.ndarray:
 def flow_report(text: str) -> FlowReport:
     # Doc-local geometry, no corpus-mean centering yet -- add when flow is
     # compared across docs, not just reported for one draft.
-    emb = embed(paragraphs(text))
+    paras = paragraphs(text)
+    if len(paras) < 2:
+        # #164: below this, novelty_curve is empty (IndexError on nov[-1]) or
+        # paragraphs() is empty (AxisError from norm on the empty embedding).
+        raise ValueError(f"flow_report needs at least 2 paragraphs of 15+ words, got {len(paras)}")
+    emb = embed(paras)
     nov = novelty_curve(emb)
     steps = np.linalg.norm(emb[1:] - emb[:-1], axis=1)
     direct = np.linalg.norm(emb[-1] - emb[0]) + 1e-9

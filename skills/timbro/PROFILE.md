@@ -12,8 +12,9 @@ Point Timbro at a corpus with a managed profile: `uvx timbro@<version> profiles 
 
 list of accepted file input:
 
-- tex
 - md
+- txt
+- tex (converted on ingest when `detex` is installed)
 
 If no profile is set, Timbro falls back to a small packaged sample voice so it runs, but that is **not** the user's voice. Never silently score a real draft against the sample.
 

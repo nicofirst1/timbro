@@ -215,6 +215,8 @@ def add_text(
     root: str | Path | None = None,
     overwrite: bool = False,
 ) -> Path:
+    if bucket not in ("exemplars", "contrast"):
+        raise ValueError(f"bucket must be 'exemplars' or 'contrast', got {bucket!r}")
     profile = init_profile(profile_name, root=root)
     target_dir = profile.exemplars_dir if bucket == "exemplars" else profile.contrast_dir
     path = target_dir / f"{_slug_filename(title)}.md"
@@ -233,6 +235,23 @@ def add_file(
     root: str | Path | None = None,
     overwrite: bool = False,
 ) -> Path:
+    # Unknown buckets used to fall through to contrast/ (the else-branch below),
+    # silently filing the user's own writing into the away-voice corpus. Reject
+    # before any write (init_profile included).
+    if bucket not in ("exemplars", "contrast"):
+        raise ValueError(f"bucket must be 'exemplars' or 'contrast', got {bucket!r}")
+    # Issue #150: dest_name used to be joined verbatim (dst = target_dir / name),
+    # so '../x.md' escaped the bucket, an absolute path wrote anywhere, and
+    # 'subdir/x.md' crashed with FileNotFoundError. Reject anything that is not
+    # a plain file name before any write (init_profile included). A NUL byte is
+    # also rejected here: it equals its own Path.name but would only fail late
+    # inside shutil with a generic 'embedded null byte' ValueError (review R1).
+    if dest_name is not None and (
+        dest_name in {"", ".", ".."}
+        or "\x00" in dest_name
+        or dest_name != Path(dest_name).name
+    ):
+        raise ValueError(f"--dest-name must be a plain file name, got '{dest_name}'")
     profile = init_profile(profile_name, root=root)
     src = Path(source)
     if not src.exists():
@@ -382,6 +401,25 @@ def _sync_error(res: subprocess.CompletedProcess[str]) -> dict:
     return {"status": "error", "message": (res.stderr or "").strip() or "git failed"}
 
 
+def _sync_missing_remote(root: Path) -> dict | None:
+    """Error when the root is a git repo with no `origin` remote (#154).
+
+    Checked before the sync touches anything: without it, the local commit
+    happens first and only then git dies with "'origin' does not appear to be
+    a git repository" and no hint at `--init`.
+    """
+    res = _sync_git(root, "remote", "get-url", "origin")
+    if res.returncode == 0:
+        return None
+    return {
+        "status": "error",
+        "message": (
+            "this profile root is a git repo but has no 'origin' remote; "
+            "run 'timbro profiles sync --init <git-url>' to point it at one"
+        ),
+    }
+
+
 def _sync_merge_in_progress(root: Path) -> bool:
     git_dir = root / ".git"
     if (
@@ -432,15 +470,15 @@ def _sync_init(root: Path, remote_url: str) -> dict | None:
 
 
 def _sync_run(root: Path, allow_unrelated_histories: bool) -> dict:
+    identity: list[str] = []
+    if _sync_git(root, "config", "user.email").returncode != 0:
+        identity = ["-c", "user.name=timbro", "-c", "user.email=timbro@localhost"]
     # 1. Commit local changes.
     res = _sync_git(root, "add", "-A")
     if res.returncode != 0:
         return _sync_error(res)
     res = _sync_git(root, "diff", "--cached", "--quiet")
     if res.returncode != 0:
-        identity: list[str] = []
-        if _sync_git(root, "config", "user.email").returncode != 0:
-            identity = ["-c", "user.name=timbro", "-c", "user.email=timbro@localhost"]
         stamp = datetime.now(UTC).isoformat(timespec="seconds")
         res = _sync_git(root, *identity, "commit", "-m", f"timbro sync {stamp}")
         if res.returncode != 0:
@@ -459,7 +497,7 @@ def _sync_run(root: Path, allow_unrelated_histories: bool) -> dict:
         if allow_unrelated_histories:
             merge_args.append("--allow-unrelated-histories")
         merge_args.append("origin/main")
-        res = _sync_git(root, *merge_args)
+        res = _sync_git(root, *identity, *merge_args)
         if res.returncode != 0:
             files = _sync_conflict_files(root)
             if files:
@@ -491,7 +529,11 @@ def sync_profiles(root: str | Path | None = None, init_remote: str | None = None
     - {"status": "ok"}
     - {"status": "not-configured"}          no `.git` in the root, no remote given
     - {"status": "conflict", "files": ...}   merge conflicts, left for the user
-    - {"status": "error", "message": ...}    a git step failed or timed out
+    - {"status": "error", "message": ...}    a git step failed, the root has no
+        `origin` remote, or a step timed out
+
+    With `init_remote`, when an existing `origin` was repointed to the new URL,
+    the result also carries `"previous_remote": <old url>`.
 
     `init_remote` runs first-time setup (same command on every machine): init on
     branch `main`, write `.gitattributes` (`runs.jsonl merge=union`) and
@@ -502,6 +544,7 @@ def sync_profiles(root: str | Path | None = None, init_remote: str | None = None
         raise RuntimeError("git not found on PATH; profile sync needs git")
     base = profile_root(root)
     allow_unrelated_histories = init_remote is not None
+    previous_remote: str | None = None
     try:
         if not (base / ".git").exists():
             if not allow_unrelated_histories:
@@ -509,11 +552,25 @@ def sync_profiles(root: str | Path | None = None, init_remote: str | None = None
         elif _sync_merge_in_progress(base):
             # Report and stop: never stage or commit over a merge in progress.
             return {"status": "conflict", "files": _sync_conflict_files(base)}
+        elif not allow_unrelated_histories:
+            error = _sync_missing_remote(base)
+            if error is not None:
+                return error
         if allow_unrelated_histories:
+            # `remote add` fails when origin exists, and `_sync_init` then
+            # repoints it silently; remember the old URL so the caller can
+            # tell the user.
+            if (base / ".git").exists():
+                probe = _sync_git(base, "remote", "get-url", "origin")
+                if probe.returncode == 0:
+                    previous_remote = probe.stdout.strip()
             error = _sync_init(base, init_remote)
             if error is not None:
                 return error
-        return _sync_run(base, allow_unrelated_histories)
+        result = _sync_run(base, allow_unrelated_histories)
+        if previous_remote is not None and previous_remote != init_remote:
+            result["previous_remote"] = previous_remote
+        return result
     except subprocess.TimeoutExpired as exc:
         stderr = exc.stderr
         if isinstance(stderr, bytes):

@@ -65,7 +65,7 @@ npx skills update    # later: pull the latest version
 /plugin install timbro@timbro
 ```
 
-The plugin ships the skill, the spaCy model, and a small **sample voice**, so it works right away: ask Claude to _"score this against the Timbro sample voice"_. To use your own voice, ask Claude to run the `timbro-setup` skill for a guided walkthrough (see [Profiles](#profiles)).
+The plugin ships the skill and a small **sample voice**, so it works right away (the first run downloads the spaCy model): ask Claude to _"score this against the Timbro sample voice"_. To use your own voice, ask Claude to run the `timbro-setup` skill for a guided walkthrough (see [Profiles](#profiles)).
 
 ### Command line
 
@@ -98,7 +98,7 @@ timbro accept draft.md revised.md       # closer to the voice, and the same mean
 cat draft.md | timbro score -           # `-` reads stdin (score and check)
 ```
 
-Add `--json` to any command for the raw payload.
+Add `--json` to `score`, `check`, `accept`, and `profiles list|env|diagnose|learn|sync` for the raw payload.
 
 ## A positive target, not just a blocklist
 
@@ -181,6 +181,8 @@ git add <files> && git commit && timbro profiles sync
 ```
 
 `settings.json` (per machine, including the `no_log` switch for the learn log) is not synced.
+
+Expected errors (a missing file, a bad profile name) print as one line. To see the full traceback behind one, set `TIMBRO_DEBUG=1` or `"debug": true` in `settings.json`.
 
 ## FAQ
 

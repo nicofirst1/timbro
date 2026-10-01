@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from timbro.settings import Settings, load_settings, no_log, settings_path, timbro_home
+from timbro.settings import Settings, debug, load_settings, no_log, settings_path, timbro_home
 
 
 class _HomeCase(unittest.TestCase):
@@ -19,6 +19,7 @@ class _HomeCase(unittest.TestCase):
         p.start()
         self.addCleanup(p.stop)
         os.environ.pop("TIMBRO_NO_LOG", None)
+        os.environ.pop("TIMBRO_DEBUG", None)
 
     def write(self, text: str) -> None:
         self.home.mkdir(parents=True, exist_ok=True)
@@ -40,7 +41,7 @@ class TimbroHomeTests(unittest.TestCase):
 class LoadSettingsTests(_HomeCase):
     def test_seeds_defaults_on_first_run(self):
         self.assertEqual(load_settings(), Settings())
-        self.assertEqual(json.loads(settings_path().read_text()), {"no_log": False})
+        self.assertEqual(json.loads(settings_path().read_text()), {"no_log": False, "debug": False})
 
     def test_malformed_json_raises_naming_path(self):
         self.write("{nope")
@@ -77,6 +78,20 @@ class NoLogTests(_HomeCase):
     def test_env_unset_json_false(self):
         self.write('{"no_log": false}')
         self.assertFalse(no_log())
+
+
+class DebugTests(_HomeCase):
+    def test_default_off(self):
+        self.assertFalse(debug())
+
+    def test_json_true(self):
+        self.write('{"debug": true}')
+        self.assertTrue(debug())
+
+    def test_env_overrides_json_false(self):
+        self.write('{"debug": false}')
+        with patch.dict(os.environ, {"TIMBRO_DEBUG": "1"}, clear=False):
+            self.assertTrue(debug())
 
 
 if __name__ == "__main__":

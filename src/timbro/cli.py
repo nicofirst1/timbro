@@ -10,7 +10,9 @@ Corpus comes from TIMBRO_EXEMPLARS / TIMBRO_CONTRAST (falls back to the packaged
 
 import argparse
 import json
+import math
 import sys
+import traceback
 
 from timbro.model import VoiceModel, default_model
 from timbro.profiles import (
@@ -28,14 +30,15 @@ from timbro.rewrite import evaluate_rewrite
 from timbro.rubrics import check_text
 from timbro.rubrics.registry import RUBRIC_NAMES
 from timbro.rubrics.report import combine_verdicts, render_text
+from timbro.settings import debug
 
 
 def cmd_score(args):
     if args.file == "-":
         text = sys.stdin.read()
     else:
-        with open(args.file, encoding="utf-8") as f:
-            text = f.read()
+        text = _read_text(args.file)
+    _require_draft_text(text, "draft")
 
     if args.profile:
         names = [name.strip() for name in args.profile.split(",") if name.strip()]
@@ -45,7 +48,7 @@ def cmd_score(args):
             model = VoiceModel.from_dir(prof.exemplars_dir, contrast=prof.contrast_dir)
             rows.append({"profile_name": name, **voice_report(model, text)})
         if args.json:
-            print(json.dumps(rows if len(rows) > 1 else rows[0], indent=2))
+            print(_dump_json(rows if len(rows) > 1 else rows[0], indent=2))
             return
         if len(rows) > 1:
             print("profile               distance   z      health        on_voice")
@@ -62,7 +65,7 @@ def cmd_score(args):
         payload = voice_report(default_model(), text)
 
     if args.json:
-        print(json.dumps(payload, indent=2))
+        print(_dump_json(payload, indent=2))
         return
     if args.quiet:
         dz = f"{payload['distance_z']:.2f}" if payload["distance_z"] is not None else "n/a"
@@ -162,20 +165,19 @@ def cmd_check(args):
     if args.file == "-":
         text = sys.stdin.read()
     else:
-        with open(args.file, encoding="utf-8") as f:
-            text = f.read()
+        text = _read_text(args.file)
+    _require_draft_text(text, "draft")
     try:
         results = check_text(text, rubrics=names, profile=args.profile)
     except ValueError as exc:
-        print(f"error: {exc}", file=sys.stderr)
-        sys.exit(1)
+        _fail(f"error: {exc}")
 
     if args.json:
         payload = {
             "verdict": combine_verdicts(results),
             "rubrics": {result.rubric: result.to_dict() for result in results},
         }
-        print(json.dumps(payload, indent=2))
+        print(_dump_json(payload, indent=2))
         return
     print(f"verdict: {combine_verdicts(results).upper()}")
     for result in results:
@@ -185,10 +187,10 @@ def cmd_check(args):
 
 
 def cmd_accept(args):
-    with open(args.original, encoding="utf-8") as f:
-        original = f.read()
-    with open(args.revised, encoding="utf-8") as f:
-        revised = f.read()
+    original = _read_text(args.original)
+    _require_draft_text(original, args.original)
+    revised = _read_text(args.revised)
+    _require_draft_text(revised, args.revised)
     if args.profile:
         prof = get_profile(args.profile)
         model = VoiceModel.from_dir(prof.exemplars_dir, contrast=prof.contrast_dir)
@@ -196,7 +198,7 @@ def cmd_accept(args):
         model = default_model()
     result = evaluate_rewrite(model, original, revised, threshold=args.threshold)
     if args.json:
-        print(json.dumps(result, indent=2))
+        print(_dump_json(result, indent=2))
         return
     verdict = "accepted" if result["accepted"] else "rejected"
     print(
@@ -220,7 +222,7 @@ def cmd_profiles_list(args):
         for prof in profiles
     ]
     if args.json:
-        print(json.dumps(payload, indent=2))
+        print(_dump_json(payload, indent=2))
         return
     for prof in payload:
         summary = f" - {prof['summary']}" if prof["summary"] else ""
@@ -248,10 +250,14 @@ def cmd_profiles_sync(args):
     try:
         result = sync_profiles(init_remote=args.init)
     except (RuntimeError, OSError, ValueError) as exc:
-        print(f"sync failed: {exc}", file=sys.stderr)
-        sys.exit(2)
+        _fail(f"sync failed: {exc}", code=2)
+    if not args.json and "previous_remote" in result:
+        print(
+            f"warning: sync --init repointed origin from {result['previous_remote']} to {args.init}",
+            file=sys.stderr,
+        )
     if args.json:
-        print(json.dumps(result))
+        print(_dump_json(result))
     elif result["status"] == "ok":
         print("synced")
     elif result["status"] == "not-configured":
@@ -270,13 +276,17 @@ def cmd_profiles_sync(args):
 
 
 def cmd_profiles_add_file(args):
-    dst = add_file(
-        args.name,
-        args.source,
-        bucket=args.to,
-        dest_name=args.dest_name,
-        overwrite=args.overwrite,
-    )
+    try:
+        dst = add_file(
+            args.name,
+            args.source,
+            bucket=args.to,
+            dest_name=args.dest_name,
+            overwrite=args.overwrite,
+        )
+    except (RuntimeError, ValueError) as exc:
+        print(f"timbro: error: {exc}", file=sys.stderr)
+        sys.exit(1)
     print(dst)
 
 
@@ -284,7 +294,7 @@ def cmd_profiles_env(args):
     prof = get_profile(args.name)
     payload = prof.env
     if args.json:
-        print(json.dumps(payload, indent=2))
+        print(_dump_json(payload, indent=2))
         return
     print(f"TIMBRO_EXEMPLARS={payload['TIMBRO_EXEMPLARS']}")
     print(f"TIMBRO_CONTRAST={payload['TIMBRO_CONTRAST']}")
@@ -294,7 +304,7 @@ def cmd_profiles_env(args):
 def cmd_profiles_diagnose(args):
     payload = diagnose_profile(args.name)
     if args.json:
-        print(json.dumps(payload, indent=2))
+        print(_dump_json(payload, indent=2))
         return
     print(f"profile: {payload['name']}")
     print(f"exemplars: {payload['exemplars']}")
@@ -319,11 +329,10 @@ def cmd_profiles_learn(args):
             force=args.force,
         )
     except (FileExistsError, FileNotFoundError, ValueError) as exc:
-        print(f"error: {exc}", file=sys.stderr)
-        sys.exit(1)
+        _fail(f"error: {exc}")
 
     if args.json:
-        print(json.dumps(result))
+        print(_dump_json(result))
         return
 
     if not result["saved"]:
@@ -337,6 +346,94 @@ def cmd_profiles_learn(args):
             f"(similarity {result['similarity']:.2f})"
         )
     return
+
+
+def _dump_json(payload, indent=None) -> str:
+    """Serialize a command payload, mapping non-finite floats to null.
+
+    NaN or Infinity anywhere in a payload makes json.dumps emit literal
+    NaN/Infinity tokens, which a strict parser rejects (issue #152). Every
+    json.dumps call in this module goes through here: non-finite floats are
+    recursively mapped to None, then the dump itself forbids them as a
+    backstop. Each call site keeps its own indent choice.
+    """
+
+    def _clean(value):
+        if isinstance(value, float):
+            finite = math.isfinite(value)
+            return value if finite else None
+        if isinstance(value, dict):
+            return {key: _clean(item) for key, item in value.items()}
+        if isinstance(value, (list, tuple)):
+            return [_clean(item) for item in value]
+        return value
+
+    safe = _clean(payload)
+    return json.dumps(safe, indent=indent, allow_nan=False)
+
+
+def _require_draft_text(text: str, name: str) -> None:
+    """Exit 1 with one clean line when the draft text is empty.
+
+    An empty draft is a user error, not a result (issue #152): score, check
+    and accept call this right after reading the text and never reach the
+    scoring layer. `name` is "draft" for score/check and the failing file's
+    path for accept. Exits directly instead of via _fail, which must only be
+    called from inside an `except` block (it prints the active traceback in
+    debug mode), and there is no exception to show here.
+    """
+    stripped = text.strip()
+    if stripped == "":
+        print(f"timbro: error: {name} is empty", file=sys.stderr)
+        sys.exit(1)
+
+
+def _read_text(path: str) -> str:
+    """Read a UTF-8 text file, attaching the path to any decode error.
+
+    UnicodeDecodeError carries no filename of its own; attaching it here means
+    the CLI's error handler can name the exact file that failed to decode and
+    nothing else.
+    """
+    with open(path, encoding="utf-8") as f:
+        try:
+            return f.read()
+        except UnicodeDecodeError as e:
+            e.filename = path
+            raise
+
+
+def _fail(message: str, code: int = 1):
+    """Print a one-line error and exit; call only from an `except` block.
+
+    With debug on (`TIMBRO_DEBUG` or `"debug": true` in settings.json), the
+    traceback of the exception being handled is printed first. A broken
+    settings file must not mask the original error, so it counts as debug off.
+    """
+    try:
+        show_trace = debug()
+    except (ValueError, OSError):
+        show_trace = False
+    if show_trace:
+        traceback.print_exc()
+    print(message, file=sys.stderr)
+    sys.exit(code)
+
+
+def _user_error_message(exc: Exception) -> str:
+    """One-line message for an expected user error, naming only sure files.
+
+    OSError embeds its own filename in str() whenever it has one, and the
+    manual raise sites put the path inside their message text. A
+    UnicodeDecodeError carries no filename, so it may name a file only when a
+    read site attached the failing path (see _read_text); otherwise the codec
+    detail is printed without a path. Never guess the file from parsed args.
+    """
+    if isinstance(exc, UnicodeDecodeError):
+        filename = getattr(exc, "filename", None)
+        if filename:
+            return f"{filename} is not UTF-8 text ({exc})"
+    return str(exc)
 
 
 def main():
@@ -417,7 +514,16 @@ def main():
     ps.set_defaults(func=cmd_profiles_sync)
 
     args = ap.parse_args()
-    args.func(args)
+    try:
+        args.func(args)
+    except (OSError, UnicodeDecodeError) as e:
+        # Expected user errors: one clean line, not a traceback. Issue #137
+        # covered missing files, non-UTF-8 text, duplicate add-file and unknown
+        # profiles; #154 widens the catch to OSError, so the other filesystem
+        # refusals (PermissionError, ENAMETOOLONG, EROFS) are one line too.
+        # Full traces come from the debug switch. Every other exception must
+        # still traceback, because bugs should stay loud.
+        _fail(f"timbro: error: {_user_error_message(e)}")
 
 
 if __name__ == "__main__":
