@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- GFM tables with leading pipes now count in struct_table_count; scores and fitted corpus stats change for any text containing tables. Bug fix, not a retune (#132).
+
 ## [0.9.0] — 2026-10-01
 
 New voice axes, interchangeable rubrics, profile sync across machines, and a module layout that matches the architecture (#110). Several changes are **breaking**; see Removed and Changed.
