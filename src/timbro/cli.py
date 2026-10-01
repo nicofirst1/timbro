@@ -14,6 +14,7 @@ import math
 import sys
 import traceback
 
+from timbro.errors import UserError
 from timbro.model import VoiceModel, default_model
 from timbro.profiles import (
     add_file,
@@ -162,7 +163,7 @@ def cmd_check(args):
     unknown = [name for name in names if name not in RUBRIC_NAMES]
     if unknown:
         print(
-            f"error: unknown rubric(s) {', '.join(unknown)}; available rubrics: {', '.join(RUBRIC_NAMES)}",
+            f"timbro: error: unknown rubric(s) {', '.join(unknown)}; available rubrics: {', '.join(RUBRIC_NAMES)}",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -172,10 +173,7 @@ def cmd_check(args):
     else:
         text = _read_text(args.file)
     _require_draft_text(text, "draft")
-    try:
-        results = check_text(text, rubrics=names, profile=args.profile)
-    except ValueError as exc:
-        _fail(f"error: {exc}")
+    results = check_text(text, rubrics=names, profile=args.profile)
 
     if args.json:
         payload = {
@@ -281,17 +279,13 @@ def cmd_profiles_sync(args):
 
 
 def cmd_profiles_add_file(args):
-    try:
-        dst = add_file(
-            args.name,
-            args.source,
-            bucket=args.to,
-            dest_name=args.dest_name,
-            overwrite=args.overwrite,
-        )
-    except (RuntimeError, ValueError) as exc:
-        print(f"timbro: error: {exc}", file=sys.stderr)
-        sys.exit(1)
+    dst = add_file(
+        args.name,
+        args.source,
+        bucket=args.to,
+        dest_name=args.dest_name,
+        overwrite=args.overwrite,
+    )
     print(dst)
 
 
@@ -325,16 +319,13 @@ def cmd_profiles_diagnose(args):
 
 
 def cmd_profiles_learn(args):
-    try:
-        result = learn(
-            args.name,
-            args.draft,
-            args.final,
-            title=args.title,
-            force=args.force,
-        )
-    except (FileExistsError, FileNotFoundError, ValueError) as exc:
-        _fail(f"error: {exc}")
+    result = learn(
+        args.name,
+        args.draft,
+        args.final,
+        title=args.title,
+        force=args.force,
+    )
 
     if args.json:
         print(_dump_json(result))
@@ -521,11 +512,14 @@ def main():
     args = ap.parse_args()
     try:
         args.func(args)
-    except (OSError, UnicodeDecodeError) as e:
+    except (OSError, UnicodeDecodeError, UserError) as e:
         # Expected user errors: one clean line, not a traceback. Issue #137
         # covered missing files, non-UTF-8 text, duplicate add-file and unknown
         # profiles; #154 widens the catch to OSError, so the other filesystem
         # refusals (PermissionError, ENAMETOOLONG, EROFS) are one line too.
+        # #191 adds timbro.errors.UserError as the one class for every expected
+        # error, so the per-command catches are gone and every user error (from
+        # any command) prints the same `timbro: error: ` prefix through _fail.
         # Full traces come from the debug switch. Every other exception must
         # still traceback, because bugs should stay loud.
         _fail(f"timbro: error: {_user_error_message(e)}")

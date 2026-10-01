@@ -7,8 +7,10 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from timbro.errors import UserError
 from timbro.profilelog import log_learn
 from timbro.profiles import init_profile, learn
+from timbro.settings import settings_path
 
 FINAL_TEXT = (
     "The committee reviewed the annual budget with care. Members raised concerns about "
@@ -122,7 +124,11 @@ class LearnLoggingTests(unittest.TestCase):
             self.assertIsNone(result)
             self.assertFalse((root / "demo" / "runs.jsonl").exists())
 
-    def test_malformed_settings_is_swallowed(self):
+    def test_malformed_settings_propagates_not_swallowed(self):
+        # #191: a broken settings.json is the one failure log_learn does not
+        # swallow: the no_log() lookup runs before the try, so the settings
+        # error propagates and the command fails loudly instead of being
+        # reported as 'timbro: run log skipped'.
         with tempfile.TemporaryDirectory() as td:
             root = Path(td) / "profiles"
             profile = init_profile("demo", root=root)
@@ -131,10 +137,12 @@ class LearnLoggingTests(unittest.TestCase):
             (home / "settings.json").write_text("{nope", encoding="utf-8")
             with patch.dict(os.environ, {"TIMBRO_HOME": str(home)}, clear=False):
                 os.environ.pop("TIMBRO_NO_LOG", None)
-                result = log_learn(
-                    profile, None, "a", "b", title="t", outcome="saved", guard=None
-                )
-            self.assertIsNone(result)
+                with self.assertRaises(ValueError) as ctx:
+                    log_learn(
+                        profile, None, "a", "b", title="t", outcome="saved", guard=None
+                    )
+                self.assertIsInstance(ctx.exception, UserError)
+                self.assertIn(str(settings_path()), str(ctx.exception))
 
     def test_logging_failure_is_swallowed(self):
         with tempfile.TemporaryDirectory() as td:
