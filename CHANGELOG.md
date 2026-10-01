@@ -8,10 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
-- **Breaking:** every expected CLI error prints `timbro: error: ...`; check and learn errors drop the bare `error:` prefix. A malformed settings.json now fails the command with exit 1 instead of being ignored, and a failed first-run spaCy model install prints one clean line instead of a traceback (#191).
-
 ### Fixed
 
+- `accept` prints content similarity with 3 decimals, matching the gate's precision (#158).
 - Near-duplicate corpora no longer produce absurd standalone-axis z-scores: axis z is capped at 10 and the row is marked saturated (JSON field saturated, text output (saturated)). Directions use the clamped z (#178).
 - GFM tables with leading pipes now count in struct_table_count; scores and fitted corpus stats change for any text containing tables. Bug fix, not a retune (#132).
 

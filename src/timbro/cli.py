@@ -190,6 +190,13 @@ def cmd_check(args):
 
 
 def cmd_accept(args):
+    # A threshold outside [0, 1] can never be meaningful (#158): -1 always
+    # passes and 2 always fails. Checked as the first statements, before any
+    # file read or model load, as a direct print/exit like _require_draft_text
+    # (an argparse type would exit 2 with argparse's own wording).
+    if not 0.0 <= args.threshold <= 1.0:
+        print("timbro: error: --threshold must be between 0 and 1", file=sys.stderr)
+        sys.exit(1)
     original = _read_text(args.original)
     _require_draft_text(original, args.original)
     revised = _read_text(args.revised)
@@ -206,7 +213,7 @@ def cmd_accept(args):
     verdict = "accepted" if result["accepted"] else "rejected"
     print(
         f"{verdict}: distance {result['distance_before']:.1f} -> {result['distance_after']:.1f} "
-        f"(improved={result['improved']}), content similarity {result['similarity']:.2f} "
+        f"(improved={result['improved']}), content similarity {result['similarity']:.3f} "
         f"(content_ok={result['content_ok']})"
     )
     return
