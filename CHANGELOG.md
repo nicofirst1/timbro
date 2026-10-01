@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- HD-D (richness axis) is computed locally in a deterministic order, so values no longer depend on PYTHONHASHSEED. Values may differ from 0.9.0 in the last digit (~1 ULP) (#123).
+
 ## [0.9.0] — 2026-10-01
 
 New voice axes, interchangeable rubrics, profile sync across machines, and a module layout that matches the architecture (#110). Several changes are **breaking**; see Removed and Changed.
