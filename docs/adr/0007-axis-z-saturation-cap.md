@@ -52,7 +52,7 @@ it does not live in settings.json.
   not only on pathological corpora: a code-heavy draft scored against the packaged
   sample voice has `struct_prose_ratio` raw z = -44.19 and now prints
   `-10.00 (saturated)` where it printed `-44.19` before.
-- `saturated` therefore means "at least 10 spreads off the reference", not "the
+- `saturated` therefore means "more than 10 spreads off the reference", not "the
   corpus is pathological".
 - The raw z is not recoverable from a saturated row (the blended spread is not part
   of the report); the row records only that the raw |z| exceeded the cap.
