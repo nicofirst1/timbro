@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking:** every expected CLI error prints `timbro: error: ...`; check and learn errors drop the bare `error:` prefix. A malformed settings.json now fails the command with exit 1 instead of being ignored, and a failed first-run spaCy model install prints one clean line instead of a traceback (#191).
+
 ## [0.9.0] — 2026-10-01
 
 New voice axes, interchangeable rubrics, profile sync across machines, and a module layout that matches the architecture (#110). Several changes are **breaking**; see Removed and Changed.

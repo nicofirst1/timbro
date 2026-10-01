@@ -40,6 +40,7 @@ from timbro.axes.richness import (  # noqa: F401  (import registers the metric)
 from timbro.axes.tells import (  # noqa: F401  (import registers the tells metric)
     TELL_METRIC,
 )
+from timbro.errors import UserFileNotFoundError
 from timbro.metric import REGISTRY, Metric, _confidence, _knn
 from timbro.model.direction import feature_matrix, features
 from timbro.model.embedding import _style_vec, fit_embedding
@@ -67,11 +68,13 @@ def read_corpus(directory: str | Path) -> list[str]:
     return [_FRONTMATTER.sub("", f.read_text(encoding="utf-8")) for f in files]
 
 
-def no_exemplars_error(exemplars: str | Path) -> FileNotFoundError:
+def no_exemplars_error(exemplars: str | Path) -> UserFileNotFoundError:
     """The one wording for an empty/missing corpus, shared by every caller (#161):
     name the absolute path actually checked, and point at managed profiles for the
-    fix (round 3: no env-var suggestion, direction #96)."""
-    return FileNotFoundError(
+    fix (round 3: no env-var suggestion, direction #96). A UserError subclass, so
+    the CLI prints it as one clean line (#191); still a FileNotFoundError for
+    API callers."""
+    return UserFileNotFoundError(
         f"No .md/.txt exemplars found at {Path(exemplars).resolve()}. "
         "Add posts that define your voice with: timbro profiles add-file <profile> <file> --to exemplars"
     )

@@ -12,6 +12,8 @@ import os
 from dataclasses import asdict, dataclass, fields
 from pathlib import Path
 
+from timbro.errors import UserValueError
+
 
 @dataclass
 class Settings:
@@ -37,16 +39,16 @@ def load_settings() -> Settings:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
-        raise ValueError(f"{path}: malformed JSON ({exc})") from exc
+        raise UserValueError(f"{path}: malformed JSON ({exc})") from exc
     if not isinstance(data, dict):
-        raise ValueError(f"{path}: top level must be a JSON object")  # noqa: TRY004
+        raise UserValueError(f"{path}: top level must be a JSON object")
     known = {f.name: f for f in fields(Settings)}
     for key, value in data.items():
         if key not in known:
-            raise ValueError(f"{path}: unknown setting {key!r}")
+            raise UserValueError(f"{path}: unknown setting {key!r}")
         expected = type(getattr(Settings(), key))
         if not isinstance(value, expected):
-            raise ValueError(f"{path}: {key!r} must be {expected.__name__}, got {value!r}")  # noqa: TRY004
+            raise UserValueError(f"{path}: {key!r} must be {expected.__name__}, got {value!r}")
     return Settings(**data)
 
 

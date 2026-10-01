@@ -1,3 +1,4 @@
+from timbro.errors import UserError
 from timbro.flow import FlowReport, flow_report
 from timbro.model import VoiceModel, read_corpus
 from timbro.model.direction import features
@@ -18,6 +19,7 @@ __all__ = [
     "FlowReport",
     "Profile",
     "ScoreResult",
+    "UserError",
     "VoiceModel",
     "add_file",
     "add_text",
