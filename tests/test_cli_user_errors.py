@@ -178,6 +178,113 @@ class CorpusDecodeErrorDoesNotBlameTheDraftTests(unittest.TestCase):
         self.assertNotIn(str(draft), proc.stderr)
 
 
+class SingleHandlerTests(unittest.TestCase):
+    """Issue #191: every expected user error reaches the user through the one
+    handler in main(): `timbro: error: <msg>`, exit 1, no traceback. Commands
+    that used to traceback on a bad profile name, and the cold-start detex
+    failure on a raw .tex draft, become one clean line."""
+
+    def test_score_invalid_profile_name_prints_clean_error(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            draft = Path(tmp) / "draft.md"
+            draft.write_text(_DRAFT, encoding="utf-8")
+            env = {"TIMBRO_PROFILE_ROOT": str(Path(tmp) / "profiles")}
+            proc = _run_cli(["score", str(draft), "--profile", "Bad Name!"], env)
+        _assert_clean_error(self, proc)
+        self.assertIn("Invalid profile name", proc.stderr)
+
+    def test_accept_invalid_profile_name_prints_clean_error(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            original = Path(tmp) / "orig.md"
+            original.write_text(_DRAFT, encoding="utf-8")
+            env = {"TIMBRO_PROFILE_ROOT": str(Path(tmp) / "profiles")}
+            proc = _run_cli(["accept", str(original), str(original), "--profile", "Bad Name!"], env)
+        _assert_clean_error(self, proc)
+        self.assertIn("Invalid profile name", proc.stderr)
+
+    def test_profiles_env_invalid_profile_name_prints_clean_error(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = {"TIMBRO_PROFILE_ROOT": str(Path(tmp) / "profiles")}
+            proc = _run_cli(["profiles", "env", "Bad Name!"], env)
+        _assert_clean_error(self, proc)
+        self.assertIn("Invalid profile name", proc.stderr)
+
+    def test_profiles_diagnose_invalid_profile_name_prints_clean_error(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = {"TIMBRO_PROFILE_ROOT": str(Path(tmp) / "profiles")}
+            proc = _run_cli(["profiles", "diagnose", "Bad Name!"], env)
+        _assert_clean_error(self, proc)
+        self.assertIn("Invalid profile name", proc.stderr)
+
+    def test_profiles_init_invalid_profile_name_prints_clean_error(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = {"TIMBRO_PROFILE_ROOT": str(Path(tmp) / "profiles")}
+            proc = _run_cli(["profiles", "init", "Bad Name!"], env)
+        _assert_clean_error(self, proc)
+        self.assertIn("Invalid profile name", proc.stderr)
+
+    def test_failing_detex_on_tex_draft_prints_clean_error(self):
+        # #188 follow-up: detex failing at runtime (non-zero exit) on a raw .tex
+        # draft is a user error (RuntimeError is not OSError), one line, exit 1.
+        with tempfile.TemporaryDirectory() as tmp:
+            bindir = Path(tmp) / "bin"
+            bindir.mkdir()
+            stub = bindir / "detex"
+            stub.write_text('#!/bin/sh\necho "fake detex boom" >&2\nexit 1\n', encoding="utf-8")
+            stub.chmod(0o755)
+            tex = Path(tmp) / "paper.tex"
+            tex.write_text("\\section{Intro}\nWe evaluate the approach with care.\n", encoding="utf-8")
+            env = {"PATH": f"{bindir}:{os.environ.get('PATH', '')}"}
+            proc = _run_cli(["score", str(tex), "--quiet"], env)
+        _assert_clean_error(self, proc)
+        self.assertIn("fake detex boom", proc.stderr)
+
+    def test_broken_settings_learn_is_fatal_not_swallowed(self):
+        # #191: a malformed settings.json is fatal for commands that read
+        # settings. `profiles learn` reads it through the run log, and must
+        # fail with the settings path named instead of printing
+        # 'timbro: run log skipped' and exiting 0.
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp) / "home"
+            home.mkdir()
+            settings_file = home / "settings.json"
+            settings_file.write_text("{nope", encoding="utf-8")
+            root = Path(tmp) / "profiles"
+            ex = root / "demo" / "exemplars"
+            ex.mkdir(parents=True)
+            (ex / "seed.md").write_text(_DRAFT, encoding="utf-8")
+            draft = Path(tmp) / "d.md"
+            final = Path(tmp) / "f.md"
+            draft.write_text(_DRAFT, encoding="utf-8")
+            final.write_text(_DRAFT, encoding="utf-8")
+            env = dict(os.environ)
+            env.update({"TIMBRO_HOME": str(home), "TIMBRO_PROFILE_ROOT": str(root)})
+            env.pop("TIMBRO_NO_LOG", None)
+            proc = _run_cli(
+                ["profiles", "learn", "demo", "--draft", str(draft), "--final", str(final), "--force"],
+                env,
+            )
+        self.assertEqual(proc.returncode, 1, proc.stderr)
+        self.assertIn("malformed JSON", proc.stderr)
+        self.assertIn(str(settings_file), proc.stderr)
+        self.assertNotIn("run log skipped", proc.stderr)
+        _assert_clean_error(self, proc)
+
+    def test_fail_with_broken_settings_still_suppresses_traceback(self):
+        # kept behavior (#191 spec item 5i): _fail's own debug() lookup treats a
+        # broken settings file as debug off, so the original error stays one
+        # clean line and the broken file does not mask it.
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp) / "home"
+            home.mkdir()
+            (home / "settings.json").write_text("{nope", encoding="utf-8")
+            missing = str(Path(tmp) / "missing.md")
+            proc = _run_cli(["check", missing], {"TIMBRO_HOME": str(home)})
+        _assert_clean_error(self, proc)
+        self.assertIn("missing.md", proc.stderr)
+        self.assertNotIn("malformed JSON", proc.stderr)
+
+
 class UncaughtExceptionsStillTracebackTests(unittest.TestCase):
     def test_exception_outside_the_caught_types_still_propagates(self):
         # Bugs must stay loud: a RuntimeError from a command must propagate out
