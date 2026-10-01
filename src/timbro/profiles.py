@@ -215,6 +215,8 @@ def add_text(
     root: str | Path | None = None,
     overwrite: bool = False,
 ) -> Path:
+    if bucket not in ("exemplars", "contrast"):
+        raise ValueError(f"bucket must be 'exemplars' or 'contrast', got {bucket!r}")
     profile = init_profile(profile_name, root=root)
     target_dir = profile.exemplars_dir if bucket == "exemplars" else profile.contrast_dir
     path = target_dir / f"{_slug_filename(title)}.md"
@@ -233,6 +235,11 @@ def add_file(
     root: str | Path | None = None,
     overwrite: bool = False,
 ) -> Path:
+    # Unknown buckets used to fall through to contrast/ (the else-branch below),
+    # silently filing the user's own writing into the away-voice corpus. Reject
+    # before any write (init_profile included).
+    if bucket not in ("exemplars", "contrast"):
+        raise ValueError(f"bucket must be 'exemplars' or 'contrast', got {bucket!r}")
     # Issue #150: dest_name used to be joined verbatim (dst = target_dir / name),
     # so '../x.md' escaped the bucket, an absolute path wrote anywhere, and
     # 'subdir/x.md' crashed with FileNotFoundError. Reject anything that is not
