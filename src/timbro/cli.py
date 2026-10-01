@@ -14,6 +14,7 @@ import math
 import sys
 import traceback
 
+from timbro.errors import UserError
 from timbro.model import VoiceModel, default_model
 from timbro.profiles import (
     add_file,
@@ -94,7 +95,8 @@ def cmd_score(args):
         print("markdown vs corpus:")
         if off:
             for ax in sorted(off, key=lambda a: -abs(a["z"])):
-                print(f"  - {ax['direction']:26s} (z {ax['z']:+.2f}, {ax['axis'][7:]})")
+                sat = " (saturated)" if ax["saturated"] else ""
+                print(f"  - {ax['direction']:26s} (z {ax['z']:+.2f}{sat}, {ax['axis'][7:]})")
         else:
             print("  - on-target: every structure axis within corpus spread")
     if not args.quiet and payload.get("hedge"):
@@ -102,7 +104,8 @@ def cmd_score(args):
         print("hedge/booster stance:")
         if hoff:
             for ax in sorted(hoff, key=lambda a: -abs(a["z"])):
-                print(f"  - {ax['direction']:38s} (z {ax['z']:+.2f}, {ax['axis']})")
+                sat = " (saturated)" if ax["saturated"] else ""
+                print(f"  - {ax['direction']:38s} (z {ax['z']:+.2f}{sat}, {ax['axis']})")
         else:
             print("  - on-target: within the reference spread")
     if not args.quiet and payload.get("fw"):
@@ -110,7 +113,8 @@ def cmd_score(args):
         print("function words vs reference:")
         if foff:
             for ax in sorted(foff, key=lambda a: -abs(a["z"])):
-                print(f"  - {ax['direction']:38s} (z {ax['z']:+.2f}, {ax['axis']})")
+                sat = " (saturated)" if ax["saturated"] else ""
+                print(f"  - {ax['direction']:38s} (z {ax['z']:+.2f}{sat}, {ax['axis']})")
         else:
             print("  - on-target: within the reference spread")
     if not args.quiet and payload.get("concreteness"):
@@ -118,7 +122,8 @@ def cmd_score(args):
         print("concreteness:")
         if coff:
             for ax in sorted(coff, key=lambda a: -abs(a["z"])):
-                print(f"  - {ax['direction']:38s} (z {ax['z']:+.2f}, {ax['axis']})")
+                sat = " (saturated)" if ax["saturated"] else ""
+                print(f"  - {ax['direction']:38s} (z {ax['z']:+.2f}{sat}, {ax['axis']})")
         else:
             print("  - on-target: within the reference spread")
     if not args.quiet and payload.get("richness"):
@@ -126,7 +131,8 @@ def cmd_score(args):
         print("readability/richness/entropy:")
         if roff:
             for ax in sorted(roff, key=lambda a: -abs(a["z"])):
-                print(f"  - {ax['direction']:38s} (z {ax['z']:+.2f}, {ax['axis']})")
+                sat = " (saturated)" if ax["saturated"] else ""
+                print(f"  - {ax['direction']:38s} (z {ax['z']:+.2f}{sat}, {ax['axis']})")
         else:
             print("  - on-target: within the reference spread")
     if not args.quiet and payload.get("politeness"):
@@ -157,7 +163,7 @@ def cmd_check(args):
     unknown = [name for name in names if name not in RUBRIC_NAMES]
     if unknown:
         print(
-            f"error: unknown rubric(s) {', '.join(unknown)}; available rubrics: {', '.join(RUBRIC_NAMES)}",
+            f"timbro: error: unknown rubric(s) {', '.join(unknown)}; available rubrics: {', '.join(RUBRIC_NAMES)}",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -167,10 +173,7 @@ def cmd_check(args):
     else:
         text = _read_text(args.file)
     _require_draft_text(text, "draft")
-    try:
-        results = check_text(text, rubrics=names, profile=args.profile)
-    except ValueError as exc:
-        _fail(f"error: {exc}")
+    results = check_text(text, rubrics=names, profile=args.profile)
 
     if args.json:
         payload = {
@@ -187,6 +190,13 @@ def cmd_check(args):
 
 
 def cmd_accept(args):
+    # A threshold outside [0, 1] can never be meaningful (#158): -1 always
+    # passes and 2 always fails. Checked as the first statements, before any
+    # file read or model load, as a direct print/exit like _require_draft_text
+    # (an argparse type would exit 2 with argparse's own wording).
+    if not 0.0 <= args.threshold <= 1.0:
+        print("timbro: error: --threshold must be between 0 and 1", file=sys.stderr)
+        sys.exit(1)
     original = _read_text(args.original)
     _require_draft_text(original, args.original)
     revised = _read_text(args.revised)
@@ -203,7 +213,7 @@ def cmd_accept(args):
     verdict = "accepted" if result["accepted"] else "rejected"
     print(
         f"{verdict}: distance {result['distance_before']:.1f} -> {result['distance_after']:.1f} "
-        f"(improved={result['improved']}), content similarity {result['similarity']:.2f} "
+        f"(improved={result['improved']}), content similarity {result['similarity']:.3f} "
         f"(content_ok={result['content_ok']})"
     )
     return
@@ -276,17 +286,13 @@ def cmd_profiles_sync(args):
 
 
 def cmd_profiles_add_file(args):
-    try:
-        dst = add_file(
-            args.name,
-            args.source,
-            bucket=args.to,
-            dest_name=args.dest_name,
-            overwrite=args.overwrite,
-        )
-    except (RuntimeError, ValueError) as exc:
-        print(f"timbro: error: {exc}", file=sys.stderr)
-        sys.exit(1)
+    dst = add_file(
+        args.name,
+        args.source,
+        bucket=args.to,
+        dest_name=args.dest_name,
+        overwrite=args.overwrite,
+    )
     print(dst)
 
 
@@ -320,16 +326,13 @@ def cmd_profiles_diagnose(args):
 
 
 def cmd_profiles_learn(args):
-    try:
-        result = learn(
-            args.name,
-            args.draft,
-            args.final,
-            title=args.title,
-            force=args.force,
-        )
-    except (FileExistsError, FileNotFoundError, ValueError) as exc:
-        _fail(f"error: {exc}")
+    result = learn(
+        args.name,
+        args.draft,
+        args.final,
+        title=args.title,
+        force=args.force,
+    )
 
     if args.json:
         print(_dump_json(result))
@@ -516,11 +519,14 @@ def main():
     args = ap.parse_args()
     try:
         args.func(args)
-    except (OSError, UnicodeDecodeError) as e:
+    except (OSError, UnicodeDecodeError, UserError) as e:
         # Expected user errors: one clean line, not a traceback. Issue #137
         # covered missing files, non-UTF-8 text, duplicate add-file and unknown
         # profiles; #154 widens the catch to OSError, so the other filesystem
         # refusals (PermissionError, ENAMETOOLONG, EROFS) are one line too.
+        # #191 adds timbro.errors.UserError as the one class for every expected
+        # error, so the per-command catches are gone and every user error (from
+        # any command) prints the same `timbro: error: ` prefix through _fail.
         # Full traces come from the debug switch. Every other exception must
         # still traceback, because bugs should stay loud.
         _fail(f"timbro: error: {_user_error_message(e)}")

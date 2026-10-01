@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from timbro.errors import UserValueError
 from timbro.rubrics.registry import get_rubric
 
 
@@ -9,7 +10,7 @@ def check_text(text: str, rubrics: list[str], profile: str | None = None):
     tells against that profile's exemplar corpus (corpus-relative mode), so a draft is
     judged against your own norm instead of against zero."""
     if profile is not None and "slop" not in rubrics:
-        raise ValueError("--profile only affects the slop rubric")
+        raise UserValueError("--profile only affects the slop rubric")
 
     results = []
     for rubric in rubrics:

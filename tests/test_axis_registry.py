@@ -45,7 +45,7 @@ class AxisReportTest(unittest.TestCase):
     def test_fields(self):
         self.assertEqual(
             [f for f in AxisReport.__dataclass_fields__],
-            ["axis", "value", "reference_mean", "z", "direction"],
+            ["axis", "value", "reference_mean", "z", "direction", "saturated"],
         )
 
     def test_to_dict_has_reference_mean_not_corpus_mean(self):

@@ -8,6 +8,7 @@ import subprocess
 from pathlib import Path
 
 from timbro.cleanup.papers import clean_extracted_text, cleanup_paper_markdown
+from timbro.errors import UserRuntimeError
 
 _DROP_ENVS = (
     "tikzpicture",
@@ -76,12 +77,13 @@ def looks_like_latex(text: str) -> bool:
 def detex_text(text: str, *, replace_math: bool = True) -> str:
     """Strip LaTeX commands from raw `.tex` content using the external `detex` tool.
 
-    Raises `RuntimeError` if `detex` is not installed, does not finish within
-    60 seconds, or returns a non-zero exit code.
+    Raises `UserRuntimeError` (a `RuntimeError`, so API callers keep working) if
+    `detex` is not installed, does not finish within 60 seconds, or returns a
+    non-zero exit code; the CLI prints it as one clean line (#188, #191).
     """
     exe = shutil.which("detex")
     if exe is None:
-        raise RuntimeError("detex is not installed. Install opendetex to ingest .tex files.")
+        raise UserRuntimeError("detex is not installed. Install opendetex to ingest .tex files.")
 
     cmd = [exe, "-n"]
     if replace_math:
@@ -96,9 +98,9 @@ def detex_text(text: str, *, replace_math: bool = True) -> str:
             timeout=60,
         )
     except subprocess.TimeoutExpired as exc:
-        raise RuntimeError("detex timed out after 60s") from exc
+        raise UserRuntimeError("detex timed out after 60s") from exc
     if proc.returncode != 0:
-        raise RuntimeError(proc.stderr.strip() or "detex failed")
+        raise UserRuntimeError(proc.stderr.strip() or "detex failed")
     return _normalize_detex_output(proc.stdout)
 
 

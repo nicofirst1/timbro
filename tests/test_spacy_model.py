@@ -8,6 +8,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from timbro import spacy_model
+from timbro.errors import UserError
 
 _COMPAT = {"en_core_web_sm": ["3.8.0"]}
 _WHEEL_URL = (
@@ -108,6 +109,9 @@ class LoadSpacyColdStartTests(unittest.TestCase):
         self.assertEqual(cmd, [sys.executable, "-m", "pip", "install", _WHEEL_URL])
 
     def test_install_failure_propagates_instead_of_silent_e050(self):
+        # #191: the failed install is re-typed from CalledProcessError to
+        # UserRuntimeError (a UserError), so the CLI prints one clean line
+        # instead of a traceback; it still propagates, it is not silent.
         with (
             patch("tempfile.gettempdir", return_value=self._tmp),
             patch("spacy.load", side_effect=OSError("missing")),
@@ -118,8 +122,10 @@ class LoadSpacyColdStartTests(unittest.TestCase):
                 side_effect=subprocess.CalledProcessError(1, ["uv"]),
             ),
         ):
-            with self.assertRaises(subprocess.CalledProcessError):
+            with self.assertRaises(UserError) as ctx:
                 spacy_model.load_spacy()
+        self.assertIsInstance(ctx.exception, RuntimeError)
+        self.assertIn("no network", str(ctx.exception))
 
 
 class InstallStdoutRedirectTests(unittest.TestCase):

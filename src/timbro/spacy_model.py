@@ -27,6 +27,8 @@ import tempfile
 from functools import cache
 from pathlib import Path
 
+from timbro.errors import UserRuntimeError
+
 try:
     import fcntl
 except ImportError:
@@ -59,7 +61,14 @@ def _install_model() -> None:
     # stdout pipe (`timbro check draft.md | head -5`) breaks pip mid-install
     # and every piped cold start keeps failing. pip's progress belongs on
     # stderr, next to the "downloading" notice.
-    subprocess.run(cmd, check=True, stdout=sys.stderr)
+    try:
+        subprocess.run(cmd, check=True, stdout=sys.stderr)
+    except subprocess.CalledProcessError as exc:
+        # A failed first-run install is a user error (usually offline), not a
+        # bug: one clean line instead of a traceback (#191).
+        raise UserRuntimeError(
+            "could not install the spaCy model (no network?); re-run when online"
+        ) from exc
 
 
 def _install_lock_path() -> Path:
