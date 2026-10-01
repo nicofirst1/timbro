@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- Drafts over 50,000 words are rejected with a clear message instead of scoring for minutes: `timbro: error: draft is N words; timbro scores drafts up to 50,000 words (split it into sections)`. Applies to `score`, `check` and `accept` (#153).
+
 ## [0.9.0] — 2026-10-01
 
 New voice axes, interchangeable rubrics, profile sync across machines, and a module layout that matches the architecture (#110). Several changes are **breaking**; see Removed and Changed.

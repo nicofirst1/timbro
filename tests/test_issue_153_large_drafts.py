@@ -30,7 +30,7 @@ import numpy as np
 
 from timbro.cli import MAX_DRAFT_WORDS
 from timbro.flow import novelty_curve
-from timbro.model import VoiceModel, _WORD, read_corpus
+from timbro.model import _WORD, VoiceModel, read_corpus
 from timbro.model.direction import feature_matrix, features
 from timbro.priors import DEFAULT_EXEMPLARS
 from timbro.text import cosine
@@ -165,11 +165,14 @@ class DraftAtLimitAcceptedTests(unittest.TestCase):
 
         stdout, stderr = io.StringIO(), io.StringIO()
         argv = ["timbro", "score", str(draft), "--json"]
-        with mock.patch.object(sys, "argv", argv), mock.patch.object(
-            cli, "default_model", return_value=mock.Mock()
-        ), mock.patch.object(cli, "voice_report", return_value={"distance": 1.0}):
-            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-                cli.main()
+        with (
+            mock.patch.object(sys, "argv", argv),
+            mock.patch.object(cli, "default_model", return_value=mock.Mock()),
+            mock.patch.object(cli, "voice_report", return_value={"distance": 1.0}),
+            contextlib.redirect_stdout(stdout),
+            contextlib.redirect_stderr(stderr),
+        ):
+            cli.main()
         return stdout.getvalue(), stderr.getvalue()
 
     def test_score_file_at_limit_gets_past_the_guard(self):
@@ -190,11 +193,14 @@ class DraftAtLimitAcceptedTests(unittest.TestCase):
             revised.write_text(" ".join(["word"] * MAX_DRAFT_WORDS), encoding="utf-8")
             stdout, stderr = io.StringIO(), io.StringIO()
             argv = ["timbro", "accept", str(original), str(revised)]
-            with mock.patch.object(sys, "argv", argv), mock.patch.object(
-                cli, "default_model", return_value=mock.Mock()
-            ), mock.patch.object(cli, "evaluate_rewrite", return_value=dict(_REWRITE_RESULT)):
-                with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-                    cli.main()
+            with (
+                mock.patch.object(sys, "argv", argv),
+                mock.patch.object(cli, "default_model", return_value=mock.Mock()),
+                mock.patch.object(cli, "evaluate_rewrite", return_value=dict(_REWRITE_RESULT)),
+                contextlib.redirect_stdout(stdout),
+                contextlib.redirect_stderr(stderr),
+            ):
+                cli.main()
         self.assertNotIn("timbro: error:", stderr.getvalue(), stderr.getvalue())
         self.assertIn("accepted:", stdout.getvalue())
 

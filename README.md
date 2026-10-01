@@ -98,7 +98,7 @@ timbro accept draft.md revised.md       # closer to the voice, and the same mean
 cat draft.md | timbro score -           # `-` reads stdin (score and check)
 ```
 
-Add `--json` to `score`, `check`, `accept`, and `profiles list|env|diagnose|learn|sync` for the raw payload.
+Add `--json` to `score`, `check`, `accept`, and `profiles list|env|diagnose|learn|sync` for the raw payload. Drafts over 50,000 words are rejected: split them into sections and score each one.
 
 ## A positive target, not just a blocklist
 
