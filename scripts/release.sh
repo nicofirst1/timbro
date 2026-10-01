@@ -82,6 +82,6 @@ git push origin "v$VERSION"
 echo "==> refreshing plugin install"
 claude plugin marketplace update timbro
 claude plugin update timbro@timbro
-uv sync --directory "$HOME/.claude/plugins/cache/timbro/timbro/$VERSION"
+uv sync --directory "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/cache/timbro/timbro/$VERSION"
 
 echo "==> done. Restart Claude Code to load the updated plugin."
