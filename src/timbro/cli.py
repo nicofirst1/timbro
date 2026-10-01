@@ -94,7 +94,8 @@ def cmd_score(args):
         print("markdown vs corpus:")
         if off:
             for ax in sorted(off, key=lambda a: -abs(a["z"])):
-                print(f"  - {ax['direction']:26s} (z {ax['z']:+.2f}, {ax['axis'][7:]})")
+                sat = " (saturated)" if ax["saturated"] else ""
+                print(f"  - {ax['direction']:26s} (z {ax['z']:+.2f}{sat}, {ax['axis'][7:]})")
         else:
             print("  - on-target: every structure axis within corpus spread")
     if not args.quiet and payload.get("hedge"):
@@ -102,7 +103,8 @@ def cmd_score(args):
         print("hedge/booster stance:")
         if hoff:
             for ax in sorted(hoff, key=lambda a: -abs(a["z"])):
-                print(f"  - {ax['direction']:38s} (z {ax['z']:+.2f}, {ax['axis']})")
+                sat = " (saturated)" if ax["saturated"] else ""
+                print(f"  - {ax['direction']:38s} (z {ax['z']:+.2f}{sat}, {ax['axis']})")
         else:
             print("  - on-target: within the reference spread")
     if not args.quiet and payload.get("fw"):
@@ -110,7 +112,8 @@ def cmd_score(args):
         print("function words vs reference:")
         if foff:
             for ax in sorted(foff, key=lambda a: -abs(a["z"])):
-                print(f"  - {ax['direction']:38s} (z {ax['z']:+.2f}, {ax['axis']})")
+                sat = " (saturated)" if ax["saturated"] else ""
+                print(f"  - {ax['direction']:38s} (z {ax['z']:+.2f}{sat}, {ax['axis']})")
         else:
             print("  - on-target: within the reference spread")
     if not args.quiet and payload.get("concreteness"):
@@ -118,7 +121,8 @@ def cmd_score(args):
         print("concreteness:")
         if coff:
             for ax in sorted(coff, key=lambda a: -abs(a["z"])):
-                print(f"  - {ax['direction']:38s} (z {ax['z']:+.2f}, {ax['axis']})")
+                sat = " (saturated)" if ax["saturated"] else ""
+                print(f"  - {ax['direction']:38s} (z {ax['z']:+.2f}{sat}, {ax['axis']})")
         else:
             print("  - on-target: within the reference spread")
     if not args.quiet and payload.get("richness"):
@@ -126,7 +130,8 @@ def cmd_score(args):
         print("readability/richness/entropy:")
         if roff:
             for ax in sorted(roff, key=lambda a: -abs(a["z"])):
-                print(f"  - {ax['direction']:38s} (z {ax['z']:+.2f}, {ax['axis']})")
+                sat = " (saturated)" if ax["saturated"] else ""
+                print(f"  - {ax['direction']:38s} (z {ax['z']:+.2f}{sat}, {ax['axis']})")
         else:
             print("  - on-target: within the reference spread")
     if not args.quiet and payload.get("politeness"):

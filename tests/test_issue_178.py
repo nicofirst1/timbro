@@ -128,11 +128,15 @@ class CliSaturatedMarkerTests(unittest.TestCase):
 
     def test_saturated_marker_only_on_clamped_rows(self):
         out = self._run_score()
-        # Both far-off rows saturate (z +1.15e6 and -7.4e5 pre-fix); every other
-        # row prints exactly as before, with no marker.
-        self.assertEqual(out.count("(saturated)"), 2, out)
+        # Both far-off markdown rows saturate (z +1.15e6 and -7.4e5 pre-fix).
         self.assertIn("(z +10.00 (saturated), code_char_ratio)", out)
         self.assertIn("(z -10.00 (saturated), prose_ratio)", out)
+        # A near-duplicate corpus also saturates lower rows (fw/concreteness/richness
+        # share the path); every marker is attached to a clamped z, never otherwise.
+        self.assertEqual(out.count("(saturated)"), out.count("(z +10.00 (saturated)") + out.count("(z -10.00 (saturated)"), out)
+        for line in out.splitlines():
+            if "(saturated)" in line:
+                self.assertRegex(line, r"\(z [+-]10\.00 \(saturated\), ")
         # Unchanged print for an unsaturated row (pinned against the pre-change output).
         self.assertIn("  - add section headings       (z -1.00, heading_count)", out)
 
