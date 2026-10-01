@@ -34,6 +34,8 @@ uvx timbro@<version> check draft.md --rubric slop --json   # {verdict, rubrics: 
 
 Flags mechanical LLM fingerprints (em/en dashes, "it's not X, it's Y", delve/tapestry/leverage diction, signposting and wrap-up phrases, emoji, curly quotes, bold lead-in bullets, colon-lists, uniform/staccato rhythm) across four dimensions (diction, construction, rhythm, formatting). **No LLM judging LLM prose.** Reach for it on "check for AI slop", "de-slop this", "does this sound like an LLM wrote it". Each flagged tell is a marker to delete or vary, not a style dial: removing it only helps.
 
+Meaning is not checked here: these rubrics flag style only, and the content guard (`timbro accept` / `profiles learn`) is embedding similarity, so a negation flip ("approved the budget" vs "did not approve the budget") can pass it. Check polarity yourself before calling a pass done.
+
 **Corpus-relative mode.** By default the slop rubric measures against zero: any em-dash is a tell. If a voice legitimately uses some tells (an em-dash habit, say), add `--profile <name>` to baseline against that profile's exemplar corpus instead: a tell is flagged only where the draft _overuses_ it relative to your own norm. `--profile` only affects the slop rubric — pair it with `--rubric slop` (or leave slop in the mix on a bare/multi-rubric run).
 
 ```bash
