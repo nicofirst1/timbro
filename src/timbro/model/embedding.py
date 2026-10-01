@@ -82,11 +82,11 @@ def _style_vecs(texts: list[str]) -> np.ndarray:
     """(len(texts), dim) style vectors, one row per text, in input order.
 
     Batched twin of _style_vec (issue #153): the span path used to give every
-    paragraph and every candidate sentence its own encode call; here all chunks
-    of all texts go through one encode call and are averaged per text, with
-    chunking identical to _style_vec. A single-text call is byte-identical to the
-    old single encode; batched calls can differ from single-item encodes at the
-    float level (padding), so span distances may drift at that scale. The batch
+    paragraph its own encode call; here all chunks of all texts go through one
+    encode call and are averaged per text, with chunking identical to
+    _style_vec. A single-text call is byte-identical to the old single encode;
+    batched calls can differ from single-item encodes at the float level
+    (padding), so span paragraph distances may drift at that scale. The batch
     warms _style_vec's cache, so later single-text lookups of the same texts hit
     it instead of re-encoding.
     """

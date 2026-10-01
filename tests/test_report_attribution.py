@@ -54,7 +54,7 @@ class ReportAttributionTests(unittest.TestCase):
 
             def _dists(self, texts: list[str]):
                 # batched twin of _dist (issue #153): report.py collects the span
-                # texts and asks for their distances in one call.
+                # paragraphs and asks for their distances in one call.
                 return [self._dist(t) for t in texts]
 
         text = (
