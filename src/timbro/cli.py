@@ -174,18 +174,25 @@ def cmd_check(args):
         text = _read_text(args.file)
     _require_draft_text(text, "draft")
     results = check_text(text, rubrics=names, profile=args.profile)
+    verdict = combine_verdicts(results)
 
+    # A verdict is a gate (issue #142): FAIL exits 3 so `check` can gate CI;
+    # the printed payload and verdict line are unchanged. WARN and PASS exit 0.
     if args.json:
         payload = {
-            "verdict": combine_verdicts(results),
+            "verdict": verdict,
             "rubrics": {result.rubric: result.to_dict() for result in results},
         }
         print(_dump_json(payload, indent=2))
+        if verdict == "fail":
+            sys.exit(3)
         return
-    print(f"verdict: {combine_verdicts(results).upper()}")
+    print(f"verdict: {verdict.upper()}")
     for result in results:
         print()
         print(render_text(result))
+    if verdict == "fail":
+        sys.exit(3)
     return
 
 
@@ -207,8 +214,12 @@ def cmd_accept(args):
     else:
         model = default_model()
     result = evaluate_rewrite(model, original, revised, threshold=args.threshold)
+    # A rejected rewrite is a verdict gate failure (issue #142): exit 3 after
+    # the payload/verdict line, which stay unchanged. Accepted exits 0.
     if args.json:
         print(_dump_json(result, indent=2))
+        if not result["accepted"]:
+            sys.exit(3)
         return
     verdict = "accepted" if result["accepted"] else "rejected"
     print(
@@ -216,6 +227,8 @@ def cmd_accept(args):
         f"(improved={result['improved']}), content similarity {result['similarity']:.3f} "
         f"(content_ok={result['content_ok']})"
     )
+    if not result["accepted"]:
+        sys.exit(3)
     return
 
 

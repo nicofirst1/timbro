@@ -37,7 +37,8 @@ class BareCheckRunsAllRubricsTests(unittest.TestCase):
             draft.write_text(_CLEAN)
             out, err, code = _run(["check", str(draft), "--json"])
         self.assertEqual(err, "")
-        self.assertEqual(code, 0)
+        # #142: a verdict gate failure exits 3; this draft fails via schimel.
+        self.assertEqual(code, 3)
         payload = json.loads(out)
         self.assertEqual(set(payload["rubrics"]), {"schimel", "slop", "density"})
 
@@ -118,7 +119,10 @@ class JsonShapeTests(unittest.TestCase):
 
 
 class ExitCodeTests(unittest.TestCase):
-    def test_successful_run_exits_zero_regardless_of_verdict(self):
+    def test_fail_verdict_exits_three_even_for_a_successful_run(self):
+        # #142: the old pin was exit 0 regardless of verdict; verdicts are now
+        # gates. This draft checks fine mechanically but its verdict is FAIL,
+        # so the run exits 3 with the full payload still on stdout.
         sloppy = (
             "Let's delve into the seamless tapestry of robust solutions — "
             "it's not just a tool, it's a paradigm. In conclusion, the future is bright."
@@ -127,7 +131,7 @@ class ExitCodeTests(unittest.TestCase):
             draft = Path(tmp) / "draft.md"
             draft.write_text(sloppy)
             out, _, code = _run(["check", str(draft), "--json"])
-        self.assertEqual(code, 0)
+        self.assertEqual(code, 3)
         self.assertNotEqual(json.loads(out)["verdict"], "pass")
 
     def test_all_empty_rubric_list_falls_back_to_all_rubrics(self):
@@ -136,7 +140,9 @@ class ExitCodeTests(unittest.TestCase):
             draft.write_text(_CLEAN)
             out, err, code = _run(["check", str(draft), "--rubric", ",,", "--json"])
         self.assertEqual(err, "")
-        self.assertEqual(code, 0)
+        # #142: the fallback full run fails via schimel on this draft, so the
+        # run exits 3; the pin here is the fallback rubric set.
+        self.assertEqual(code, 3)
         self.assertEqual(set(json.loads(out)["rubrics"]), {"schimel", "slop", "density"})
 
     def test_slop_command_no_longer_exists(self):

@@ -105,7 +105,9 @@ class ThresholdBoundaryTests(unittest.TestCase):
                 ["accept", str(original), str(revised), "--threshold", "0"],
                 env_overrides=_sandbox_env(tmp),
             )
-        self.assertEqual(proc.returncode, 0, proc.stderr)
+        # #142: this fixture is rejected (not improved), which now exits 3; the
+        # pin here is that threshold 0 runs and reports content_ok=True.
+        self.assertEqual(proc.returncode, 3, proc.stderr)
         self.assertIn("content similarity", proc.stdout)
         self.assertIn("content_ok=True", proc.stdout)
         self.assertNotIn("Traceback", proc.stderr)
@@ -117,7 +119,9 @@ class ThresholdBoundaryTests(unittest.TestCase):
                 ["accept", str(original), str(revised), "--threshold", "1"],
                 env_overrides=_sandbox_env(tmp),
             )
-        self.assertEqual(proc.returncode, 0, proc.stderr)
+        # #142: rejected (similarity 0.993 never clears a threshold of 1) now
+        # exits 3; the pin here is that threshold 1 runs and prints the line.
+        self.assertEqual(proc.returncode, 3, proc.stderr)
         self.assertIn("content similarity", proc.stdout)
         self.assertNotIn("Traceback", proc.stderr)
 
@@ -132,7 +136,9 @@ class SimilarityPrecisionTests(unittest.TestCase):
                 ["accept", str(original), str(revised)],
                 env_overrides=_sandbox_env(tmp),
             )
-        self.assertEqual(proc.returncode, 0, proc.stderr)
+        # #142: this fixture is rejected, which now exits 3; the pin here is
+        # the 3-decimal precision of the printed similarity.
+        self.assertEqual(proc.returncode, 3, proc.stderr)
         self.assertRegex(proc.stdout, r"content similarity \d\.\d{3} ")
 
 
