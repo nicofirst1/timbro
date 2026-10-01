@@ -12,6 +12,7 @@ All planned work lives in GitHub issues (`gh issue list`), grouped into mileston
 
 Issues are labeled by required capability: `agent:mechanical` = fully specified, follow the "Implementer spec" section literally; `agent:judgment` = has open taste/decision surface — ask the user before deviating or deciding, don't guess.
 
+- **Branch off `dev` and target PRs at `dev`, never `main`.** `main` is the release-cut branch and lags behind — `dev` is where feature/fix PRs actually merge (see `Project history` below). A worktree or branch cut from `main` will be missing recently merged work and can silently redo it or dedupe against a stale file. Before starting, confirm the base: `git log main..origin/dev` should be non-empty if `dev` is ahead, and any new branch should start from `origin/dev`.
 - One issue per branch/PR. Don't fold in drive-by refactors.
 - The "Implementer spec" sections are decisions, not suggestions. If a number or approach in one looks wrong, comment on the issue and stop — do not silently substitute your own.
 - Before declaring done, run `uv run pytest` and `uv run ruff check src/` and quote the output in the PR.
@@ -51,4 +52,4 @@ Single-context: a root `CONTEXT.md` (created lazily by `/domain-modeling`) plus 
 
 ### Project history
 
-History lives in `CHANGELOG.md` (Keep a Changelog format, updated by hand at release time — `release.sh` does not touch it), git tags (`git tag`), the commit log, closed GitHub milestones, and `docs/adr/` (why the architecture is what it is). Check these before assuming how a subsystem got here. Note: tags before v0.8.0 were cut from a `main` that lagged `dev`, so pre-0.8.0 changelog entries describe dev state, not what those tags actually shipped.
+History lives in `CHANGELOG.md` (Keep a Changelog format, updated by hand at release time — `release.sh` does not touch it), git tags (`git tag`), the commit log, closed GitHub milestones, and `docs/adr/` (why the architecture is what it is). Check these before assuming how a subsystem got here. Note: tags before v0.8.0 were cut from a `main` that lagged `dev`, so pre-0.8.0 changelog entries describe dev state, not what those tags actually shipped. This isn't a one-time historical quirk — `main` still lags `dev` as new PRs land (see the branch-off-`dev` guardrail above), so always check which branch a past change actually landed on rather than assuming `main`.

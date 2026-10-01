@@ -17,7 +17,7 @@ from timbro.text import strip_markup
 _FRONTMATTER = re.compile(r"\A---[ \t]*\n(.*?)\n---[ \t]*\n?", re.DOTALL)
 _FENCE = re.compile(r"(```|~~~).*?\1", re.DOTALL)
 _HEADING = re.compile(r"(?m)^[ \t]*(#{1,6})[ \t]+.*$")
-_TABLE_SEPARATOR = re.compile(r"(?m)^[ \t]*:?-{2,}:?(?:[ \t]*\|[ \t]*:?-{2,}:?)+[ \t]*$")
+_TABLE_SEPARATOR = re.compile(r"(?m)^[ \t]*\|?[ \t]*:?-{2,}:?(?:[ \t]*\|[ \t]*:?-{2,}:?)+[ \t]*\|?[ \t]*$")
 _BULLET_LIST = re.compile(r"^[ \t]*[-*+][ \t]+")
 _ORDERED_LIST = re.compile(r"^[ \t]*\d+\.[ \t]+")
 _BLANK_LINE = re.compile(r"\n[ \t]*\n")

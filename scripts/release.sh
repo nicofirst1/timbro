@@ -47,7 +47,7 @@ with open(path, "w") as f:
     f.write("\n")
 EOF
 
-pyproject_version="$(uv version --short)"
+pyproject_version="$(uv version --short --color never)"
 plugin_version="$(python3 -c 'import json; print(json.load(open(".claude-plugin/plugin.json"))["version"])')"
 if [[ "$pyproject_version" != "$plugin_version" ]]; then
   echo "error: version mismatch after bump (pyproject=$pyproject_version plugin=$plugin_version)" >&2
@@ -82,6 +82,6 @@ git push origin "v$VERSION"
 echo "==> refreshing plugin install"
 claude plugin marketplace update timbro
 claude plugin update timbro@timbro
-uv sync --directory "$HOME/.claude/plugins/cache/timbro/timbro/$VERSION"
+uv sync --directory "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/cache/timbro/timbro/$VERSION"
 
 echo "==> done. Restart Claude Code to load the updated plugin."
