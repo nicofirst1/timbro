@@ -14,6 +14,7 @@ New voice axes, interchangeable rubrics, profile sync across machines, and a mod
 
 - `timbro profiles sync [--init <url>]`: syncs the profile root with a private git remote. It never rebases, force-pushes or auto-resolves, and concurrent `runs.jsonl` appends merge losslessly (#118).
 - `$TIMBRO_HOME` (default `~/.timbro`) and `<TIMBRO_HOME>/settings.json`, whose `no_log` flag turns off the learn log. `TIMBRO_NO_LOG=1` still overrides it (#116).
+- A debug switch: `TIMBRO_DEBUG=1` or `"debug": true` in `settings.json` prints the full traceback behind a one-line CLI error (#137).
 - Readability, lexical richness and entropy axis: Coleman-Liau, HD-D and Shannon entropy. Reported only (#88).
 - Politeness strategies axis: the 20 Danescu-Niculescu-Mizil 2013 strategies, reported as N/A when none fire. Reported only (#94).
 - `VoiceModel.axis_report(name, text)` and one `AxisReport` dataclass for every blend-style axis. A new axis needs only its own file plus an import (#108).
@@ -45,18 +46,22 @@ New voice axes, interchangeable rubrics, profile sync across machines, and a mod
 - A first run piped into `head` no longer breaks the spaCy model install. The install's output goes to stderr, not stdout (#136).
 - Parallel first runs no longer race the spaCy model install. It is serialized on a per-environment file lock, so the model installs once (#173).
 - Offline runs with cached models no longer stall for minutes on hub retries. Both sentence-transformer models load from the local cache first; offline `check` dropped from 2m44s to 4.7s. Cached models no longer auto-update from the hub (#139).
-- Expected user errors print one `timbro: error:` line and exit 1 instead of a traceback: a missing file, a non-UTF-8 file, a duplicate `add-file`, an unknown profile, and `add-file` on a `.tex` file without `detex`. A decode error names only the file that actually failed (#137, #147).
-- `check --profile` with no exemplars names the missing path, the same way `score` does (#161).
+- Expected user errors print one `timbro: error:` line and exit 1 instead of a traceback: a missing file, a non-UTF-8 file, a duplicate `add-file`, an unknown profile, `add-file` on a `.tex` file without `detex`, and any other filesystem error (permission denied, read-only disk, a name that is too long). A decode error names only the file that actually failed (#137, #147, #154).
+- An empty or whitespace-only draft is a one-line error with exit 1 in `score`, `check` and `accept`, instead of a result built on `NaN` (#152).
+- `--json` output never contains `NaN` or `Infinity`; non-finite numbers are written as `null` (#152).
+- `check --profile` with no exemplars names the missing path, the same way `score` does. That error and the sample-voice warning say how to fill or create a managed profile (#161).
 - `profiles add-file --dest-name` rejects anything but a plain file name, so it can no longer write outside the profile (#150).
 - `add_text`/`add_file` reject an unknown bucket instead of silently filing it into `contrast/` (#165).
 - `profiles sync --init` warns when it repoints an existing `origin` to a new URL, instead of doing it silently (#185).
 - `profiles sync` works on a machine with no git identity once the remote has commits (#151).
+- `profiles sync` on a root with no `origin` stops before committing anything and says to run `profiles sync --init <url>` (#154).
 - A profile of near-duplicate exemplars no longer produces z-scores around 1e15 at confidence 1.0. Float-rounding spreads are floored like exact zeros (#160).
 - One punctuation-only file in a profile's exemplars no longer makes the richness axis `NaN` for every draft, which had put a literal `NaN` in `score --json` (#177).
 - Ingest cleanup no longer fuses a paragraph with a following punctuation block, which could drop the whole paragraph from `extract_prose_excerpt` (#179).
 - `content_similarity` stays within [0, 1], and a hung `detex` times out after 60s instead of hanging (#180).
 - `flow_report` raises a clear `ValueError` on under 2 paragraphs instead of numpy errors (#164).
 - The `pkg_resources` deprecation warning no longer prints on every run (#140).
+- PyYAML is a declared dependency. It was imported directly but only installed transitively (#141).
 - `scripts/release.sh` refuses to release a `main` that is missing `origin/dev` commits, or a version with no changelog section (#171).
 - Docs: the plugin downloads the spaCy model on first run rather than shipping it; PROFILE.md lists `.txt`; the README scopes `--json` to the commands that have it (#162).
 - `feature-reference.md` now matches the code: 8 of the 11 markdown-structure rows had been wrong, the Richness and Politeness sections were missing, and several stale references are fixed. Stale comments and docstrings were swept after the layout work (#128).
