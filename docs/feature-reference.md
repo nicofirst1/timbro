@@ -114,7 +114,7 @@ Runs on the **raw draft**, markup intact (the struct features live in the markup
 | `struct_list_item_ratio`        | List-item lines / non-blank lines         | Density of list structure                           |
 | `struct_bullet_list_ratio`      | Bullet-item lines / non-blank lines       | How bullet-heavy the doc is                         |
 | `struct_ordered_list_ratio`     | Ordered-item lines / non-blank lines      | How step-by-step the doc is                         |
-| `struct_table_count`            | Count of table separator rows (no leading \|) | How many tables (pipe-less style only, see #132) |
+| `struct_table_count`           | Count of GFM table separator rows (leading/trailing pipe optional) | How many tables |
 | `struct_external_ref_count`     | Count of `scripts/`, `references/`, or `assets/` path references | How many repo-path mentions   |
 | `struct_long_paragraph_ratio`   | Paragraphs with > 6 runs of `.!?` (naive: `e.g.` counts twice) / total paragraphs | Density of chunky prose                      |
 | `struct_prose_ratio`            | Prose characters / total characters       | Proportion that is continuous text (vs. lists/code) |

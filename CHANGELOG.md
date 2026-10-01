@@ -13,6 +13,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Fixed
 
 - Scoring large drafts is faster: features are extracted once per score instead of once per feature name, span paragraph embeddings are batched into one model call, and the flow novelty curve is linear in the number of paragraphs (#153).
+- GFM tables with leading pipes now count in struct_table_count; scores and fitted corpus stats change for any text containing tables. Bug fix, not a retune (#132).
 
 ## [0.9.0] — 2026-10-01
 
