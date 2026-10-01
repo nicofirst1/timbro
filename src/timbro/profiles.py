@@ -28,6 +28,12 @@ from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
 
 from timbro.cleanup import tex_to_markdown
+from timbro.errors import (
+    UserFileExistsError,
+    UserFileNotFoundError,
+    UserRuntimeError,
+    UserValueError,
+)
 from timbro.model import VoiceModel
 from timbro.model.embedding import _style_vec
 from timbro.profilelog import log_learn
@@ -84,7 +90,7 @@ def profile_root(root: str | Path | None = None) -> Path:
 def normalize_profile_name(name: str) -> str:
     out = name.strip().lower().replace(" ", "-")
     if not _VALID_NAME.fullmatch(out):
-        raise ValueError(
+        raise UserValueError(
             f"Invalid profile name {name!r}. Use lowercase letters, digits, '-' or '_'."
         )
     return out
@@ -221,7 +227,7 @@ def add_text(
     target_dir = profile.exemplars_dir if bucket == "exemplars" else profile.contrast_dir
     path = target_dir / f"{_slug_filename(title)}.md"
     if path.exists() and not overwrite:
-        raise FileExistsError(f"Destination already exists: {path}")
+        raise UserFileExistsError(f"Destination already exists: {path}")
     path.write_text(text, encoding="utf-8")
     return path
 
@@ -251,19 +257,19 @@ def add_file(
         or "\x00" in dest_name
         or dest_name != Path(dest_name).name
     ):
-        raise ValueError(f"--dest-name must be a plain file name, got '{dest_name}'")
+        raise UserValueError(f"--dest-name must be a plain file name, got '{dest_name}'")
     profile = init_profile(profile_name, root=root)
     src = Path(source)
     if not src.exists():
-        raise FileNotFoundError(src)
+        raise UserFileNotFoundError(src)
     target_dir = profile.exemplars_dir if bucket == "exemplars" else profile.contrast_dir
     ext = src.suffix.lower() or ".md"
     if ext not in {".md", ".txt", ".tex"}:
-        raise ValueError("Only .md, .txt, and .tex files can be added to a Timbro profile.")
+        raise UserValueError("Only .md, .txt, and .tex files can be added to a Timbro profile.")
     name = dest_name or (f"{src.stem}.md" if ext == ".tex" else src.name)
     dst = target_dir / name
     if dst.exists() and not overwrite:
-        raise FileExistsError(f"Destination already exists: {dst}")
+        raise UserFileExistsError(f"Destination already exists: {dst}")
     if ext == ".tex":
         dst.write_text(tex_to_markdown(src), encoding="utf-8")
     else:
@@ -274,10 +280,10 @@ def add_file(
 def _read_pair_text(path: str | Path, label: str) -> str:
     p = Path(path)
     if not p.exists():
-        raise FileNotFoundError(p)
+        raise UserFileNotFoundError(p)
     text = p.read_text(encoding="utf-8", errors="ignore")
     if not text.strip():
-        raise ValueError(f"{label} file is empty: {p}")
+        raise UserValueError(f"{label} file is empty: {p}")
     return text
 
 
@@ -290,9 +296,9 @@ def _check_pair_slots_free(profile: Profile, title: str) -> None:
     exemplar_path = profile.exemplars_dir / f"{slug}.md"
     contrast_path = profile.contrast_dir / f"{slug}.md"
     if exemplar_path.exists():
-        raise FileExistsError(f"Destination already exists: {exemplar_path}. Pass force=True or a different title.")
+        raise UserFileExistsError(f"Destination already exists: {exemplar_path}. Pass force=True or a different title.")
     if contrast_path.exists():
-        raise FileExistsError(f"Destination already exists: {contrast_path}. Pass force=True or a different title.")
+        raise UserFileExistsError(f"Destination already exists: {contrast_path}. Pass force=True or a different title.")
 
 
 def learn(
@@ -328,7 +334,7 @@ def learn(
 
     if model is None:
         if not force:
-            raise ValueError(
+            raise UserValueError(
                 f"Profile '{profile.name}' has no exemplars to measure against yet, so the "
                 "guard can't run. Seed it first (`profiles add-file`) or pass force=True to "
                 "bootstrap it with this pair."
@@ -541,7 +547,7 @@ def sync_profiles(root: str | Path | None = None, init_remote: str | None = None
     remote must be a private repo -- profiles hold private writing.
     """
     if shutil.which("git") is None:
-        raise RuntimeError("git not found on PATH; profile sync needs git")
+        raise UserRuntimeError("git not found on PATH; profile sync needs git")
     base = profile_root(root)
     allow_unrelated_histories = init_remote is not None
     previous_remote: str | None = None
