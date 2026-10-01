@@ -174,5 +174,6 @@ RICHNESS_REFERENCE = Reference(
 # so the raw z can reach 1e5-1e6. Past the cap the row is marked saturated and the
 # direction consumes the clamped value. The embedding distance/distance_z (#160)
 # and the POS direction are not clamped. A modelling constant, NOT a user setting:
-# scores must stay comparable across machines.
+# scores must stay comparable across machines. Decision and rejected alternatives:
+# docs/adr/0007-axis-z-saturation-cap.md.
 AXIS_Z_SATURATION = 10.0
