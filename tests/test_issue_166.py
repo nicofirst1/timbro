@@ -11,6 +11,12 @@ Four behaviors pinned here:
    bare `force=True`, so the same line serves CLI and API callers.
 4. A refused `learn` exits 3 in both text and --json modes (was 1 text, 0
    json); the empty-profile bootstrap refusal stays exit 1.
+5. Round 2 (review R1): git drops empty directories, so a synced profile can
+   arrive without contrast/ (or exemplars/). A missing bucket dir under an
+   existing profile dir is an empty bucket, exactly as on base: score/accept
+   fit without contrast, learn's guard runs, and an empty-exemplars profile
+   gets #161's message. read_corpus itself and the TIMBRO_* env vars stay
+   strict; a missing profile dir raises the unknown-profile error.
 
 Subprocess tests follow tests/test_cli_user_errors.py; every run is sandboxed
 under tmp dirs (TIMBRO_HOME, TIMBRO_PROFILE_ROOT, XDG_DATA_HOME), never the
@@ -28,7 +34,13 @@ import unittest
 from pathlib import Path
 
 from timbro.errors import UserError
-from timbro.profiles import _check_pair_slots_free, add_file, add_text, init_profile, learn
+from timbro.profiles import (
+    _check_pair_slots_free,
+    add_file,
+    add_text,
+    init_profile,
+    learn,
+)
 
 _TEXT = "The committee reviewed the annual budget with care and approved the plan."
 
@@ -55,6 +67,19 @@ def _tree(root: Path) -> set[str]:
     return {str(p.relative_to(root)) for p in root.rglob("*")}
 
 
+def _sandbox_env(base: Path) -> dict[str, str]:
+    env = dict(os.environ)
+    env.update(
+        {
+            "PYTHONHASHSEED": "0",
+            "TIMBRO_HOME": str(base / "home"),
+            "TIMBRO_PROFILE_ROOT": str(base / "profiles"),
+            "XDG_DATA_HOME": str(base / "xdg"),
+        }
+    )
+    return env
+
+
 def _run_cli(argv: list[str]) -> subprocess.CompletedProcess[str]:
     with tempfile.TemporaryDirectory() as tmp:
         base = Path(tmp)
@@ -75,15 +100,47 @@ def _run_cli(argv: list[str]) -> subprocess.CompletedProcess[str]:
         unrelated.write_text(_UNRELATED, encoding="utf-8")
         files = {"@DRAFT": draft, "@FINAL": final, "@UNRELATED": unrelated}
         argv = [str(files.get(a, a)) for a in argv]
-        env = dict(os.environ)
-        env.update(
-            {
-                "PYTHONHASHSEED": "0",
-                "TIMBRO_HOME": str(base / "home"),
-                "TIMBRO_PROFILE_ROOT": str(root),
-                "XDG_DATA_HOME": str(base / "xdg"),
-            }
+        return subprocess.run(
+            [sys.executable, "-m", "timbro.cli", *argv],
+            capture_output=True,
+            text=True,
+            timeout=600,
+            env=_sandbox_env(base),
+            check=False,
         )
+
+
+def _run_cli_synced(
+    argv: list[str], layout: str = "no-contrast", env_extra: dict[str, str] | None = None
+) -> subprocess.CompletedProcess[str]:
+    """Run the CLI against a profile root as it arrives on a second machine
+    after `profiles sync` (review R1): git has dropped every empty directory,
+    so `demo/` has no contrast/ dir -- and, with layout="no-exemplars", no
+    exemplars/ either; layout="missing-profile" leaves no demo/ dir at all (a
+    typo'd name). Same sandbox as _run_cli, never the real ~/.timbro.
+    "@BASE" in an env_extra value becomes the sandbox base path.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        base = Path(tmp)
+        root = base / "profiles"
+        demo = root / "demo"
+        if layout == "no-contrast":
+            ex = demo / "exemplars"
+            ex.mkdir(parents=True)
+            for i in range(3):
+                (ex / f"seed{i}.md").write_text(_FINAL, encoding="utf-8")
+        elif layout == "no-exemplars":
+            demo.mkdir(parents=True)
+        elif layout != "missing-profile":
+            raise ValueError(f"unknown layout {layout!r}")
+        draft = base / "draft.md"
+        final = base / "final.md"
+        draft.write_text(_DRAFT, encoding="utf-8")
+        final.write_text(_FINAL, encoding="utf-8")
+        argv = [str(draft) if a == "@DRAFT" else str(final) if a == "@FINAL" else a for a in argv]
+        env = _sandbox_env(base)
+        for key, value in (env_extra or {}).items():
+            env[key] = value.replace("@BASE", str(base))
         return subprocess.run(
             [sys.executable, "-m", "timbro.cli", *argv],
             capture_output=True,
@@ -317,6 +374,81 @@ class LearnRefusalExitCodeTests(unittest.TestCase):
         self.assertEqual(proc.stdout, "")
         self.assertTrue(proc.stderr.startswith("timbro: error: "), proc.stderr)
         self.assertIn(f"or use {_FORCE_HINT} to bootstrap it with this pair.", proc.stderr)
+        self.assertNotIn("Traceback", proc.stderr)
+
+
+class SyncedEmptyBucketTests(unittest.TestCase):
+    """Review R1 (issue #166 round 2): git drops empty directories, so a profile
+    synced from a machine with an empty contrast/ arrives WITHOUT that dir. A
+    missing bucket dir under an existing profile dir is an empty bucket, exactly
+    as on base: score/accept fit without contrast, learn's guard runs (no false
+    bootstrap refusal; --force still evaluates the guard), and a profile whose
+    exemplars dir is missing gets #161's message. read_corpus itself and the
+    TIMBRO_* env vars stay strict so user-typed path typos fail loudly, and a
+    missing profile dir raises the spec's unknown-profile error."""
+
+    def test_score_synced_profile_without_contrast_dir_exits_0(self):
+        proc = _run_cli_synced(["score", "@DRAFT", "--profile", "demo"])
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn("distance", proc.stdout)
+
+    def test_accept_synced_profile_without_contrast_dir_runs_the_guard(self):
+        # The verdict is the guard's business (0 accepted, 3 rejected); a missing
+        # contrast dir must never turn into a corpus error (exit 1).
+        proc = _run_cli_synced(["accept", "@DRAFT", "@FINAL", "--profile", "demo"])
+        self.assertIn(proc.returncode, (0, 3))
+        self.assertNotIn("Corpus directory not found", proc.stderr)
+        self.assertNotIn("Traceback", proc.stderr)
+        if proc.returncode == 3:
+            self.assertTrue(proc.stderr.startswith("rejected: distance"), proc.stderr)
+
+    def test_learn_without_force_reaches_the_guard_not_the_bootstrap(self):
+        proc = _run_cli_synced(
+            ["profiles", "learn", "demo", "--draft", "@FINAL", "--final", "@FINAL", "--title", "refused"]
+        )
+        self.assertEqual(proc.returncode, 3, proc.stderr)
+        self.assertTrue(proc.stderr.startswith("final (distance"), proc.stderr)
+        self.assertIn(f"Use {_FORCE_HINT} to save anyway.", proc.stderr)
+        self.assertNotIn("no exemplars to measure against yet", proc.stderr)
+
+    def test_learn_refusal_json_payload_is_the_guards(self):
+        proc = _run_cli_synced(
+            ["profiles", "learn", "demo", "--draft", "@FINAL", "--final", "@FINAL", "--title", "refused", "--json"]
+        )
+        self.assertEqual(proc.returncode, 3, proc.stderr)
+        payload = json.loads(proc.stdout)
+        self.assertIs(payload["saved"], False)
+        self.assertIn(f"Use {_FORCE_HINT} to save anyway.", payload["reason"])
+
+    def test_learn_force_prints_the_distance_line(self):
+        proc = _run_cli_synced(
+            ["profiles", "learn", "demo", "--draft", "@DRAFT", "--final", "@FINAL", "--title", "forced", "--force"]
+        )
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn("learned pair into 'demo'", proc.stdout)
+        # The guard ran: a bootstrap save prints no distance line.
+        self.assertIn("distance draft=", proc.stdout)
+
+    def test_profile_without_exemplars_dir_gets_the_161_message(self):
+        proc = _run_cli_synced(["score", "@DRAFT", "--profile", "demo"], layout="no-exemplars")
+        self.assertEqual(proc.returncode, 1, proc.stderr)
+        self.assertIn("timbro: error: No .md/.txt exemplars found at", proc.stderr)
+        self.assertIn("timbro profiles add-file", proc.stderr)
+        self.assertNotIn("Corpus directory not found", proc.stderr)
+
+    def test_missing_profile_raises_the_unknown_profile_error(self):
+        proc = _run_cli_synced(["score", "@DRAFT", "--profile", "typo"], layout="missing-profile")
+        self.assertEqual(proc.returncode, 1, proc.stderr)
+        self.assertIn("Unknown profile 'typo':", proc.stderr)
+        self.assertIn("timbro profiles init typo", proc.stderr)
+        self.assertNotIn("Corpus directory not found", proc.stderr)
+
+    def test_timbro_exemplars_env_still_catches_a_missing_dir(self):
+        # The env vars are user-typed paths: a missing dir stays a loud error
+        # even though managed profile buckets are lenient (#166 round 2).
+        proc = _run_cli_synced(["score", "@DRAFT"], env_extra={"TIMBRO_EXEMPLARS": "@BASE/no-such-corpus"})
+        self.assertEqual(proc.returncode, 1, proc.stderr)
+        self.assertIn("timbro: error: Corpus directory not found:", proc.stderr)
         self.assertNotIn("Traceback", proc.stderr)
 
 
