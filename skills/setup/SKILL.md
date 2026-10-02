@@ -1,7 +1,6 @@
 ---
 name: timbro-setup
-description: 'Guided first-run setup for Timbro: pick a purpose, scaffold a voice profile, and ingest exemplars before using score/slop/check for real. Use when the user asks to "set up Timbro", "get started with Timbro", or "onboard me to Timbro" -- or when skills/timbro/SKILL.md''s Match-a-voice flow finds no profiles yet. Run once per profile; re-run to add another purpose.'
-disable-model-invocation: true
+description: 'Guided first-run setup for Timbro: pick a purpose, scaffold a voice profile, and ingest exemplars before using score/check for real. Use when the user asks to "set up Timbro", "get started with Timbro", or "onboard me to Timbro" -- or when skills/timbro/SKILL.md''s Match-a-voice flow finds no profiles yet. Run once per profile; re-run to add another purpose.'
 ---
 
 # Timbro setup
@@ -53,6 +52,8 @@ Ask what they're writing: a personal blog, LinkedIn posts, academic prose, compa
 ```bash
 uvx timbro@<version> profiles init <name> --about "<purpose, one paragraph>"
 ```
+
+(the CLI slugifies the purpose: lowercase letters, digits, `-` or `_`; it rejects other characters)
 
 ### 4. Ingest exemplars
 

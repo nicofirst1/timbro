@@ -13,6 +13,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - The packaged sample voice is 8 trimmed posts from the 18F blog (US public domain, CC0 1.0), replacing the 4 synthetic exemplars. The sample now reaches health "ok" and shows a direction; provenance in `src/timbro/sample/README.md` (#163).
 - **Breaking:** every expected CLI error prints `timbro: error: ...`; check and learn errors drop the bare `error:` prefix. A malformed settings.json now fails the command with exit 1 instead of being ignored, and a failed first-run spaCy model install prints one clean line instead of a traceback (#191).
 - `accept` rejects `--threshold` outside [0, 1] with a clean error and exit 1, instead of silently accepting a value that can never be meaningful (#158).
+- Skill docs: `accept` is the required stop condition of a rewrite loop, and the rubric loop reads severity from `check --json`.
 
 ### Added
 
@@ -20,6 +21,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- The main `timbro-review` skill's frontmatter is valid YAML again; strict skill loaders skipped it since 0.8.0. The setup skill can now be invoked by the agent on first run.
 - `check` parses and embeds each paragraph once, roughly halving its runtime on long drafts (#192).
 - Scoring large drafts is faster: features are extracted once per score instead of once per feature name, span paragraph embeddings are batched into one model call, and the flow novelty curve is linear in the number of paragraphs (#153).
 - HD-D (richness axis) is computed locally in a deterministic order, so values no longer depend on PYTHONHASHSEED. Values may differ from 0.9.0 in the last digit (~1 ULP) (#123).

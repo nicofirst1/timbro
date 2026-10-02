@@ -2,9 +2,9 @@
 
 `<version>` below is the pin declared at the top of `SKILL.md`.
 
-`timbro check <file>` runs three deterministic rubrics as peers: no model, no voice corpus, pure regex/POS/wordfreq. All three share the same **recall-first** philosophy and the same loop: run → fix the real findings, silently drop the false positives → re-run → repeat until the finding count stops dropping. Severity is the confidence signal: act on `high`/`medium` findings first, `low` findings are hints. They differ only in what they flag.
+`timbro check <file>` runs three deterministic rubrics as peers: no model, no voice corpus, pure regex/POS/wordfreq. All three share the same **recall-first** philosophy and the same loop: run → fix the real findings, silently drop the false positives → re-run → repeat until the finding count stops dropping (read it from `--json`). Severity and the full finding list live in the `--json` payload; text mode prints the top 5 findings only, unranked. Run `--json` when you need the count or the severity order: act on `high`/`medium` findings first, `low` findings are hints. They differ only in what they flag.
 
-Bare `check` runs **all three** — there is no default rubric. Narrow to one or more with `--rubric <name>[,<name>...]`:
+Bare `check` runs all three at once; narrow with `--rubric <name>[,<name>...]`:
 
 - **"Is this good prose?"** → `--rubric schimel`.
 - **"Does this read AI-generated?"** → `--rubric slop`.
@@ -32,9 +32,9 @@ uvx timbro@<version> check draft.md --rubric slop          # human-readable verd
 uvx timbro@<version> check draft.md --rubric slop --json   # {verdict, rubrics: {slop: {...}}}
 ```
 
-Flags mechanical LLM fingerprints (em/en dashes, "it's not X, it's Y", delve/tapestry/leverage diction, signposting and wrap-up phrases, emoji, curly quotes, bold lead-in bullets, colon-lists, uniform/staccato rhythm) across four dimensions (diction, construction, rhythm, formatting). **No LLM judging LLM prose.** Reach for it on "check for AI slop", "de-slop this", "does this sound like an LLM wrote it". Each flagged tell is a marker to delete or vary, not a style dial: removing it only helps.
+Flags mechanical LLM fingerprints (em/en dashes, "it's not X, it's Y", delve/tapestry/leverage diction, signposting and wrap-up phrases, emoji, curly quotes, bold lead-in bullets, colon-lists, staccato rhythm) across four dimensions (diction, construction, rhythm, formatting). **No LLM judging LLM prose.** Reach for it on "check for AI slop", "de-slop this", "does this sound like an LLM wrote it". Each flagged tell is a marker to delete or vary, not a style dial: removing it only helps.
 
-Meaning is not checked here: these rubrics flag style only, and the content guard (`timbro accept` / `profiles learn`) is embedding similarity, so a negation flip ("approved the budget" vs "did not approve the budget") can pass it. Check polarity yourself before calling a pass done.
+Meaning is not checked here: these rubrics flag style only. Check polarity yourself before calling a pass done; the content guard's negation hole is described in PROFILE.md step 5.
 
 **Corpus-relative mode.** By default the slop rubric measures against zero: any em-dash is a tell. If a voice legitimately uses some tells (an em-dash habit, say), add `--profile <name>` to baseline against that profile's exemplar corpus instead: a tell is flagged only where the draft _overuses_ it relative to your own norm. `--profile` only affects the slop rubric — pair it with `--rubric slop` (or leave slop in the mix on a bare/multi-rubric run).
 
