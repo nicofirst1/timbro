@@ -22,7 +22,7 @@ Why the architecture is what it is: `docs/adr/`.
 - **Contrast** — the "not-this-voice" corpus (`TIMBRO_CONTRAST`); the "away" set that sharpens the boundary.
 - **Profile** — a named exemplars + contrast pair on disk under the profile root.
 - **Profile sync** — git-based sync of the whole profile root to one **private** remote (`timbro profiles sync`); `runs.jsonl` appends merge losslessly, corpus conflicts surface instead of auto-resolving, `settings.json` stays per-machine.
-- **Content guard** — the semantic-cosine check (a _general_ model, all-MiniLM) that meaning held; independent of voice ([ADR 0004](docs/adr/0004-no-rewrite-engine-timbro-judges.md)).
+- **Content guard** — the semantic-cosine check (a _general_ model, all-MiniLM) that the content stayed close (semantic similarity); blind to polarity flips such as negation (#181); independent of voice ([ADR 0004](docs/adr/0004-no-rewrite-engine-timbro-judges.md)).
 - **Rubric** — a pluggable set of deterministic prose checks (`--rubric <name>`; `schimel`, `slop`, and `density` ship today) that feeds `check`.
 - **Check** — the corpus-free prose-quality command (`timbro check`).
 - **Finding** — one detected prose problem from a rubric run (passive voice, nominalization, buried subject, …), returned recall-first.
