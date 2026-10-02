@@ -2,7 +2,7 @@
 
 `<version>` below is the pin declared at the top of `SKILL.md`.
 
-`timbro check <file>` runs three deterministic rubrics as peers: no model, no voice corpus, pure regex/POS/wordfreq. All three share the same **recall-first** philosophy and the same loop: run → fix the real findings, silently drop the false positives → re-run → repeat until the finding count stops dropping (read it from `--json`). Severity and the full finding list live in the `--json` payload; text mode prints the top 5 findings only, unranked. Run `--json` when you need the count or the severity order: act on `high`/`medium` findings first, `low` findings are hints. They differ only in what they flag.
+`timbro check <file>` runs three deterministic rubrics as peers: no model, no voice corpus, pure regex/POS/wordfreq. All three share the same **recall-first** philosophy and the same loop: run → fix the real findings, silently drop the false positives → re-run → repeat until the finding count stops dropping (read it from `--json`). Severity and the full finding list live in the `--json` payload; text mode prints only the top 5 findings, most severe first, without severity labels. Run `--json` when you need the count or the severities: act on `high`/`medium` findings first, `low` findings are hints. They differ only in what they flag.
 
 Bare `check` runs all three at once; narrow with `--rubric <name>[,<name>...]`:
 

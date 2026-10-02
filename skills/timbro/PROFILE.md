@@ -58,6 +58,6 @@ If no profile is set, Timbro falls back to a small packaged sample voice so it r
 
    `learn` reuses the same guard as `timbro accept`: it refuses to save unless the final actually scored closer to the voice **and** preserved meaning. A rejected `learn` is a sign the loop didn't really converge. Go back to step 3.
 
-   When the pair is saved, push it to the user's other machines: run `uvx timbro@<version> profiles sync` once, after `learn` (not after every `init` / `add-file` -- one push per file would be noise). On `conflict` or `error`, one line to the user, then continue with the local profiles.
+   When the pair is saved, push it to the user's other machines: run `uvx timbro@<version> profiles sync` once, after `learn` (not after every `init` / `add-file` -- one push per file would be noise). On `conflict in: ...` or `sync failed: ...`, one line to the user, then continue with the local profiles.
 
    Only save finals a human has approved. That human gate is what keeps the profile from drifting toward generic LLM-polished prose over time.
