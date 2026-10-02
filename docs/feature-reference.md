@@ -296,6 +296,8 @@ The model rates the profile's evidence level on fit:
 - **"weak"** (≥1200 words, ≥8 paras but < 2500 words or < 16 paras): Distance is usable but may be noisy; direction may be unstable.
 - **"insufficient"** (< 1200 words or < 8 paras): Distance is very noisy; direction is suppressed.
 
+`contrast_ceiling` is the mean k-nearest-neighbor distance of the contrast (away-voice) texts to the exemplar cloud, in the same standardized embedding space as `distance`. It is unbounded, not a [0, 1] value despite the name, and it is `null` when the profile has no contrast corpus.
+
 If no TIMBRO_EXEMPLARS or TIMBRO_CONTRAST is set and no `--profile` is passed, `timbro score` runs against the **packaged sample voice** (a small corpus of plain English examples). In this mode, distance and direction are only meaningful as toy examples: they don't reflect your actual voice.
 
 ---

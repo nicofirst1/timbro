@@ -40,10 +40,16 @@ from timbro.axes.richness import (  # noqa: F401  (import registers the metric)
 from timbro.axes.tells import (  # noqa: F401  (import registers the tells metric)
     TELL_METRIC,
 )
+from timbro.errors import UserFileNotFoundError
 from timbro.metric import REGISTRY, Metric, _confidence, _knn
 from timbro.model.direction import feature_matrix, features
 from timbro.model.embedding import _style_vec, _style_vecs, fit_embedding
-from timbro.priors import DEFAULT_CONTRAST, DEFAULT_EXEMPLARS, TELL_PRIOR
+from timbro.priors import (
+    AXIS_Z_SATURATION,
+    DEFAULT_CONTRAST,
+    DEFAULT_EXEMPLARS,
+    TELL_PRIOR,
+)
 from timbro.report import (  # dataclasses/labels: report.py formats for humans
     AxisReport,
     FeatureMove,
@@ -67,11 +73,13 @@ def read_corpus(directory: str | Path) -> list[str]:
     return [_FRONTMATTER.sub("", f.read_text(encoding="utf-8")) for f in files]
 
 
-def no_exemplars_error(exemplars: str | Path) -> FileNotFoundError:
+def no_exemplars_error(exemplars: str | Path) -> UserFileNotFoundError:
     """The one wording for an empty/missing corpus, shared by every caller (#161):
     name the absolute path actually checked, and point at managed profiles for the
-    fix (round 3: no env-var suggestion, direction #96)."""
-    return FileNotFoundError(
+    fix (round 3: no env-var suggestion, direction #96). A UserError subclass, so
+    the CLI prints it as one clean line (#191); still a FileNotFoundError for
+    API callers."""
+    return UserFileNotFoundError(
         f"No .md/.txt exemplars found at {Path(exemplars).resolve()}. "
         "Add posts that define your voice with: timbro profiles add-file <profile> <file> --to exemplars"
     )
@@ -268,7 +276,9 @@ class VoiceModel:
         A near-target axis (|z| < metric.z_tol) gets an empty direction string; the
         direction names the way back toward the reference in the metric's own
         `hint_axes` vocabulary. Zero-variance axes get spread forced to 1.0, so a
-        degenerate corpus yields z=0 (on-target), never inf/NaN. Never touches the
+        degenerate corpus yields z=0 (on-target), never inf/NaN. Axis z is capped
+        at ±AXIS_Z_SATURATION (#178): a row whose raw |z| exceeds the cap is marked
+        saturated, and the direction consumes the clamped z. Never touches the
         embedding distance or POS direction -- standalone axis group. Raises KeyError
         for a name that is not a registered blend-style metric.
         """
@@ -290,9 +300,11 @@ class VoiceModel:
         out = []
         for i, (axis, raise_hint, lower_hint) in enumerate(metric.hint_axes):
             spread = ref_spread[i] or 1.0  # zero-std guard: degenerate axis is on-target
-            z = float((vec[i] - ref_mean[i]) / spread)
+            raw_z = float((vec[i] - ref_mean[i]) / spread)
+            z = max(-AXIS_Z_SATURATION, min(AXIS_Z_SATURATION, raw_z))
+            saturated = abs(raw_z) > AXIS_Z_SATURATION
             direction = "" if abs(z) < metric.z_tol else (lower_hint if z > 0 else raise_hint)
-            out.append(AxisReport(axis, float(vec[i]), float(ref_mean[i]), z, direction))
+            out.append(AxisReport(axis, float(vec[i]), float(ref_mean[i]), z, direction, saturated))
         return out
 
     # Backward-compat wrappers: the five named methods stay as one-liners over

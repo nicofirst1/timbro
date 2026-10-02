@@ -44,6 +44,10 @@ If no profile is set, Timbro falls back to a small packaged sample voice so it r
 
 5. **(Optional) verify content was preserved.** Save the original and revised text to files and run `uvx timbro@<version> accept original.md revised.md`: it returns `accepted: true` only when the rewrite moved closer to the voice **and** kept the meaning (semantic similarity > 0.85). Use it as the stop condition.
 
+   The content guard measures embedding similarity, so a negation can pass it: "approved the budget" vs "did not approve the budget" scores about 0.95, above the 0.85 gate. Before trusting `accepted: true`, check yourself that the rewrite did not flip polarity, negation, or a modal ("must" to "must not").
+
+   Look-alike character swaps (homoglyphs, e.g. Cyrillic а for Latin a) lower similarity sharply and get rejected; that direction is safe.
+
 6. **Close the loop: teach the profile (offer, don't assume).** Once the loop converges on an accepted final, offer to save the pair into the profile. Never do this silently. Ask the user to confirm first. On confirmation:
 
    ```bash

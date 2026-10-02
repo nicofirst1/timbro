@@ -24,3 +24,7 @@ The plan included a rewrite engine in Phase 4. The engine used TinyStyler and a 
 ---
 
 **Update (2026-08-25):** the "delivered as an MCP accept-rewrite loop" consequence above is superseded by [ADR-0006](0006-mcp-server-removed.md) — the loop is now delivered via the CLI (`timbro accept`), not MCP.
+
+---
+
+**Note (2026-10-01):** the content guard is a similarity check, not a meaning check: negation flips pass it (#181). See `skills/timbro/PROFILE.md`.

@@ -134,7 +134,7 @@ Each score has three legible layers plus a guard:
 - **How far:** a pre-trained [StyleDistance](https://huggingface.co/StyleDistance/styledistance) embedding, scored by multi-modal kNN.
 - **Which way:** part-of-speech rates, z-scored against your corpus and weighted by how reliably each one marks your voice. Every move is a named habit.
 - **Flow:** the paragraph-embedding trajectory (speed, volume, circuitousness) and Schimel's "circle-back" between the first and last paragraph.
-- **Content guard:** semantic similarity from a _general_ model (all-MiniLM), so a revision changes _how_ it reads, never _what_ it says.
+- **Content guard:** semantic similarity from a _general_ model (all-MiniLM), so a revision that drifts off topic is caught; a flipped negation ("approved the budget" vs "did not approve the budget") still scores about 0.95 against the 0.85 gate, so the agent checks polarity itself.
 
 Timbro measures; it never rewrites. Your agent rewrites and Timbro judges the result, which keeps the scoring honest and local.
 

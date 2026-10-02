@@ -3,6 +3,9 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import os
+import subprocess
+import sys
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -61,6 +64,34 @@ class UnknownRubricTests(unittest.TestCase):
         self.assertIn("bogus", err)
         for name in ("schimel", "slop", "density"):
             self.assertIn(name, err)
+
+    def test_unknown_rubric_error_line_starts_with_timbro_error_prefix(self):
+        # #191 (round 2 pin): this print dropped the bare `error: ` prefix for
+        # the unified `timbro: error: ` one; subprocess so the real exit path
+        # and stderr bytes are exercised.
+        with TemporaryDirectory() as tmp:
+            draft = Path(tmp) / "draft.md"
+            draft.write_text(_CLEAN)
+            env = {
+                "PYTHONHASHSEED": "0",
+                "TIMBRO_HOME": str(Path(tmp) / "home"),
+                "TIMBRO_PROFILE_ROOT": str(Path(tmp) / "profiles"),
+                "XDG_DATA_HOME": str(Path(tmp) / "xdg-data"),
+            }
+            proc = subprocess.run(
+                [sys.executable, "-m", "timbro.cli", "check", str(draft), "--rubric", "bogus"],
+                capture_output=True,
+                text=True,
+                timeout=120,
+                env={**os.environ, **env},
+                check=False,
+            )
+        self.assertEqual(proc.returncode, 1, proc.stderr)
+        self.assertTrue(proc.stderr.startswith("timbro: error: "), proc.stderr)
+        self.assertIn("unknown rubric(s) bogus", proc.stderr)
+        for name in ("schimel", "slop", "density"):
+            self.assertIn(name, proc.stderr)
+        self.assertNotIn("Traceback", proc.stderr)
 
 
 class JsonShapeTests(unittest.TestCase):

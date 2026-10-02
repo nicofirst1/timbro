@@ -5,8 +5,10 @@ advice on axis X actually shrink |z| from draft to final?" -- so every axis is
 recorded, not just the ones that fired as `direction` moves. No raw text is
 stored, only a content hash for correlation.
 
-Logging must never break `learn()`: any failure here is swallowed and reported
-as `None`, not raised.
+Logging failures never break `learn()`: a failed write is swallowed and reported
+as `None`, not raised. A broken settings.json is the one exception (#191): the
+`no_log()` lookup runs outside the try, so its error propagates and the command
+fails loudly instead of being logged as `timbro: run log skipped`.
 
 Opt out with `TIMBRO_NO_LOG=1` in the environment, or `"no_log": true` in
 `<TIMBRO_HOME>/settings.json` (see `timbro.settings.no_log`).
@@ -69,13 +71,15 @@ def log_learn(
 ) -> Path | None:
     """Append one JSONL record of a learn() event to <profile_dir>/runs.jsonl.
 
-    Best-effort: never raises into the caller. Returns the path written, or None
-    if logging is disabled (TIMBRO_NO_LOG env or `no_log` in settings.json) or
-    anything went wrong, including an invalid settings file.
+    Best-effort: a failing log write never raises into the caller. Returns the
+    path written, or None if logging is disabled (TIMBRO_NO_LOG env or `no_log`
+    in settings.json) or the write went wrong. A broken settings file is not
+    swallowed (#191): the no_log() lookup runs before the try, so its error
+    propagates to the caller.
     """
+    if no_log():
+        return None
     try:
-        if no_log():
-            return None
         record = {
             "ts": datetime.now(UTC).isoformat(),
             "profile": profile.name,

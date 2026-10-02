@@ -56,6 +56,7 @@ class AxisReport:
     reference_mean: float  # prior, or prior blended with the corpus (Reference.blend)
     z: float                # draft's distance from reference_mean in reference-spread units
     direction: str          # imperative phrase toward the reference, "" once |z| is negligible
+    saturated: bool = False  # true when the raw |z| exceeded the ±10 cap (axis_report, #178)
 
     def to_dict(self) -> dict:
         return asdict(self)
