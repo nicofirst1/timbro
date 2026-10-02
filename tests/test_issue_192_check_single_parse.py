@@ -17,6 +17,7 @@ import numpy as np
 from timbro.rubrics import check_text
 from timbro.rubrics import features
 from timbro.rubrics.density import DensityRubric
+from timbro.rubrics.document import DocumentRubric
 from timbro.rubrics.features import DocumentView
 from timbro.rubrics.schimel import SchimelRubric
 from timbro.text import cosine
@@ -123,6 +124,21 @@ class RubricEntryPointKeepsWorkingTests(unittest.TestCase):
         with_view = DensityRubric().check(_TEXT, doc)
         without_view = DensityRubric().check(_TEXT)
         self.assertEqual(with_view.to_dict(), without_view.to_dict())
+
+
+class DocumentRubricSharedCheckTests(unittest.TestCase):
+    """Schimel and density share one DocumentRubric.check (#192)."""
+
+    def test_schimel_and_density_share_document_rubric_check(self):
+        for rubric_cls in (SchimelRubric, DensityRubric):
+            with self.subTest(rubric=rubric_cls.name):
+                rubric = rubric_cls()
+                self.assertIsInstance(rubric, DocumentRubric)
+                doc = DocumentView(_TEXT)
+                self.assertEqual(
+                    rubric.check(_TEXT, doc).to_dict(),
+                    rubric.check(_TEXT).to_dict(),
+                )
 
 
 if __name__ == "__main__":

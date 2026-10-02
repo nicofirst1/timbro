@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from timbro.errors import UserValueError
+from timbro.rubrics.document import DocumentRubric
 from timbro.rubrics.features import DocumentView
 from timbro.rubrics.registry import get_rubric
 from timbro.text import strip_markup
@@ -8,9 +9,7 @@ from timbro.text import strip_markup
 
 def check_text(text: str, rubrics: list[str], profile: str | None = None):
     """Run one or more rubrics over `text`, returning a `RubricResult` per name, in the
-    order given. One `DocumentView` is built per call and shared by every rubric that
-    needs one, so the draft is parsed once (#192); `slop` works on raw text and takes
-    no view. `profile` is only meaningful for the `slop` rubric: it baselines the
+    order given. `profile` is only meaningful for the `slop` rubric: it baselines the
     tells against that profile's exemplar corpus (corpus-relative mode), so a draft is
     judged against your own norm instead of against zero."""
     if profile is not None and "slop" not in rubrics:
@@ -30,13 +29,14 @@ def check_text(text: str, rubrics: list[str], profile: str | None = None):
             if not corpus:  # name the problem, not the internal caller (#161)
                 raise no_exemplars_error(corpus_dir)
             results.append(SlopRubric(baseline=tell_baseline(corpus)).check(text))
-        elif rubric == "slop":
-            results.append(get_rubric(rubric).check(text))
         else:
             rubric_impl = get_rubric(rubric)
-            if view is None:
-                view = DocumentView(strip_markup(text))
-            results.append(rubric_impl.check(text, view))
+            if isinstance(rubric_impl, DocumentRubric):
+                if view is None:
+                    view = DocumentView(strip_markup(text))
+                results.append(rubric_impl.check(text, view))
+            else:
+                results.append(rubric_impl.check(text))
     return results
 
 
