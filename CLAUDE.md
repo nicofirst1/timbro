@@ -39,6 +39,8 @@ One-time prerequisite (already done for this repo, not part of `release.sh`): th
 - Defaults resolve relative to the package dir (`src/timbro/sample/`), not CWD — so the plugin works inside its cache sandbox.
 - `data/` is gitignored (private corpora); the shipped `src/timbro/sample/` is the only corpus that publishes.
 - `TIMBRO_NO_LOG=1` disables the per-profile learn-event log (`<profile>/runs.jsonl`, appended by `profiles.learn()` via `profilelog.log_learn`). Unset by default (logging on); it overrides `no_log` in `$TIMBRO_HOME/settings.json`, read via `settings.no_log()`, and is never set in code.
+- Git does not track empty directories: a synced profile whose `contrast/` (or `exemplars/`) has no files arrives on other machines without that directory. Profile code treats a missing bucket directory as empty (#166).
+- Pin byte-level test output only on fixtures with clear margins: platform float differences of about 1% flip knife-edge fixtures between macOS and Linux (#142, fixed in #209).
 
 ## Agent skills
 
