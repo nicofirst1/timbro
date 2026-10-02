@@ -43,7 +43,7 @@ from timbro.axes.tells import (  # noqa: F401  (import registers the tells metri
 from timbro.errors import UserFileNotFoundError
 from timbro.metric import REGISTRY, Metric, _confidence, _knn
 from timbro.model.direction import feature_matrix, features
-from timbro.model.embedding import _style_vec, fit_embedding
+from timbro.model.embedding import _style_vec, _style_vecs, fit_embedding
 from timbro.priors import (
     AXIS_Z_SATURATION,
     DEFAULT_CONTRAST,
@@ -181,12 +181,24 @@ class VoiceModel:
         return cls.fit(texts, co, top_k, knn_k)
 
     def feature_vector(self, text: str) -> np.ndarray:
-        return np.array([features(text)[k] for k in self.names])
+        # features(text) once per call, not once per feature name (issue #153): the
+        # dict carries all 38 rates, and the old per-name indexing re-ran the
+        # uncached tell regexes 37 extra times per call.
+        feats = features(text)
+        return np.array([feats[k] for k in self.names])
 
     def _dist(self, text: str) -> float:
         # public scalar: embedding kNN (the 0.859 lens)
         ez = (np.array(_style_vec(text)) - self.emean) / self.estd
         return _knn(self.train_ez, ez, self.knn_k)
+
+    def _dists(self, texts: list[str]) -> list[float]:
+        """Batched `_dist` for many texts (issue #153): all chunk embeddings in one
+        encode call, then the same kNN per text, in input order. The batch warms
+        _style_vec, so the single-text `_dist` calls that follow (direction,
+        normalized_distance) hit the cache instead of re-encoding."""
+        ez = (_style_vecs(texts) - self.emean) / self.estd
+        return [_knn(self.train_ez, row, self.knn_k) for row in ez]
 
     def normalized_distance(self, text: str) -> float | None:
         if self.health != "ok":
