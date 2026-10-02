@@ -1,6 +1,10 @@
 ---
 name: timbro-review
-description: Align a draft to a target voice, yours or your brand's ("make this sound like me/us", "is this on-brand", "match our blog voice"); or run a deterministic writing rubric: AI-slop tells ("check for AI slop"), prose quality ("run a Schimel pass"), density/jargon ("too much jargon").
+description: >-
+  Align a draft to a target voice, yours or your brand's ("make this sound like
+  me/us", "is this on-brand"); or run a deterministic writing rubric: AI-slop
+  tells ("check for AI slop"), prose quality ("run a Schimel pass"),
+  density/jargon ("too much jargon").
 ---
 
 # Timbro
