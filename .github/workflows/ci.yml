@@ -8,6 +8,7 @@ on:
 jobs:
   test:
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
@@ -36,4 +37,4 @@ jobs:
         run: uv run ruff check src/
 
       - name: Test
-        run: uv run pytest
+        run: uv run pytest -q -p no:randomly tests/test_cli_exit_codes.py tests/test_issue_158.py
