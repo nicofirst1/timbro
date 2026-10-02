@@ -75,7 +75,7 @@ uvx timbro check draft.md    # no install; the first run downloads the spaCy mod
 
 Or install it with `uv tool install timbro` / `pip install timbro`, then drop the `uvx` prefix.
 
-On Linux, install CPU-only torch first to skip the ~3 GB CUDA stack Timbro never uses (`pip install torch --index-url https://download.pytorch.org/whl/cpu`); macOS is unaffected.
+On Linux without an NVIDIA GPU, install CPU-only torch before `pip install timbro` to skip the ~3 GB CUDA stack Timbro never uses: `pip install torch --index-url https://download.pytorch.org/whl/cpu`. Agent users get the CPU-or-GPU torch choice from the setup skill.
 
 ### From source
 
