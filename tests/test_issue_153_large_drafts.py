@@ -5,7 +5,7 @@
 counting words with the same regex `_profile_evidence` uses. The guard fires right
 after the empty-draft check and before any model or profile load. A draft of exactly
 the limit is accepted. Three speedups ship with it: `feature_vector` extracts
-features once per call (byte-identical output), the span encodes in `report.py`
+features once per call (byte-identical output), the span paragraph encodes in `report.py`
 are batched, and `novelty_curve` keeps a running sum instead of re-meaning the
 whole prefix (agreement within 1e-12).
 
