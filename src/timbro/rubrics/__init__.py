@@ -23,7 +23,7 @@ def check_text(text: str, rubrics: list[str], profile: str | None = None):
             from timbro.profiles import get_profile
             from timbro.rubrics.slop import SlopRubric
 
-            # Profile-aware corpus resolution (#166 R1): an unknown profile
+            # Profile-aware corpus resolution (#166): an unknown profile
             # raises the spec's unknown-profile error; a missing or empty
             # exemplars dir (git drops empty dirs on sync) raises #161's
             # no-exemplars message from Profile.exemplar_corpus.

@@ -83,9 +83,8 @@ class Profile:
 
         Git drops empty directories, so a profile synced from a machine where
         `contrast/` (or `exemplars/`) is empty arrives here without that dir
-        (review R1, issue #166). A missing bucket under an existing profile dir
-        is an empty bucket, read exactly as base's lenient read_corpus read it:
-        fit without contrast; a missing exemplars dir raises #161's no-exemplars
+        (#166). A missing bucket under an existing profile dir is an empty
+        bucket, as before #166: fit without contrast; a missing exemplars dir raises #161's no-exemplars
         message. The strict read_corpus raises stay for direct calls and the
         TIMBRO_EXEMPLARS/TIMBRO_CONTRAST env vars, which still catch typos.
         """
@@ -251,7 +250,7 @@ def init_profile(name: str, about: str = "", root: str | Path | None = None) -> 
 def _require_known_profile(profile: Profile) -> None:
     """Issue #166: the one unknown-profile gate, shared by add_text/add_file
     (under their create flag) and by every named-profile corpus reader, so the
-    wording can't drift (review R3). A profile dir that does not exist is a
+    wording can't drift. A profile dir that does not exist is a
     typo, not an empty corpus."""
     if not profile.path.is_dir():
         raise UserFileNotFoundError(
@@ -396,7 +395,7 @@ def learn(
 
     model = None
     if _corpus_files(profile.exemplars_dir):
-        # fit_model resolves the buckets (#166 R1): a contrast dir git dropped
+        # fit_model resolves the buckets (#166): a contrast dir git dropped
         # on sync is an empty bucket, so the guard runs. No FileNotFoundError
         # catch here -- one used to mask a synced profile as a bootstrap case.
         model = profile.fit_model()

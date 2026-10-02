@@ -53,7 +53,7 @@ def cmd_score(args):
         rows = []
         for name in names:
             prof = get_profile(name)
-            # Profile-aware bucket resolution (#166 R1): a contrast dir git
+            # Profile-aware bucket resolution (#166): a contrast dir git
             # dropped on sync is an empty bucket, an unknown name raises the
             # spec's error.
             model = prof.fit_model()
