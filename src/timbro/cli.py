@@ -314,6 +314,7 @@ def cmd_profiles_diagnose(args):
         return
     print(f"profile: {payload['name']}")
     print(f"exemplars: {payload['exemplars']}")
+    print(f"health: {payload['health']}")
     if payload['coherence'] is not None:
         print(f"coherence: {payload['coherence']:.2f}")
     if payload['silhouette'] is not None:

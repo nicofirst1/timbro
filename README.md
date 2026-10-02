@@ -65,7 +65,7 @@ npx skills update    # later: pull the latest version
 /plugin install timbro@timbro
 ```
 
-The plugin ships the skill and a small **sample voice**, so it works right away (the first run downloads the spaCy model): ask Claude to _"score this against the Timbro sample voice"_. To use your own voice, ask Claude to run the `timbro-setup` skill for a guided walkthrough (see [Profiles](#profiles)).
+The plugin ships the skill and a small **sample voice**, so it works right away (the first run downloads the spaCy model): ask Claude to _"score this against the Timbro sample voice"_. The sample is team engineering prose from the [18F blog](https://18f.gsa.gov/blog/) (US public domain, CC0 1.0; provenance in [`src/timbro/sample/README.md`](src/timbro/sample/README.md)), so a sample-voice score shows a real revision direction. It is still a demo corpus, not your voice. To use your own voice, ask Claude to run the `timbro-setup` skill for a guided walkthrough (see [Profiles](#profiles)).
 
 ### Command line
 

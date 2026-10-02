@@ -8,8 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- The packaged sample voice is 8 trimmed posts from the 18F blog (US public domain, CC0 1.0), replacing the 4 synthetic exemplars. The sample now reaches health "ok" and shows a direction; provenance in `src/timbro/sample/README.md` (#163).
 - **Breaking:** every expected CLI error prints `timbro: error: ...`; check and learn errors drop the bare `error:` prefix. A malformed settings.json now fails the command with exit 1 instead of being ignored, and a failed first-run spaCy model install prints one clean line instead of a traceback (#191).
 - `accept` rejects `--threshold` outside [0, 1] with a clean error and exit 1, instead of silently accepting a value that can never be meaningful (#158).
+
+### Added
+
+- `timbro profiles diagnose` prints a `health:` line (and includes `health` in JSON) plus the thin-corpus evidence warning `score` already shows, so a thin corpus finally has signal to relay (#163).
 
 ### Fixed
 
