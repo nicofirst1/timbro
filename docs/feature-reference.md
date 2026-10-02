@@ -311,3 +311,22 @@ If no TIMBRO_EXEMPLARS or TIMBRO_CONTRAST is set and no `--profile` is passed, `
 - **Synced:** everything under the profile root (`<name>/exemplars/`, `<name>/contrast/`, `README.md`, `runs.jsonl`). **Not synced:** `<TIMBRO_HOME>/settings.json` — per-machine by design.
 - Outcomes: `ok`, `not-configured` (no `.git` in the root, silent no-op), `conflict` (offending file paths listed, merge aborted, local commit kept — resolve by hand per README, "Resolving a sync conflict"), or `error` (a git step failed or timed out). CLI exit codes: `0` ok / not configured, `1` conflict, `2` error.
 - Triggers are explicit only (the skills call `sync` at defined points); there is no background sync.
+
+---
+
+## Troubleshooting
+
+### First-run model download fails in a minimal container
+
+In a container without system CA certificates (for example `ghcr.io/astral-sh/uv:bookworm-slim`), the first `check` or `score` fails with:
+
+```
+timbro: error: Can't load the model for 'sentence-transformers/all-MiniLM-L6-v2'. ... pytorch_model.bin.
+```
+
+Cause: there are no system CA certificates, and the Hugging Face xet downloader that fetches the model needs them to open HTTPS.
+
+Two fixes:
+
+- Install certificates: `apt-get install -y ca-certificates` on Debian/Ubuntu images.
+- Without root, set the environment variable `HF_HUB_DISABLE_XET=1`: Hugging Face then falls back to its plain HTTP downloader.
