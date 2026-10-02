@@ -23,7 +23,7 @@ class SkillFrontmatterTest(unittest.TestCase):
         # Fail loudly on an empty glob (renamed layout) instead of passing vacuously.
         self.assertGreaterEqual(len(SKILL_FILES), 2, f"found: {SKILL_FILES}")
 
-    def test_frontmatter_parses_with_name_and_description(self):
+    def test_frontmatter_parses_within_description_budget(self):
         for skill in SKILL_FILES:
             with self.subTest(skill=str(skill.relative_to(skill.parents[2]))):
                 lines = skill.read_text().splitlines()
@@ -39,19 +39,7 @@ class SkillFrontmatterTest(unittest.TestCase):
                 self.assertIn("description", frontmatter, str(skill))
                 self.assertIsInstance(frontmatter["name"], str, str(skill))
                 self.assertIsInstance(frontmatter["description"], str, str(skill))
-
-    def test_description_within_budget(self):
-        for skill in SKILL_FILES:
-            with self.subTest(skill=str(skill.relative_to(skill.parents[2]))):
-                lines = skill.read_text().splitlines()
-                block = "\n".join(lines[1:lines.index("---", 1)])
-                frontmatter = yaml.safe_load(block)
-                self.assertIsInstance(frontmatter, dict, str(skill))
-                self.assertLessEqual(
-                    len(frontmatter.get("description") or ""),
-                    MAX_DESCRIPTION_CHARS,
-                    str(skill),
-                )
+                self.assertLessEqual(len(frontmatter["description"]), MAX_DESCRIPTION_CHARS, str(skill))
 
 
 if __name__ == "__main__":
