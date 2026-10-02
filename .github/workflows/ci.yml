@@ -29,6 +29,9 @@ jobs:
       - name: Install dependencies
         run: uv sync
 
+      - name: Diag
+        run: uv run python scripts/ci_diag.py
+
       - name: Lint
         run: uv run ruff check src/
 
