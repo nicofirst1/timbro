@@ -75,6 +75,8 @@ uvx timbro check draft.md    # no install; the first run downloads the spaCy mod
 
 Or install it with `uv tool install timbro` / `pip install timbro`, then drop the `uvx` prefix.
 
+On Linux without an NVIDIA GPU, install CPU-only torch before `pip install timbro` to skip the ~3 GB CUDA stack Timbro never uses: `pip install torch --index-url https://download.pytorch.org/whl/cpu`. Agent users get the CPU-or-GPU torch choice from the setup skill.
+
 ### From source
 
 Requires Python ≥ 3.11 and [`uv`](https://docs.astral.sh/uv/).
@@ -99,6 +101,10 @@ cat draft.md | timbro score -           # `-` reads stdin (score and check)
 ```
 
 Add `--json` to `score`, `check`, `accept`, and `profiles list|env|diagnose|learn|sync` for the raw payload. Drafts over 50,000 words are rejected: split them into sections and score each one.
+
+### Exit codes
+
+`0` success, including a WARN or PASS check and an accepted rewrite; `1` user error (bad input, missing file, empty draft, unknown profile); `2` sync or environment failure (`profiles sync` hard failures; argparse usage errors also exit 2, with a `usage:` line); `3` verdict gate failure (a FAIL `check`, a rejected `accept`). Read the command's output for the reason.
 
 ## A positive target, not just a blocklist
 

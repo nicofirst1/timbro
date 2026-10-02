@@ -12,6 +12,18 @@ Pinned CLI version: `timbro@0.9.0`. Commands below substitute `<version>` for it
 
 ## Process
 
+### Pick the torch build
+
+macOS and Windows: skip (their torch has no CUDA download). Linux: run `nvidia-smi`; if it lists a GPU, keep the default (CUDA is faster with a GPU); if the command is missing or lists none, use CPU torch (saves ~3 GB); if unclear, ask the user.
+
+CPU torch means installing Timbro once as a persistent tool; every later `uvx timbro@<version>` command (the steps below and in `skills/timbro/SKILL.md`) then reuses it instead of pulling the ~3 GB CUDA stack from PyPI. Re-run this install when the pinned version changes:
+
+```bash
+uv tool install timbro@<version> --torch-backend cpu
+```
+
+If uv rejects `--torch-backend` (uv older than 0.9.20), run `uv self update` and retry; if uv can't be updated, keep the default.
+
 ### 0. Pull existing profiles
 
 Run `uvx timbro@<version> profiles sync` once, up front.

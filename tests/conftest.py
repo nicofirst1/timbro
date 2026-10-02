@@ -1,4 +1,19 @@
+import os
+import sys
+import unittest
+
 import pytest
+
+
+# GitHub's macOS runners are VMs whose MPS device returns wrong embeddings:
+# the same model files score content similarity 0.287 on the runner vs 0.031
+# on CPU (issue #212). Tests that assert model outputs (embeddings, similarity,
+# style distance, accepted/improved verdicts) skip there; local runs and the
+# Ubuntu CI job still exercise them.
+skip_model_outputs_on_macos_ci = unittest.skipIf(
+    sys.platform == "darwin" and os.environ.get("GITHUB_ACTIONS") == "true",
+    "GitHub macOS runner VMs return wrong MPS embeddings (#212)",
+)
 
 
 @pytest.fixture(autouse=True)
