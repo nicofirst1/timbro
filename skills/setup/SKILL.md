@@ -72,7 +72,7 @@ This makes the profile usable on day one with no curation from the user. Then ex
 uvx timbro@<version> profiles diagnose <name>
 ```
 
-Surface the output verbatim -- exemplar count, coherence, any warning. Let the user decide when it's good enough; nudge for more exemplars, never force a count.
+Surface the output verbatim -- exemplar count, health, coherence, any warning. Let the user decide when it's good enough; nudge for more exemplars, never force a count.
 
 **The one hard refusal:** zero exemplars (`diagnose` reports "No exemplar files found.") means there is no voice to move toward -- say so plainly, and offer corpus-free `slop`/`check` in the meantime rather than scoring against nothing.
 

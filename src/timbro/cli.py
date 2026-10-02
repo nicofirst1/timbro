@@ -15,7 +15,7 @@ import sys
 import traceback
 
 from timbro.errors import UserError
-from timbro.model import VoiceModel, default_model
+from timbro.model import _WORD, VoiceModel, default_model
 from timbro.profiles import (
     add_file,
     diagnose_profile,
@@ -33,6 +33,12 @@ from timbro.rubrics.registry import RUBRIC_NAMES
 from timbro.rubrics.report import combine_verdicts, render_text
 from timbro.settings import debug
 
+# Drafts above this word count are rejected before any scoring work (#153): runtime
+# is linear with heavy constants, so a 5 MB draft scores for minutes. The limit
+# covers the realistic draft an agent revises in one pass; longer text should be
+# split into sections and scored section by section.
+MAX_DRAFT_WORDS = 50_000
+
 
 def cmd_score(args):
     if args.file == "-":
@@ -40,6 +46,7 @@ def cmd_score(args):
     else:
         text = _read_text(args.file)
     _require_draft_text(text, "draft")
+    _require_draft_size(text, "draft")
 
     if args.profile:
         names = [name.strip() for name in args.profile.split(",") if name.strip()]
@@ -173,6 +180,7 @@ def cmd_check(args):
     else:
         text = _read_text(args.file)
     _require_draft_text(text, "draft")
+    _require_draft_size(text, "draft")
     results = check_text(text, rubrics=names, profile=args.profile)
     verdict = combine_verdicts(results)
 
@@ -206,8 +214,10 @@ def cmd_accept(args):
         sys.exit(1)
     original = _read_text(args.original)
     _require_draft_text(original, args.original)
+    _require_draft_size(original, args.original)
     revised = _read_text(args.revised)
     _require_draft_text(revised, args.revised)
+    _require_draft_size(revised, args.revised)
     if args.profile:
         prof = get_profile(args.profile)
         model = VoiceModel.from_dir(prof.exemplars_dir, contrast=prof.contrast_dir)
@@ -327,6 +337,7 @@ def cmd_profiles_diagnose(args):
         return
     print(f"profile: {payload['name']}")
     print(f"exemplars: {payload['exemplars']}")
+    print(f"health: {payload['health']}")
     if payload['coherence'] is not None:
         print(f"coherence: {payload['coherence']:.2f}")
     if payload['silhouette'] is not None:
@@ -401,6 +412,27 @@ def _require_draft_text(text: str, name: str) -> None:
     stripped = text.strip()
     if stripped == "":
         print(f"timbro: error: {name} is empty", file=sys.stderr)
+        sys.exit(1)
+
+
+def _require_draft_size(text: str, name: str) -> None:
+    """Exit 1 with one clean line when the draft exceeds MAX_DRAFT_WORDS words.
+
+    A very large draft never finishes in useful time (issue #153): runtime is
+    linear with heavy constants, so a 5 MB draft scores for minutes with no
+    output. score, check and accept call this right after the empty-draft check
+    and before any model or profile load. Words are counted with the same regex
+    `_profile_evidence` uses, so the guard, the profile health and the score
+    always agree on what a word is. `name` is "draft" for score/check and the
+    failing file's path for accept, like _require_draft_text.
+    """
+    words = len(_WORD.findall(text))
+    if words > MAX_DRAFT_WORDS:
+        print(
+            f"timbro: error: {name} is {words:,} words; "
+            f"timbro scores drafts up to {MAX_DRAFT_WORDS:,} words (split it into sections)",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
 

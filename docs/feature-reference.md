@@ -292,11 +292,13 @@ Markdown, hedge, function-word, concreteness, and richness axes are only flagged
 
 The model rates the profile's evidence level on fit:
 
-- **"ok"** (≥1200 words, ≥8 substantive paragraphs): All features are usable; distance is stable.
-- **"weak"** (≥1200 words, ≥8 paras but < 2500 words or < 16 paras): Distance is usable but may be noisy; direction may be unstable.
+- **"ok"** (≥2500 words, ≥16 substantive paragraphs): All features are usable; distance is stable.
+- **"weak"** (≥1200 words, ≥8 paras, but < 2500 words or < 16 paras): Distance is usable but may be noisy; direction may be unstable.
 - **"insufficient"** (< 1200 words or < 8 paras): Distance is very noisy; direction is suppressed.
 
-If no TIMBRO_EXEMPLARS or TIMBRO_CONTRAST is set and no `--profile` is passed, `timbro score` runs against the **packaged sample voice** (a small corpus of plain English examples). In this mode, distance and direction are only meaningful as toy examples: they don't reflect your actual voice.
+`contrast_ceiling` is the mean k-nearest-neighbor distance of the contrast (away-voice) texts to the exemplar cloud, in the same standardized embedding space as `distance`. It is unbounded, not a [0, 1] value despite the name, and it is `null` when the profile has no contrast corpus.
+
+If no TIMBRO_EXEMPLARS or TIMBRO_CONTRAST is set and no `--profile` is passed, `timbro score` runs against the **packaged sample voice**: team engineering prose trimmed from the 18F blog (US public domain, additionally CC0 1.0; provenance in `src/timbro/sample/README.md`). The sample now reaches the "ok" evidence band, so a sample-voice score reports a real direction. It is still a demo corpus, not your voice: the numbers describe distance from the sample's engineering-blog voice, not from anything you wrote.
 
 ---
 

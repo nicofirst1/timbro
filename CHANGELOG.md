@@ -9,9 +9,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Changed
 
 - **Breaking:** a FAIL check and a rejected accept exit 3 instead of 0. Printed output is unchanged; scripts that branch on the exit code must handle 3 (#142).
+- Drafts over 50,000 words are rejected with a clear message instead of scoring for minutes: `timbro: error: draft is N words; timbro scores drafts up to 50,000 words (split it into sections)`. Applies to `score`, `check` and `accept` (#153).
+- The packaged sample voice is 8 trimmed posts from the 18F blog (US public domain, CC0 1.0), replacing the 4 synthetic exemplars. The sample now reaches health "ok" and shows a direction; provenance in `src/timbro/sample/README.md` (#163).
+- **Breaking:** every expected CLI error prints `timbro: error: ...`; check and learn errors drop the bare `error:` prefix. A malformed settings.json now fails the command with exit 1 instead of being ignored, and a failed first-run spaCy model install prints one clean line instead of a traceback (#191).
+- `accept` rejects `--threshold` outside [0, 1] with a clean error and exit 1, instead of silently accepting a value that can never be meaningful (#158).
+
+### Added
+
+- `timbro profiles diagnose` prints a `health:` line (and includes `health` in JSON) plus the thin-corpus evidence warning `score` already shows, so a thin corpus finally has signal to relay (#163).
 
 ### Fixed
 
+- `check` parses and embeds each paragraph once, roughly halving its runtime on long drafts (#192).
+- Scoring large drafts is faster: features are extracted once per score instead of once per feature name, span paragraph embeddings are batched into one model call, and the flow novelty curve is linear in the number of paragraphs (#153).
 - HD-D (richness axis) is computed locally in a deterministic order, so values no longer depend on PYTHONHASHSEED. Values may differ from 0.9.0 in the last digit (~1 ULP) (#123).
 - `accept` prints content similarity with 3 decimals, matching the gate's precision (#158).
 - Near-duplicate corpora no longer produce absurd standalone-axis z-scores: axis z is capped at 10 and the row is marked saturated (JSON field saturated, text output (saturated)). Directions use the clamped z (#178).

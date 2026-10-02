@@ -1,0 +1,11 @@
+# The life-changing magic of writing release notes
+
+A key part of agile development is constantly shipping new features. The team behind the Federal Election Commission’s (FEC) beta website ships new features at least once every two weeks. Sometimes the features are big, noticeable changes, such as the new home page we recently launched. And other times they’re small (a copy edit, an adjustment to a button) or under-the-hood (changing the way a database works).
+
+So several months ago, we started keeping a running log of release notes in order to tell a clear story of each iteration. These notes help keep everyone on our team in the know about what’s shipping, give us a clear list of features to check on staging, and help us always frame our work in terms of the value it delivers to our users.
+
+Our process for writing release notes is simple. On the Friday before a release (we deploy a new release every other Wednesday), I will draft a document of bullet points covering the new features we’re shipping. This will then serve as the outline for the demo to our partners the next Monday. After the demo, I’ll share the document with everyone on the team and invite edits and additions. Once we agree on the content, I’ll move it to our Markdown file in GitHub and push the change when we deploy the release. All-in-all, it probably takes less than an hour of collective time to craft a concise set of bullet points.
+
+Developing a product iteratively in the open yields several benefits for users, but it also poses some challenges. If a user visits early and sees a feature isn’t available, how will they know when it is? If a feature changes that they had previously used, how do they know that it changed and why? Release notes are one way that we can improve the user experience of continuous delivery by giving our users an easy-to-reference source for all the ways that the product is changing. They’re not a complete answer by any means, but they’re a start.
+
+Working on an agile software project is exhilarating (if a little chaotic at times). But moving fast and constantly improving requires that we also tell the story of our product in a way that resonates with our teams, our stakeholders, and our users. Release notes have become a helpful focal point for my team working on beta.fec.gov.
