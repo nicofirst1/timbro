@@ -22,6 +22,8 @@ CPU torch means installing Timbro once as a persistent tool; every later `uvx ti
 uv tool install timbro@<version> --torch-backend cpu
 ```
 
+If uv rejects `--torch-backend` (uv older than 0.9.20), run `uv self update` and retry; if uv can't be updated, keep the default.
+
 ### 0. Pull existing profiles
 
 Run `uvx timbro@<version> profiles sync` once, up front.
