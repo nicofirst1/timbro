@@ -79,6 +79,15 @@ def _local_direction(model, text: str, top_k: int = 2) -> list[dict]:
 
 
 def _top_sentence(model, paragraph: str) -> dict | None:
+    """Farthest-from-voice sentence of one paragraph, or None when it has no
+    candidate sentence (fewer than 8 words).
+
+    Each candidate keeps its own single-text encode (issue #153 round 2): batched
+    sentence encodes drift ~1% at float32 and flipped one near-tied top-sentence
+    pick in measurement; per-text calls reproduce the base distances exactly
+    (modulo the cached single-sentence-paragraph case, which shares the
+    paragraph's own cached vector).
+    """
     candidates = split_sentences(paragraph, min_words=8)
     if not candidates:
         return None
@@ -92,10 +101,15 @@ def _span_guidance(model, text: str, top_k: int = 3) -> list[dict]:
     paras = paragraphs(text)
     if len(paras) < 2:
         return []
+    # One batched encode for the paragraphs (issue #153). Candidate sentences stay
+    # on the per-text encode: batching them drifts their distances ~1% at float32
+    # and can flip a near-tied top-sentence pick, while paragraph batching keeps
+    # the whole speedup (sentence encodes add nothing measurable on top of it).
+    para_dists = model._dists(paras)
     scored = [
         {
             "index": i + 1,
-            "distance": model._dist(p),
+            "distance": para_dists[i],
             "distance_z": model.normalized_distance(p),
             "text": p[:280],
             "direction": _local_direction(model, p, top_k=3),

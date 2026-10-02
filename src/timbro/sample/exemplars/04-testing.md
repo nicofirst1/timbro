@@ -1,0 +1,11 @@
+# How we test 18f.gsa.gov
+
+About a year ago we converted this site to run fully on Jekyll and migrated our blog from Tumblr. When we did that we gained some freedom and the ability to edit our content on GitHub. We’ve received quite a few pull requests from readers to fix typos and optimize images. As our blog got more complicated, we started making mistakes that were hard to catch before publishing. So we came up with a way to catch many of those errors, before they end up in your browser.
+
+One advantage of hosting our site’s code on GitHub is we can integrate with continuous integration (CI) services to check our work before we publish. Many open source projects use a CI to run various tests on their code. We use it to run tests on our content. We use Travis CI but there are many others out there. Until recently, the only test we ran was building the site to know if it was successful.
+
+Just building the site caught a few high-level errors but not all. We added the html-proofer to our test suite, which checks internal links and validates the HTML on every generated page. This helps us catch more errors but is still kind of like a chainsaw: It tears through the material but misses detail-level problems. If a post was missing the authors field in the frontmatter, for example, all the tests would pass but the generated page would be missing a byline. This is the kind of error we wouldn’t catch until we merged the content into the site and previewed it on our staging server.
+
+Manually inspecting things is the worst, especially when you can make a computer to do it for you. This is why we wrote the jekyll_frontmatter_tests gem. It’s pretty simple and helps us catch problems like this before we publish. It works by comparing our posts to a “schema” that describes which fields should exist in the frontmatter and how their values should be formatted.
+
+We use Travis to test 18f.gsa.gov, but these tests will probably run on any continuous integration service. All you need to do is add bundle exec jekyll test to your Travis configuration. On this site we have a “go script” that runs a couple other things (including a site build) in addition to testing all our blog posts and team member profiles.

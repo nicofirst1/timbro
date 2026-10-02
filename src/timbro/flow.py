@@ -79,10 +79,18 @@ class FlowReport:
 
 
 def novelty_curve(emb: np.ndarray) -> np.ndarray:
-    """1 - cos(e_i, running centroid of e_<i): how new each paragraph is vs the past."""
+    """1 - cos(e_i, running centroid of e_<i): how new each paragraph is vs the past.
+
+    The running centroid comes from a running sum, divided by the count at each
+    step (issue #153): recomputing emb[:i].mean(0) from scratch at every step
+    made the curve O(n^2) in paragraphs. Rounding differs from np.mean's pairwise
+    summation at the last-ULP scale; flow values may drift by that much.
+    """
     out = []
+    running_sum = np.zeros(emb.shape[1], dtype=emb.dtype)
     for i in range(1, len(emb)):
-        out.append(1 - cosine(emb[i], emb[:i].mean(0)))
+        running_sum += emb[i - 1]
+        out.append(1 - cosine(emb[i], running_sum / i))
     return np.array(out)
 
 

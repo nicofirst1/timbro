@@ -43,12 +43,68 @@ def _style_model():
         return SentenceTransformer("StyleDistance/styledistance")  # content-invariant style
 
 
-@lru_cache(maxsize=512)
+_STYLE_CACHE_MAX = 4096
+_style_cache: dict[str, np.ndarray] = {}
+
+
+def _chunks(text: str) -> list[str]:
+    # the paragraph chunking every style vector shares: one style vector per doc =
+    # mean of paragraph (chunk) style embeddings; a chunk-less text falls back to
+    # its first 2000 chars.
+    return [p.strip() for p in _PARA.split(text) if p.strip()] or [text[:2000]]
+
+
+def _style_cache_put(text: str, vec: np.ndarray) -> None:
+    # explicit dict instead of lru_cache (issue #153) so the batched path can warm
+    # the same cache. Insertion-order eviction of the oldest entry stands in for
+    # lru_cache's least-recently-used rule. The window is 8x the old lru maxsize:
+    # one big draft now works through thousands of span texts in one pass, and a
+    # 512-entry window would evict the paragraphs the per-span direction pass
+    # re-requests right after the batch (measured on a 300 KB draft: ~450
+    # re-encodes at 512, zero at 4096). Entries are float32 arrays (~3 KB each),
+    # so the full window costs ~13 MB (tracemalloc, 4096 realistic entries);
+    # tuples of boxed floats would cost ~103 MB. Same behavior for any repeated
+    # text: hit.
+    if text not in _style_cache and len(_style_cache) >= _STYLE_CACHE_MAX:
+        _style_cache.pop(next(iter(_style_cache)))
+    _style_cache[text] = vec
+
+
 def _style_vec(text: str) -> tuple[float, ...]:
-    # one style vector per doc = mean of paragraph (chunk) style embeddings. cached
-    # because the LOO harness re-scores the same docs across folds.
-    chunks = [p.strip() for p in _PARA.split(text) if p.strip()] or [text[:2000]]
-    return tuple(_style_model().encode(chunks, normalize_embeddings=True).mean(0))
+    # one style vector per doc. cached because the LOO harness re-scores the same
+    # docs across folds. Entries are float32 arrays for memory; the tuple
+    # contract is preserved on read.
+    cached = _style_cache.get(text)
+    if cached is not None:
+        return tuple(cached)
+    vec = _style_vecs([text])[0]
+    _style_cache_put(text, vec)
+    return tuple(vec)
+
+
+def _style_vecs(texts: list[str]) -> np.ndarray:
+    """(len(texts), dim) style vectors, one row per text, in input order.
+
+    Batched twin of _style_vec (issue #153): the span path used to give every
+    paragraph its own encode call; here all chunks of all texts go through one
+    encode call and are averaged per text, with chunking identical to
+    _style_vec. A single-text call is byte-identical to the old single encode;
+    batched calls can differ from single-item encodes at the float level
+    (padding), so span paragraph distances may drift at that scale. The batch
+    warms _style_vec's cache, so later single-text lookups of the same texts hit
+    it instead of re-encoding.
+    """
+    chunk_lists = [_chunks(t) for t in texts]
+    all_chunks = [chunk for chunks in chunk_lists for chunk in chunks]
+    embeddings = _style_model().encode(all_chunks, normalize_embeddings=True)
+    rows = []
+    at = 0
+    for chunks in chunk_lists:
+        rows.append(embeddings[at : at + len(chunks)].mean(0))
+        at += len(chunks)
+    for text, row in zip(texts, rows):
+        _style_cache_put(text, row)
+    return np.array(rows)
 
 
 def _loo_exemplar_distances(train_ez: np.ndarray, knn_k: int) -> np.ndarray:
