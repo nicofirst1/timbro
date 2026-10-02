@@ -21,7 +21,7 @@ Why the architecture is what it is: `docs/adr/`.
 - **Exemplars** — the corpus that defines the target voice (`TIMBRO_EXEMPLARS`); the "toward" set.
 - **Contrast** — the "not-this-voice" corpus (`TIMBRO_CONTRAST`); the "away" set that sharpens the boundary.
 - **Profile** — a named exemplars + contrast pair on disk under the profile root.
-- **Profile sync** — git-based sync of the whole profile root to one **private** remote (`timbro profiles sync`); `runs.jsonl` appends merge losslessly, corpus conflicts surface instead of auto-resolving, `settings.json` stays per-machine.
+- **Profile sync** — git-based sync of the whole profile root to one **private** remote (`timbro profiles sync`); `runs.jsonl` appends merge losslessly, corpus conflicts surface instead of auto-resolving, `settings.json` stays per-machine. git does not track empty directories, so a bucket with no files (an empty `contrast/`) arrives on other machines as no directory at all; profile code treats a missing bucket directory inside an existing profile as empty (#166).
 - **Content guard** — the semantic-cosine check (a _general_ model, all-MiniLM) that the content stayed close (semantic similarity); blind to polarity flips such as negation (#181); independent of voice ([ADR 0004](docs/adr/0004-no-rewrite-engine-timbro-judges.md)).
 - **Rubric** — a pluggable set of deterministic prose checks (`--rubric <name>`; `schimel`, `slop`, and `density` ship today) that feeds `check`.
 - **Check** — the corpus-free prose-quality command (`timbro check`).

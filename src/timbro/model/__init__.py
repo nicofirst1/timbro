@@ -65,8 +65,20 @@ _WORD = re.compile(r"\b\w+\b")
 
 
 def read_corpus(directory: str | Path) -> list[str]:
-    """All .md/.txt files in a dir, YAML frontmatter stripped."""
+    """All .md/.txt files in a dir, YAML frontmatter stripped.
+
+    A missing path or a plain file path raises instead of reading as an empty
+    corpus (issue #166): downstream, a path typo used to look like an empty
+    corpus. An existing empty directory still returns []; the #161
+    no-exemplars error stays the one wording for that case.
+    """
     d = Path(directory)
+    if not d.exists():
+        # UserFileNotFoundError: a UserError subclass (#191), so the CLI prints
+        # it as one clean line; still a FileNotFoundError for API callers.
+        raise UserFileNotFoundError(f"Corpus directory not found: {d.resolve()}")
+    if not d.is_dir():
+        raise NotADirectoryError(f"Corpus path is not a directory: {d.resolve()}")
     files = sorted([*d.glob("*.md"), *d.glob("*.txt")])
     # Strip frontmatter only; code fences / blockquotes are left in as part of the
     # voice's texture. Strip them too if they prove to be topic noise, not style.
