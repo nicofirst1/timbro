@@ -241,8 +241,10 @@ class DocumentView:
 
     @cached_property
     def _spacy_paragraphs(self) -> list:
-        """Parse each paragraph once; shared by the POS/dep checks (noun trains, passive, splice)."""
-        return [_rubric_nlp()(p[:100000]) for p in self.paragraphs]
+        """Parse each paragraph once, in one batched pipe call (#192); shared by the
+        POS/dep checks (noun trains, passive, splice)."""
+        texts = [p[:100000] for p in self.paragraphs]
+        return list(_rubric_nlp().pipe(texts))
 
     @cached_property
     def leading_words(self) -> list[dict]:
@@ -305,13 +307,31 @@ class DocumentView:
             self.paragraph_similarity(i, i + 1) for i in range(len(self.paragraphs) - 1)
         ]
 
+    @cached_property
+    def _internal_similarities(self) -> list[float]:
+        """paragraph_internal_similarity for every paragraph, from ONE batched encode
+        call (#192): all paragraphs' sentences encoded together, then split back per
+        paragraph in the same order. Paragraphs with fewer than 2 sentences are 1.0
+        and never encoded (same rule as the old per-paragraph path)."""
+        values = [1.0] * len(self.sentences)
+        batch: list[str] = []
+        plan: list[tuple[int, int, int]] = []  # (paragraph_idx, batch_start, n_sents)
+        for pi, sents in enumerate(self.sentences):
+            if len(sents) < 2:
+                continue
+            plan.append((pi, len(batch), len(sents)))
+            batch.extend(sents)
+        if batch:
+            emb = np.asarray(_embed_model().encode(batch, normalize_embeddings=True))
+            for pi, start, n in plan:
+                sims = [
+                    cosine(emb[j], emb[j + 1]) for j in range(start, start + n - 1)
+                ]
+                values[pi] = float(np.mean(sims)) if sims else 1.0
+        return values
+
     def paragraph_internal_similarity(self, i: int) -> float:
-        sents = self.sentences[i]
-        if len(sents) < 2:
-            return 1.0
-        emb = np.asarray(_embed_model().encode(sents, normalize_embeddings=True))
-        sims = [cosine(emb[j], emb[j + 1]) for j in range(len(emb) - 1)]
-        return float(np.mean(sims)) if sims else 1.0
+        return self._internal_similarities[i]
 
     def dangling_paragraph_openers(self) -> list[tuple[int, int, str]]:
         """Coherence proxy (#74): a paragraph-opening sentence that leads with a

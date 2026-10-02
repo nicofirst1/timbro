@@ -19,6 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- `check` parses and embeds each paragraph once, roughly halving its runtime on long drafts (#192).
 - Scoring large drafts is faster: features are extracted once per score instead of once per feature name, span paragraph embeddings are batched into one model call, and the flow novelty curve is linear in the number of paragraphs (#153).
 - HD-D (richness axis) is computed locally in a deterministic order, so values no longer depend on PYTHONHASHSEED. Values may differ from 0.9.0 in the last digit (~1 ULP) (#123).
 - `accept` prints content similarity with 3 decimals, matching the gate's precision (#158).

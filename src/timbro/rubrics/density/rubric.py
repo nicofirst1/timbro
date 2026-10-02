@@ -1,24 +1,15 @@
 from __future__ import annotations
 
 from timbro.rubrics.density.checks import density_findings
-from timbro.rubrics.features import DocumentView
-from timbro.rubrics.report import build_result
-from timbro.text import strip_markup
+from timbro.rubrics.document import DocumentRubric
 
 _WEIGHTS = {"density": 1.0, "jargon": 1.0}
 
 
-class DensityRubric:
+class DensityRubric(DocumentRubric):
     name = "density"
     version = "v1"
+    weights = _WEIGHTS
 
-    def check(self, text: str):
-        doc = DocumentView(strip_markup(text))
-        findings = density_findings(doc)
-        return build_result(
-            rubric=self.name,
-            version=self.version,
-            sections=doc.sections.to_dict(),
-            findings=findings,
-            weights=_WEIGHTS,
-        )
+    def findings(self, doc):
+        return density_findings(doc)

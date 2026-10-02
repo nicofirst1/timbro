@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 from timbro.errors import UserValueError
+from timbro.rubrics.document import DocumentRubric
+from timbro.rubrics.features import DocumentView
 from timbro.rubrics.registry import get_rubric
+from timbro.text import strip_markup
 
 
 def check_text(text: str, rubrics: list[str], profile: str | None = None):
@@ -12,6 +15,7 @@ def check_text(text: str, rubrics: list[str], profile: str | None = None):
     if profile is not None and "slop" not in rubrics:
         raise UserValueError("--profile only affects the slop rubric")
 
+    view: DocumentView | None = None  # built on first need; one parse per call (#192)
     results = []
     for rubric in rubrics:
         if rubric == "slop" and profile is not None:
@@ -26,7 +30,13 @@ def check_text(text: str, rubrics: list[str], profile: str | None = None):
                 raise no_exemplars_error(corpus_dir)
             results.append(SlopRubric(baseline=tell_baseline(corpus)).check(text))
         else:
-            results.append(get_rubric(rubric).check(text))
+            rubric_impl = get_rubric(rubric)
+            if isinstance(rubric_impl, DocumentRubric):
+                if view is None:
+                    view = DocumentView(strip_markup(text))
+                results.append(rubric_impl.check(text, view))
+            else:
+                results.append(rubric_impl.check(text))
     return results
 
 

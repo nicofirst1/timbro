@@ -1,21 +1,14 @@
 from __future__ import annotations
 
-from timbro.rubrics.features import DocumentView
-from timbro.rubrics.report import build_result
+from timbro.rubrics.document import DocumentRubric
+from timbro.rubrics.report import _WEIGHTS
 from timbro.rubrics.rules import schimel_findings
-from timbro.text import strip_markup
 
 
-class SchimelRubric:
+class SchimelRubric(DocumentRubric):
     name = "schimel"
     version = "v3"
+    weights = _WEIGHTS
 
-    def check(self, text: str):
-        doc = DocumentView(strip_markup(text))
-        findings = schimel_findings(doc)
-        return build_result(
-            rubric=self.name,
-            version=self.version,
-            sections=doc.sections.to_dict(),
-            findings=findings,
-        )
+    def findings(self, doc):
+        return schimel_findings(doc)
