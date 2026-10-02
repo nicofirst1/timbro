@@ -5,7 +5,9 @@ Source, per the issue's decision record: reuse the two NLP libraries already
 installed (`textdescriptives`, `lexical_diversity`) instead of
 adding `elfen` (rejected -- drags a second spaCy/torch stack for three formulas).
 Shannon entropy is new code, but it's a few stdlib lines over lemma counts, not
-worth a dependency either.
+worth a dependency either. Since #123 HD-D is local code too, mirroring
+lexical_diversity's hdd formula: the library's `list(set(text))` iteration order
+varies per process, so the float sum moved ~1 ULP run to run.
 
 One signal per family, gate-picked: a throwaway script ran all 8 textdescriptives
 readability formulas and both lexical_diversity richness formulas (mtld, hdd)
@@ -25,7 +27,6 @@ it does not feed the scored POS/embedding direction or `_WEIGHTS`.
 from __future__ import annotations
 
 import math
-import warnings
 from collections import Counter
 from functools import lru_cache
 
@@ -33,6 +34,43 @@ from timbro.metric import register
 from timbro.priors import RICHNESS_REFERENCE
 
 _CONTENT_POS = {"NOUN", "PROPN", "VERB", "ADJ", "ADV"}
+
+# hdd's fixed sample size: the random sample is 42 tokens (lexical_diversity's
+# choice, mirrored exactly so values stay comparable); below it hdd is 0.0.
+_HDD_SAMPLE = 42
+
+
+def _choose(n: int, k: int) -> int:
+    """Binomial coefficient, 0 outside 0 <= k <= n: Andrew Dalke's integer
+    loop, mirroring lexical_diversity's hdd."""
+    if 0 <= k <= n:
+        ntok = 1
+        ktok = 1
+        for t in range(1, min(k, n - k) + 1):
+            ntok *= n
+            ktok *= t
+            n -= 1
+        return ntok // ktok
+    return 0
+
+
+def _hdd(tokens: list[str]) -> float:
+    """HD-D (hypergeometric distribution diversity, McCarthy & Jarvis 2010),
+    0-1: the chance a type appears at least once in a 42-token sample, summed
+    over types. Mirrors lexical_diversity.lex_div.hdd term for term; the only
+    changes are the summation (math.fsum) and the type order (sorted), so the
+    value no longer depends on PYTHONHASHSEED (#123)."""
+    ntokens = len(tokens)
+    counts = Counter(tokens)
+    terms = []
+    for t in sorted(counts):
+        try:
+            term = (1.0 - (_choose(counts[t], 0) * _choose(ntokens - counts[t], _HDD_SAMPLE))
+                    / _choose(ntokens, _HDD_SAMPLE)) * (1 / _HDD_SAMPLE)
+        except ZeroDivisionError:
+            term = 0.0
+        terms.append(term)
+    return math.fsum(terms)
 
 
 def _nlp():
@@ -73,24 +111,13 @@ def richness_stats(text: str) -> tuple[float, float, float]:
       vocabulary, length-robust unlike raw type-token ratio)
     - entropy: Shannon entropy (bits) of the lemma distribution
     """
-    # lexical_diversity imports pkg_resources at module scope, so every fresh CLI
-    # process printed `UserWarning: pkg_resources is deprecated as an API...` to
-    # stderr (#140). The setuptools<81 pin (#42/#48) keeps the import working, so
-    # the warning is pure noise: scope an ignore filter to this one import, no
-    # global filter.
-    with warnings.catch_warnings():
-        warnings.filterwarnings(
-            "ignore", message="pkg_resources is deprecated", category=UserWarning
-        )
-        from lexical_diversity import lex_div
-
     doc = _doc(text)
     # textdescriptives returns NaN (0/0) for a doc with no words (#177), and NaN is
     # truthy, so the old `or 0.0` never fired -- screen missing/non-finite explicitly.
     index = doc._.readability.get("coleman_liau_index")
     readability = float(index) if index is not None and math.isfinite(index) else 0.0
     content_lemmas = [t.lemma_.lower() for t in doc if t.is_alpha and t.pos_ in _CONTENT_POS]
-    richness = float(lex_div.hdd(content_lemmas)) if len(content_lemmas) >= 2 else 0.0
+    richness = _hdd(content_lemmas) if len(content_lemmas) >= 2 else 0.0
     entropy = _shannon_entropy(doc)
     return readability, richness, entropy
 
