@@ -1953,12 +1953,10 @@ name = "timbro"
 version = "0.9.0"
 source = { editable = "." }
 dependencies = [
-    { name = "lexical-diversity" },
     { name = "numpy" },
     { name = "pyyaml" },
     { name = "scikit-learn" },
     { name = "sentence-transformers" },
-    { name = "setuptools" },
     { name = "spacy" },
     { name = "textdescriptives" },
     { name = "wordfreq" },
@@ -1967,18 +1965,18 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "en-core-web-sm" },
+    { name = "lexical-diversity" },
     { name = "pytest" },
     { name = "ruff" },
+    { name = "setuptools" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "lexical-diversity", specifier = ">=0.1.1" },
     { name = "numpy", specifier = ">=2.4.6" },
     { name = "pyyaml", specifier = ">=6" },
     { name = "scikit-learn", specifier = ">=1.9.0" },
     { name = "sentence-transformers", specifier = ">=5.5.1" },
-    { name = "setuptools", specifier = "<81" },
     { name = "spacy", specifier = ">=3.8.14" },
     { name = "textdescriptives", specifier = ">=2.8.2" },
     { name = "wordfreq", specifier = ">=3.1.1" },
@@ -1987,8 +1985,10 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "en-core-web-sm", url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" },
+    { name = "lexical-diversity", specifier = ">=0.1.1" },
     { name = "pytest", specifier = ">=8" },
     { name = "ruff", specifier = "==0.16.4" },
+    { name = "setuptools", specifier = "<81" },
 ]
 
 [[package]]
