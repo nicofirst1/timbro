@@ -34,7 +34,7 @@ from timbro.errors import (
     UserRuntimeError,
     UserValueError,
 )
-from timbro.model import VoiceModel, _profile_evidence
+from timbro.model import VoiceModel, _profile_evidence, no_exemplars_error, read_corpus
 from timbro.model.embedding import _style_vec
 from timbro.profilelog import log_learn
 from timbro.rewrite import evaluate_rewrite
@@ -77,6 +77,35 @@ class Profile:
         lines = self.readme_path.read_text(encoding="utf-8", errors="ignore").splitlines()
         body = [ln.strip() for ln in lines if ln.strip() and not ln.startswith("#")]
         return body[0] if body else ""
+
+    def fit_model(self) -> VoiceModel:
+        """The scoring model for this named profile (score/accept/learn's guard).
+
+        Git drops empty directories, so a profile synced from a machine where
+        `contrast/` (or `exemplars/`) is empty arrives here without that dir
+        (review R1, issue #166). A missing bucket under an existing profile dir
+        is an empty bucket, read exactly as base's lenient read_corpus read it:
+        fit without contrast; a missing exemplars dir raises #161's no-exemplars
+        message. The strict read_corpus raises stay for direct calls and the
+        TIMBRO_EXEMPLARS/TIMBRO_CONTRAST env vars, which still catch typos.
+        """
+        _require_known_profile(self)
+        if not self.exemplars_dir.is_dir():
+            raise no_exemplars_error(self.exemplars_dir)
+        contrast = self.contrast_dir if self.contrast_dir.is_dir() else None
+        return VoiceModel.from_dir(self.exemplars_dir, contrast=contrast)
+
+    def exemplar_corpus(self) -> list[str]:
+        """This profile's exemplar texts, for corpus-relative reads (the slop
+        rubric's baseline): the profile-aware rules of fit_model, without
+        contrast. Always non-empty -- missing or empty exemplars raise #161's
+        no-exemplars message.
+        """
+        _require_known_profile(self)
+        corpus = read_corpus(self.exemplars_dir) if self.exemplars_dir.is_dir() else []
+        if not corpus:
+            raise no_exemplars_error(self.exemplars_dir)
+        return corpus
 
 
 def profile_root(root: str | Path | None = None) -> Path:
@@ -219,6 +248,18 @@ def init_profile(name: str, about: str = "", root: str | Path | None = None) -> 
     return profile
 
 
+def _require_known_profile(profile: Profile) -> None:
+    """Issue #166: the one unknown-profile gate, shared by add_text/add_file
+    (under their create flag) and by every named-profile corpus reader, so the
+    wording can't drift (review R3). A profile dir that does not exist is a
+    typo, not an empty corpus."""
+    if not profile.path.is_dir():
+        raise UserFileNotFoundError(
+            f"Unknown profile '{profile.name}': {profile.path} does not exist. "
+            f"Create it with 'timbro profiles init {profile.name}' or pass create=True."
+        )
+
+
 def _slug_filename(name: str) -> str:
     stem = re.sub(r"[^a-z0-9]+", "-", name.strip().lower()).strip("-") or "document"
     return stem
@@ -241,13 +282,10 @@ def add_text(
     # want the scaffold say so with create=True (learn does, so its own refusal
     # stays the single gate).
     profile = get_profile(profile_name, root)
-    if not profile.path.exists() and not create:
-        raise UserFileNotFoundError(
-            f"Unknown profile '{profile.name}': {profile.path} does not exist. "
-            f"Create it with 'timbro profiles init {profile.name}' or pass create=True."
-        )
     if create:
         profile = init_profile(profile_name, root=root)
+    else:
+        _require_known_profile(profile)
     target_dir = profile.exemplars_dir if bucket == "exemplars" else profile.contrast_dir
     path = target_dir / f"{_slug_filename(title)}.md"
     if path.exists() and not overwrite:
@@ -286,13 +324,10 @@ def add_file(
     # Issue #166: same unknown-profile gate as add_text, before any write and
     # before init_profile.
     profile = get_profile(profile_name, root)
-    if not profile.path.exists() and not create:
-        raise UserFileNotFoundError(
-            f"Unknown profile '{profile.name}': {profile.path} does not exist. "
-            f"Create it with 'timbro profiles init {profile.name}' or pass create=True."
-        )
     if create:
         profile = init_profile(profile_name, root=root)
+    else:
+        _require_known_profile(profile)
     src = Path(source)
     if not src.exists():
         raise UserFileNotFoundError(src)
@@ -361,10 +396,10 @@ def learn(
 
     model = None
     if _corpus_files(profile.exemplars_dir):
-        try:
-            model = VoiceModel.from_dir(profile.exemplars_dir, contrast=profile.contrast_dir)
-        except FileNotFoundError:
-            model = None
+        # fit_model resolves the buckets (#166 R1): a contrast dir git dropped
+        # on sync is an empty bucket, so the guard runs. No FileNotFoundError
+        # catch here -- one used to mask a synced profile as a bootstrap case.
+        model = profile.fit_model()
 
     if model is None:
         if not force:

@@ -9,7 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Changed
 
 - **Breaking:** add_text/add_file require create=True (or an existing profile) instead of silently scaffolding; profiles add-file still scaffolds and prints "created profile <name>" (#166).
-- read_corpus raises on a missing path or a file path instead of returning an empty corpus; list_profiles on a missing root still returns [] (#166).
+- read_corpus raises on a missing path or a file path instead of returning an empty corpus; named profiles still treat a missing exemplars/contrast dir as an empty bucket (git drops empty dirs on sync), and a missing profile name raises the unknown-profile error; list_profiles on a missing root still returns [] (#166).
 - learn guard refusals exit 3 in both text and --json mode (was 1 text, 0 json); the empty-profile bootstrap refusal stays 1 (#166).
 - Learn guard messages say --force (force=True from Python) instead of bare force=True (#166).
 - **Breaking:** a FAIL check and a rejected accept exit 3 instead of 0. Printed output is unchanged; scripts that branch on the exit code must handle 3 (#142).

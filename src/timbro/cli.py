@@ -15,7 +15,7 @@ import sys
 import traceback
 
 from timbro.errors import UserError
-from timbro.model import _WORD, VoiceModel, default_model
+from timbro.model import _WORD, default_model
 from timbro.profiles import (
     add_file,
     diagnose_profile,
@@ -53,7 +53,10 @@ def cmd_score(args):
         rows = []
         for name in names:
             prof = get_profile(name)
-            model = VoiceModel.from_dir(prof.exemplars_dir, contrast=prof.contrast_dir)
+            # Profile-aware bucket resolution (#166 R1): a contrast dir git
+            # dropped on sync is an empty bucket, an unknown name raises the
+            # spec's error.
+            model = prof.fit_model()
             rows.append({"profile_name": name, **voice_report(model, text)})
         if args.json:
             print(_dump_json(rows if len(rows) > 1 else rows[0], indent=2))
@@ -220,7 +223,7 @@ def cmd_accept(args):
     _require_draft_size(revised, args.revised)
     if args.profile:
         prof = get_profile(args.profile)
-        model = VoiceModel.from_dir(prof.exemplars_dir, contrast=prof.contrast_dir)
+        model = prof.fit_model()
     else:
         model = default_model()
     result = evaluate_rewrite(model, original, revised, threshold=args.threshold)
