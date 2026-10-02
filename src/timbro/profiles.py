@@ -232,10 +232,22 @@ def add_text(
     title: str,
     root: str | Path | None = None,
     overwrite: bool = False,
+    create: bool = False,
 ) -> Path:
     if bucket not in ("exemplars", "contrast"):
         raise ValueError(f"bucket must be 'exemplars' or 'contrast', got {bucket!r}")
-    profile = init_profile(profile_name, root=root)
+    # Issue #166: a typo used to scaffold a whole new profile silently. Check
+    # the profile exists BEFORE any write and before init_profile; callers who
+    # want the scaffold say so with create=True (learn does, so its own refusal
+    # stays the single gate).
+    profile = get_profile(profile_name, root)
+    if not profile.path.exists() and not create:
+        raise UserFileNotFoundError(
+            f"Unknown profile '{profile.name}': {profile.path} does not exist. "
+            f"Create it with 'timbro profiles init {profile.name}' or pass create=True."
+        )
+    if create:
+        profile = init_profile(profile_name, root=root)
     target_dir = profile.exemplars_dir if bucket == "exemplars" else profile.contrast_dir
     path = target_dir / f"{_slug_filename(title)}.md"
     if path.exists() and not overwrite:
@@ -252,6 +264,7 @@ def add_file(
     dest_name: str | None = None,
     root: str | Path | None = None,
     overwrite: bool = False,
+    create: bool = False,
 ) -> Path:
     # Unknown buckets used to fall through to contrast/ (the else-branch below),
     # silently filing the user's own writing into the away-voice corpus. Reject
@@ -270,7 +283,16 @@ def add_file(
         or dest_name != Path(dest_name).name
     ):
         raise UserValueError(f"--dest-name must be a plain file name, got '{dest_name}'")
-    profile = init_profile(profile_name, root=root)
+    # Issue #166: same unknown-profile gate as add_text, before any write and
+    # before init_profile.
+    profile = get_profile(profile_name, root)
+    if not profile.path.exists() and not create:
+        raise UserFileNotFoundError(
+            f"Unknown profile '{profile.name}': {profile.path} does not exist. "
+            f"Create it with 'timbro profiles init {profile.name}' or pass create=True."
+        )
+    if create:
+        profile = init_profile(profile_name, root=root)
     src = Path(source)
     if not src.exists():
         raise UserFileNotFoundError(src)
@@ -308,9 +330,9 @@ def _check_pair_slots_free(profile: Profile, title: str) -> None:
     exemplar_path = profile.exemplars_dir / f"{slug}.md"
     contrast_path = profile.contrast_dir / f"{slug}.md"
     if exemplar_path.exists():
-        raise UserFileExistsError(f"Destination already exists: {exemplar_path}. Pass force=True or a different title.")
+        raise UserFileExistsError(f"Destination already exists: {exemplar_path}. Use --force (force=True from Python) or a different title.")
     if contrast_path.exists():
-        raise UserFileExistsError(f"Destination already exists: {contrast_path}. Pass force=True or a different title.")
+        raise UserFileExistsError(f"Destination already exists: {contrast_path}. Use --force (force=True from Python) or a different title.")
 
 
 def learn(
@@ -348,11 +370,11 @@ def learn(
         if not force:
             raise UserValueError(
                 f"Profile '{profile.name}' has no exemplars to measure against yet, so the "
-                "guard can't run. Seed it first (`profiles add-file`) or pass force=True to "
-                "bootstrap it with this pair."
+                "guard can't run. Seed it first (`profiles add-file`) or use --force "
+                "(force=True from Python) to bootstrap it with this pair."
             )
-        exemplar_path = add_text(profile_name, final_text, bucket="exemplars", title=title, root=root, overwrite=force)
-        contrast_path = add_text(profile_name, draft_text, bucket="contrast", title=title, root=root, overwrite=force)
+        exemplar_path = add_text(profile_name, final_text, bucket="exemplars", title=title, root=root, overwrite=force, create=True)
+        contrast_path = add_text(profile_name, draft_text, bucket="contrast", title=title, root=root, overwrite=force, create=True)
         log_learn(profile, model, draft_text, final_text, title=title, outcome="bootstrap", guard=None)
         return {
             "saved": True,
@@ -375,20 +397,21 @@ def learn(
             reasons.append(
                 f"final (distance {res['distance_after']:.1f}) is not closer to the voice than "
                 f"the draft (distance {res['distance_before']:.1f}) — nothing to learn. "
-                "Pass force=True to save anyway."
+                "Use --force (force=True from Python) to save anyway."
             )
         if not res["content_ok"]:
             reasons.append(
                 f"meaning drifted (similarity {res['similarity']:.2f} < 0.85) — draft and final "
-                "aren't the same content, so this isn't a clean voice pair. Pass force=True to override."
+                "aren't the same content, so this isn't a clean voice pair. Use --force "
+                "(force=True from Python) to override."
             )
         log_learn(profile, model, draft_text, final_text, title=title, outcome="refused", guard=res)
         return {"saved": False, "reason": " ".join(reasons), **res}
 
     if not force:
         _check_pair_slots_free(profile, title)
-    exemplar_path = add_text(profile_name, final_text, bucket="exemplars", title=title, root=root, overwrite=force)
-    contrast_path = add_text(profile_name, draft_text, bucket="contrast", title=title, root=root, overwrite=force)
+    exemplar_path = add_text(profile_name, final_text, bucket="exemplars", title=title, root=root, overwrite=force, create=True)
+    contrast_path = add_text(profile_name, draft_text, bucket="contrast", title=title, root=root, overwrite=force, create=True)
     log_learn(profile, model, draft_text, final_text, title=title, outcome="saved", guard=res)
     return {
         "saved": True,

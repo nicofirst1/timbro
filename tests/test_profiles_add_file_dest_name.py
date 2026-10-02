@@ -128,7 +128,7 @@ class AddFileDestNameValidationTests(unittest.TestCase):
             src = td_path / "draft.md"
             src.write_text("draft text\n", encoding="utf-8")
 
-            dst = add_file("demo", src, bucket="exemplars", dest_name="plain.md", root=root)
+            dst = add_file("demo", src, bucket="exemplars", dest_name="plain.md", root=root, create=True)
 
             # profile_root() resolves the root, so compare resolved paths.
             self.assertEqual(
@@ -202,5 +202,6 @@ class AddFileDestNameCliTests(unittest.TestCase):
             )
 
             self.assertEqual(code, 0)
-            self.assertEqual(err, "")
+            # #166: add-file scaffolds on purpose and says so on stderr.
+            self.assertEqual(err, "created profile demo\n", f"unexpected stderr: {err!r}")
             self.assertTrue(out.endswith("plain.md\n"), f"unexpected stdout: {out!r}")

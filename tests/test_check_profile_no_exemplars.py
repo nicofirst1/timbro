@@ -22,7 +22,9 @@ class CheckProfileNoExemplarsTests(unittest.TestCase):
             (Path(tmp) / "profiles").mkdir()
             with self.assertRaises(FileNotFoundError) as ctx:
                 check_text("x", ["slop"], profile="nope")
-        self.assertIn("No .md/.txt exemplars found at", str(ctx.exception))
+        # #166: a missing corpus path now raises from read_corpus and names the
+        # directory it checked; the #161 wording stays for the empty-dir case.
+        self.assertIn("Corpus directory not found:", str(ctx.exception))
         self.assertIn(
             str((Path(tmp) / "profiles" / "nope" / "exemplars").resolve()), str(ctx.exception)
         )
@@ -37,9 +39,11 @@ class CheckProfileNoExemplarsTests(unittest.TestCase):
 
     def test_error_message_points_at_managed_profiles(self):
         # round 3: one message for everyone, pointing at managed profiles; the env
-        # var is no longer suggested (#161 addendum, direction #96)
+        # var is no longer suggested (#161 addendum, direction #96). #166 moved the
+        # missing-directory case to read_corpus's own message, so the #161 wording
+        # is pinned here on the empty-corpus case it still covers.
         with TemporaryDirectory() as tmp, self._patched_root(tmp):
-            (Path(tmp) / "profiles").mkdir()
+            (Path(tmp) / "profiles" / "nope" / "exemplars").mkdir(parents=True)
             with self.assertRaises(FileNotFoundError) as ctx:
                 check_text("x", ["slop"], profile="nope")
         exemplars = (Path(tmp) / "profiles" / "nope" / "exemplars").resolve()

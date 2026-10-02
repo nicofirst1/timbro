@@ -106,8 +106,9 @@ class UnknownProfileRaiseTests(unittest.TestCase):
             with self.assertRaises(FileNotFoundError) as ctx:
                 add_text("demo", _TEXT, bucket="exemplars", title="note", root=root)
 
+            profile_dir = root.resolve() / "demo"
             expected = (
-                f"Unknown profile 'demo': {root / 'demo'} does not exist. "
+                f"Unknown profile 'demo': {profile_dir} does not exist. "
                 "Create it with 'timbro profiles init demo' or pass create=True."
             )
             self.assertEqual(str(ctx.exception), expected)
@@ -126,8 +127,9 @@ class UnknownProfileRaiseTests(unittest.TestCase):
             with self.assertRaises(FileNotFoundError) as ctx:
                 add_file("demo", src, bucket="exemplars", root=root)
 
+            profile_dir = root.resolve() / "demo"
             expected = (
-                f"Unknown profile 'demo': {root / 'demo'} does not exist. "
+                f"Unknown profile 'demo': {profile_dir} does not exist. "
                 "Create it with 'timbro profiles init demo' or pass create=True."
             )
             self.assertEqual(str(ctx.exception), expected)
