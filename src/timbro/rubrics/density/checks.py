@@ -1,7 +1,7 @@
 """Rule definitions for the density rubric (#5): lexical density + jargon.
 
 Recall-first: prefer false positives; the LLM consumer judges each finding itself. See
-CLAUDE.md's rubric design policy — never suppress a finding to look precise.
+AGENTS.md's rubric design policy — never suppress a finding to look precise.
 """
 
 from __future__ import annotations

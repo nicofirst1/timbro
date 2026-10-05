@@ -4,7 +4,7 @@ findings/verdict machinery as `check`. No model, no voice corpus, no LLM-as-judg
 
 The detectors live in `timbro.axes.tells` (they also feed the voice `score` direction as
 lexical features); this module just turns their spans into RubricFindings. Recall-first,
-like every rubric: prefer false positives and let the consumer filter — see CLAUDE.md.
+like every rubric: prefer false positives and let the consumer filter — see AGENTS.md.
 """
 
 from __future__ import annotations

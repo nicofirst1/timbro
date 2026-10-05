@@ -1,4 +1,4 @@
-"""Smoke-test entry point: `uv run python -m timbro.model` (CLAUDE.md's core smoke
+"""Smoke-test entry point: `uv run python -m timbro.model` (AGENTS.md's core smoke
 test). Lives in a module of its own because a package would otherwise swallow
 the `if __name__ == "__main__":` block silently."""
 
