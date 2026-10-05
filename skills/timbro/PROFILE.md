@@ -6,21 +6,21 @@ Use Timbro whenever consistency with an _established_ body of writing matters: a
 
 ## Setup (one-time per corpus)
 
-No profiles yet (`profiles list` is empty)? Use the `timbro-setup` skill for a guided walkthrough (purpose → profile → exemplars → contrast) instead of guessing. Never silently score a real draft against the packaged sample. The below is quick reference once a profile already exists.
+No profiles yet (`profiles list` is empty)? Route to the `timbro-setup` skill (purpose → profile → exemplars → contrast) instead of improvising. The quick reference below assumes a profile already exists.
 
 Point Timbro at a corpus with a managed profile: `uvx timbro@<version> profiles init <name> --about "..."`, then add files with `uvx timbro@<version> profiles add-file <name> <file> --to exemplars` (or `--to contrast`).
 
-list of accepted file input:
+Accepted file inputs:
 
 - md
 - txt
-- tex (converted on ingest when `detex` is installed)
+- `.tex` (needs `detex` on ingest)
 
-If no profile is set, Timbro falls back to a small packaged sample voice so it runs, but that is **not** the user's voice. Never silently score a real draft against the sample.
+If no profile is set, Timbro falls back to a small packaged sample voice so it runs. That is not the user's voice: score real drafts only against a managed profile.
 
 ## Every run
 
-1. **Pick a direction: always ask.** First run `uvx timbro@<version> profiles sync` so this machine has the user's latest profiles. If it says the profile root is not configured, say nothing about it; on `conflict` or `error`, tell the user in one line and continue with the local profiles -- sync must never block scoring. Then list profiles with `uvx timbro@<version> profiles list`, tell the user what's available, and ask which set to move _toward_ (exemplars) and which to move _away from_ (contrast). Do not assume.
+1. **Pick a direction: always ask.** First run `uvx timbro@<version> profiles sync` so this machine has the user's latest profiles. If it says the profile root is not configured, say nothing about it; on `conflict in: ...` or `sync failed: ...`, tell the user in one line and continue with the local profiles -- sync must never block scoring. Then list profiles with `uvx timbro@<version> profiles list`, tell the user what's available, and ask which set to move _toward_ (exemplars) and which to move _away from_ (contrast). Do not assume.
 
 2. **Score the draft.** Write the draft to a file and run:
 
@@ -40,9 +40,9 @@ If no profile is set, Timbro falls back to a small packaged sample voice so it r
 
 3. **Turn each hint into a concrete edit, preserving meaning.** Never change the claims, facts, or argument: only _how_ it reads. If the prose is published under a persona with its own style rules (a "voice" skill, a brand guide), apply those rules as you rewrite.
 
-4. **Re-score.** Run `timbro score` on your revision. Confirm `distance` dropped. If it rose, you over-rotated: back off the lowest-confidence edits.
+4. **Re-score.** Run `uvx timbro@<version> score revised.md`. Confirm `distance` dropped. If it rose, you over-rotated: back off the lowest-confidence edits.
 
-5. **(Optional) verify content was preserved.** Save the original and revised text to files and run `uvx timbro@<version> accept original.md revised.md`: it returns `accepted: true` only when the rewrite moved closer to the voice **and** kept the meaning (semantic similarity > 0.85). Use it as the stop condition.
+5. **Verify content was preserved (the stop condition).** Save the original and revised text and run `uvx timbro@<version> accept original.md revised.md` on the final revision: it accepts only when the rewrite moved closer to the voice **and** kept the meaning (semantic similarity > 0.85). It prints an `accepted:` verdict line (JSON: `"accepted": true`); a rejected `accept` exits 3. Mid-loop you may rely on `distance`; the final must pass `accept`.
 
    The content guard measures embedding similarity, so a negation can pass it: "approved the budget" vs "did not approve the budget" scores about 0.95, above the 0.85 gate. Before trusting `accepted: true`, check yourself that the rewrite did not flip polarity, negation, or a modal ("must" to "must not").
 
@@ -58,6 +58,6 @@ If no profile is set, Timbro falls back to a small packaged sample voice so it r
 
    `learn` reuses the same guard as `timbro accept`: it refuses to save unless the final actually scored closer to the voice **and** preserved meaning. A rejected `learn` is a sign the loop didn't really converge. Go back to step 3.
 
-   When the pair is saved, push it to the user's other machines: run `uvx timbro@<version> profiles sync` once, after `learn` (not after every `init` / `add-file` -- one push per file would be noise). On `conflict` or `error`, one line to the user, then continue with the local profiles.
+   When the pair is saved, push it to the user's other machines: run `uvx timbro@<version> profiles sync` once, after `learn` (not after every `init` / `add-file` -- one push per file would be noise). On `conflict in: ...` or `sync failed: ...`, one line to the user, then continue with the local profiles.
 
    Only save finals a human has approved. That human gate is what keeps the profile from drifting toward generic LLM-polished prose over time.
