@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.10.0] — 2026-10-05
+
+Verdicts become exit codes, CLI errors share one format, large drafts score faster, and the sample voice is real prose. Several changes are **breaking**; see Changed.
+
 ### Changed
 
 - **Breaking:** add_text/add_file require create=True (or an existing profile) instead of silently scaffolding; profiles add-file still scaffolds and prints "created profile <name>" (#166).
@@ -159,7 +163,8 @@ First tagged release (#63), consolidating the M6 metric work.
 - Replaced the circular slop benchmark with an HC3 held-out subsample (#60).
 - Corrected the `CONCRETENESS_REFERENCE` spread unit mismatch (#58).
 
-[Unreleased]: https://github.com/nicofirst1/timbro/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/nicofirst1/timbro/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/nicofirst1/timbro/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/nicofirst1/timbro/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/nicofirst1/timbro/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/nicofirst1/timbro/compare/v0.7.0...v0.7.1
