@@ -90,7 +90,7 @@ class ConvertedRaiseSitesTests(_SandboxCase):
         src = self.tmp / "src.rst"
         src.write_text(_TEXT, encoding="utf-8")
         with self.assertRaises(ValueError) as ctx:
-            add_file("demo", str(src), bucket="exemplars")
+            add_file("demo", str(src), bucket="exemplars", create=True)
         self.assertIsInstance(ctx.exception, UserError)
         self.assertIsInstance(ctx.exception, UserValueError)
 
@@ -98,7 +98,7 @@ class ConvertedRaiseSitesTests(_SandboxCase):
         from timbro.profiles import add_file
 
         with self.assertRaises(FileNotFoundError) as ctx:
-            add_file("demo", "no-such-file.md", bucket="exemplars")
+            add_file("demo", "no-such-file.md", bucket="exemplars", create=True)
         self.assertIsInstance(ctx.exception, UserError)
         self.assertIsInstance(ctx.exception, UserFileNotFoundError)
 
@@ -107,7 +107,7 @@ class ConvertedRaiseSitesTests(_SandboxCase):
 
         src = self.tmp / "note.md"
         src.write_text(_TEXT, encoding="utf-8")
-        add_file("demo", str(src), bucket="exemplars")
+        add_file("demo", str(src), bucket="exemplars", create=True)
         with self.assertRaises(FileExistsError) as ctx:
             add_file("demo", str(src), bucket="exemplars")
         self.assertIsInstance(ctx.exception, UserError)

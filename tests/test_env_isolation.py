@@ -100,7 +100,8 @@ class CliWritesSandboxedTests(unittest.TestCase):
             )
 
             self.assertEqual(code, 0)
-            self.assertEqual(err, "")
+            # #166: add-file scaffolds on purpose and prints the created line.
+            self.assertEqual(err, "created profile demo\n", f"unexpected stderr: {err!r}")
             home = Path(os.environ["TIMBRO_HOME"])
             written = home / "profiles" / "demo" / "exemplars" / "plain.md"
             self.assertTrue(

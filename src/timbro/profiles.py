@@ -34,7 +34,7 @@ from timbro.errors import (
     UserRuntimeError,
     UserValueError,
 )
-from timbro.model import VoiceModel, _profile_evidence
+from timbro.model import VoiceModel, _profile_evidence, no_exemplars_error, read_corpus
 from timbro.model.embedding import _style_vec
 from timbro.profilelog import log_learn
 from timbro.rewrite import evaluate_rewrite
@@ -77,6 +77,34 @@ class Profile:
         lines = self.readme_path.read_text(encoding="utf-8", errors="ignore").splitlines()
         body = [ln.strip() for ln in lines if ln.strip() and not ln.startswith("#")]
         return body[0] if body else ""
+
+    def fit_model(self) -> VoiceModel:
+        """The scoring model for this named profile (score/accept/learn's guard).
+
+        Git drops empty directories, so a profile synced from a machine where
+        `contrast/` (or `exemplars/`) is empty arrives here without that dir
+        (#166). A missing bucket under an existing profile dir is an empty
+        bucket, as before #166: fit without contrast; a missing exemplars dir raises #161's no-exemplars
+        message. The strict read_corpus raises stay for direct calls and the
+        TIMBRO_EXEMPLARS/TIMBRO_CONTRAST env vars, which still catch typos.
+        """
+        _require_known_profile(self)
+        if not self.exemplars_dir.is_dir():
+            raise no_exemplars_error(self.exemplars_dir)
+        contrast = self.contrast_dir if self.contrast_dir.is_dir() else None
+        return VoiceModel.from_dir(self.exemplars_dir, contrast=contrast)
+
+    def exemplar_corpus(self) -> list[str]:
+        """This profile's exemplar texts, for corpus-relative reads (the slop
+        rubric's baseline): the profile-aware rules of fit_model, without
+        contrast. Always non-empty -- missing or empty exemplars raise #161's
+        no-exemplars message.
+        """
+        _require_known_profile(self)
+        corpus = read_corpus(self.exemplars_dir) if self.exemplars_dir.is_dir() else []
+        if not corpus:
+            raise no_exemplars_error(self.exemplars_dir)
+        return corpus
 
 
 def profile_root(root: str | Path | None = None) -> Path:
@@ -219,6 +247,18 @@ def init_profile(name: str, about: str = "", root: str | Path | None = None) -> 
     return profile
 
 
+def _require_known_profile(profile: Profile) -> None:
+    """Issue #166: the one unknown-profile gate, shared by add_text/add_file
+    (under their create flag) and by every named-profile corpus reader, so the
+    wording can't drift. A profile dir that does not exist is a
+    typo, not an empty corpus."""
+    if not profile.path.is_dir():
+        raise UserFileNotFoundError(
+            f"Unknown profile '{profile.name}': {profile.path} does not exist. "
+            f"Create it with 'timbro profiles init {profile.name}' or pass create=True."
+        )
+
+
 def _slug_filename(name: str) -> str:
     stem = re.sub(r"[^a-z0-9]+", "-", name.strip().lower()).strip("-") or "document"
     return stem
@@ -232,10 +272,19 @@ def add_text(
     title: str,
     root: str | Path | None = None,
     overwrite: bool = False,
+    create: bool = False,
 ) -> Path:
     if bucket not in ("exemplars", "contrast"):
         raise ValueError(f"bucket must be 'exemplars' or 'contrast', got {bucket!r}")
-    profile = init_profile(profile_name, root=root)
+    # Issue #166: a typo used to scaffold a whole new profile silently. Check
+    # the profile exists BEFORE any write and before init_profile; callers who
+    # want the scaffold say so with create=True (learn does, so its own refusal
+    # stays the single gate).
+    profile = get_profile(profile_name, root)
+    if create:
+        profile = init_profile(profile_name, root=root)
+    else:
+        _require_known_profile(profile)
     target_dir = profile.exemplars_dir if bucket == "exemplars" else profile.contrast_dir
     path = target_dir / f"{_slug_filename(title)}.md"
     if path.exists() and not overwrite:
@@ -252,6 +301,7 @@ def add_file(
     dest_name: str | None = None,
     root: str | Path | None = None,
     overwrite: bool = False,
+    create: bool = False,
 ) -> Path:
     # Unknown buckets used to fall through to contrast/ (the else-branch below),
     # silently filing the user's own writing into the away-voice corpus. Reject
@@ -270,7 +320,13 @@ def add_file(
         or dest_name != Path(dest_name).name
     ):
         raise UserValueError(f"--dest-name must be a plain file name, got '{dest_name}'")
-    profile = init_profile(profile_name, root=root)
+    # Issue #166: same unknown-profile gate as add_text, before any write and
+    # before init_profile.
+    profile = get_profile(profile_name, root)
+    if create:
+        profile = init_profile(profile_name, root=root)
+    else:
+        _require_known_profile(profile)
     src = Path(source)
     if not src.exists():
         raise UserFileNotFoundError(src)
@@ -308,9 +364,9 @@ def _check_pair_slots_free(profile: Profile, title: str) -> None:
     exemplar_path = profile.exemplars_dir / f"{slug}.md"
     contrast_path = profile.contrast_dir / f"{slug}.md"
     if exemplar_path.exists():
-        raise UserFileExistsError(f"Destination already exists: {exemplar_path}. Pass force=True or a different title.")
+        raise UserFileExistsError(f"Destination already exists: {exemplar_path}. Use --force (force=True from Python) or a different title.")
     if contrast_path.exists():
-        raise UserFileExistsError(f"Destination already exists: {contrast_path}. Pass force=True or a different title.")
+        raise UserFileExistsError(f"Destination already exists: {contrast_path}. Use --force (force=True from Python) or a different title.")
 
 
 def learn(
@@ -339,20 +395,20 @@ def learn(
 
     model = None
     if _corpus_files(profile.exemplars_dir):
-        try:
-            model = VoiceModel.from_dir(profile.exemplars_dir, contrast=profile.contrast_dir)
-        except FileNotFoundError:
-            model = None
+        # fit_model resolves the buckets (#166): a contrast dir git dropped
+        # on sync is an empty bucket, so the guard runs. No FileNotFoundError
+        # catch here -- one used to mask a synced profile as a bootstrap case.
+        model = profile.fit_model()
 
     if model is None:
         if not force:
             raise UserValueError(
                 f"Profile '{profile.name}' has no exemplars to measure against yet, so the "
-                "guard can't run. Seed it first (`profiles add-file`) or pass force=True to "
-                "bootstrap it with this pair."
+                "guard can't run. Seed it first (`profiles add-file`) or use --force "
+                "(force=True from Python) to bootstrap it with this pair."
             )
-        exemplar_path = add_text(profile_name, final_text, bucket="exemplars", title=title, root=root, overwrite=force)
-        contrast_path = add_text(profile_name, draft_text, bucket="contrast", title=title, root=root, overwrite=force)
+        exemplar_path = add_text(profile_name, final_text, bucket="exemplars", title=title, root=root, overwrite=force, create=True)
+        contrast_path = add_text(profile_name, draft_text, bucket="contrast", title=title, root=root, overwrite=force, create=True)
         log_learn(profile, model, draft_text, final_text, title=title, outcome="bootstrap", guard=None)
         return {
             "saved": True,
@@ -375,20 +431,21 @@ def learn(
             reasons.append(
                 f"final (distance {res['distance_after']:.1f}) is not closer to the voice than "
                 f"the draft (distance {res['distance_before']:.1f}) — nothing to learn. "
-                "Pass force=True to save anyway."
+                "Use --force (force=True from Python) to save anyway."
             )
         if not res["content_ok"]:
             reasons.append(
                 f"meaning drifted (similarity {res['similarity']:.2f} < 0.85) — draft and final "
-                "aren't the same content, so this isn't a clean voice pair. Pass force=True to override."
+                "aren't the same content, so this isn't a clean voice pair. Use --force "
+                "(force=True from Python) to override."
             )
         log_learn(profile, model, draft_text, final_text, title=title, outcome="refused", guard=res)
         return {"saved": False, "reason": " ".join(reasons), **res}
 
     if not force:
         _check_pair_slots_free(profile, title)
-    exemplar_path = add_text(profile_name, final_text, bucket="exemplars", title=title, root=root, overwrite=force)
-    contrast_path = add_text(profile_name, draft_text, bucket="contrast", title=title, root=root, overwrite=force)
+    exemplar_path = add_text(profile_name, final_text, bucket="exemplars", title=title, root=root, overwrite=force, create=True)
+    contrast_path = add_text(profile_name, draft_text, bucket="contrast", title=title, root=root, overwrite=force, create=True)
     log_learn(profile, model, draft_text, final_text, title=title, outcome="saved", guard=res)
     return {
         "saved": True,
