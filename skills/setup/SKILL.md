@@ -7,7 +7,7 @@ description: 'Guided first-run setup for Timbro: pick a purpose, scaffold a voic
 
 Turn "I just installed Timbro" into "I have a usable profile pointed at my own writing." This is a conversation, not a deterministic script -- ask, don't assume.
 
-Pinned CLI version: `timbro@0.9.0`. Commands below substitute `<version>` for it.
+Pinned CLI version: `timbro@0.10.0`. Commands below substitute `<version>` for it.
 
 ## Process
 

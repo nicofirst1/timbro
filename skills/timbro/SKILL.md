@@ -9,7 +9,7 @@ description: >-
 
 # Timbro
 
-Pinned CLI version: `timbro@0.9.0`. Commands in the files below substitute `<version>` for it; never hand-edit this line, `scripts/release.sh` keeps it in sync with the release tag.
+Pinned CLI version: `timbro@0.10.0`. Commands in the files below substitute `<version>` for it; never hand-edit this line, `scripts/release.sh` keeps it in sync with the release tag.
 
 Exit codes: 0 success, 1 user error, 2 sync/environment failure, 3 verdict gate (check FAIL, accept rejected): read the command's output for the reason.
 
