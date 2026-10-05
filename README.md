@@ -104,7 +104,7 @@ Add `--json` to `score`, `check`, `accept`, and `profiles list|env|diagnose|lear
 
 ### Exit codes
 
-`0` success, including a WARN or PASS check and an accepted rewrite; `1` user error (bad input, missing file, empty draft, unknown profile); `2` sync or environment failure (`profiles sync` hard failures; argparse usage errors also exit 2, with a `usage:` line); `3` verdict gate failure (a FAIL `check`, a rejected `accept`). Read the command's output for the reason.
+`0` success, including a WARN or PASS check and an accepted rewrite; `1` user error (bad input, missing file, empty draft, unknown profile); `2` sync or environment failure (`profiles sync` hard failures; argparse usage errors also exit 2, with a `usage:` line); `3` verdict gate failure (a FAIL `check`, a rejected `accept`, a refused `learn`). Read the command's output for the reason.
 
 ## A positive target, not just a blocklist
 

@@ -20,14 +20,14 @@ def check_text(text: str, rubrics: list[str], profile: str | None = None):
     for rubric in rubrics:
         if rubric == "slop" and profile is not None:
             from timbro.axes.tells import tell_baseline
-            from timbro.model import no_exemplars_error, read_corpus
             from timbro.profiles import get_profile
             from timbro.rubrics.slop import SlopRubric
 
-            corpus_dir = get_profile(profile).exemplars_dir
-            corpus = read_corpus(corpus_dir)
-            if not corpus:  # name the problem, not the internal caller (#161)
-                raise no_exemplars_error(corpus_dir)
+            # Profile-aware corpus resolution (#166): an unknown profile
+            # raises the spec's unknown-profile error; a missing or empty
+            # exemplars dir (git drops empty dirs on sync) raises #161's
+            # no-exemplars message from Profile.exemplar_corpus.
+            corpus = get_profile(profile).exemplar_corpus()
             results.append(SlopRubric(baseline=tell_baseline(corpus)).check(text))
         else:
             rubric_impl = get_rubric(rubric)

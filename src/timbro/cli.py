@@ -15,7 +15,7 @@ import sys
 import traceback
 
 from timbro.errors import UserError
-from timbro.model import _WORD, VoiceModel, default_model
+from timbro.model import _WORD, default_model
 from timbro.profiles import (
     add_file,
     diagnose_profile,
@@ -53,7 +53,10 @@ def cmd_score(args):
         rows = []
         for name in names:
             prof = get_profile(name)
-            model = VoiceModel.from_dir(prof.exemplars_dir, contrast=prof.contrast_dir)
+            # Profile-aware bucket resolution (#166): a contrast dir git
+            # dropped on sync is an empty bucket, an unknown name raises the
+            # spec's error.
+            model = prof.fit_model()
             rows.append({"profile_name": name, **voice_report(model, text)})
         if args.json:
             print(_dump_json(rows if len(rows) > 1 else rows[0], indent=2))
@@ -220,7 +223,7 @@ def cmd_accept(args):
     _require_draft_size(revised, args.revised)
     if args.profile:
         prof = get_profile(args.profile)
-        model = VoiceModel.from_dir(prof.exemplars_dir, contrast=prof.contrast_dir)
+        model = prof.fit_model()
     else:
         model = default_model()
     result = evaluate_rewrite(model, original, revised, threshold=args.threshold)
@@ -309,13 +312,21 @@ def cmd_profiles_sync(args):
 
 
 def cmd_profiles_add_file(args):
+    # Issue #166: the CLI keeps scaffolding on purpose (learn and first contact
+    # with a new profile go through here), but says so. Resolve the profile
+    # first so `created profile` is printed only when add-file really made it.
+    prof = get_profile(args.name)
+    existed = prof.path.is_dir()
     dst = add_file(
         args.name,
         args.source,
         bucket=args.to,
         dest_name=args.dest_name,
         overwrite=args.overwrite,
+        create=True,
     )
+    if not existed:
+        print(f"created profile {prof.name}", file=sys.stderr)
     print(dst)
 
 
@@ -360,11 +371,15 @@ def cmd_profiles_learn(args):
 
     if args.json:
         print(_dump_json(result))
+        # Issue #166: a guard refusal is a gate failure like check/accept (#142):
+        # the payload bytes are unchanged, the exit code is 3, not 0.
+        if not result["saved"]:
+            sys.exit(3)
         return
 
     if not result["saved"]:
         print(result["reason"], file=sys.stderr)
-        sys.exit(1)
+        sys.exit(3)
 
     print(f"learned pair into '{args.name}': exemplar {result['exemplar']}, contrast {result['contrast']}")
     if result["distance_before"] is not None:

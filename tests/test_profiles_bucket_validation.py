@@ -44,8 +44,10 @@ class ProfileBucketValidationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td) / "profiles"
 
-            to_exemplars = add_text("demo", "toward text", bucket="exemplars", title="note", root=root)
-            to_contrast = add_text("demo", "away text", bucket="contrast", title="other note", root=root)
+            # create=True: #166 stopped silent scaffolding; this test pins the
+            # bucket routing, not the scaffold refusal.
+            to_exemplars = add_text("demo", "toward text", bucket="exemplars", title="note", root=root, create=True)
+            to_contrast = add_text("demo", "away text", bucket="contrast", title="other note", root=root, create=True)
 
             self.assertTrue((root / "demo" / "exemplars" / "note.md").exists())
             self.assertEqual((root / "demo" / "exemplars" / "note.md").read_text(encoding="utf-8"), "toward text")
@@ -60,8 +62,8 @@ class ProfileBucketValidationTests(unittest.TestCase):
             src = Path(td) / "note.md"
             src.write_text("source text", encoding="utf-8")
 
-            to_exemplars = add_file("demo", src, bucket="exemplars", root=root)
-            to_contrast = add_file("demo", src, bucket="contrast", dest_name="other.md", root=root)
+            to_exemplars = add_file("demo", src, bucket="exemplars", root=root, create=True)
+            to_contrast = add_file("demo", src, bucket="contrast", dest_name="other.md", root=root, create=True)
 
             self.assertTrue((root / "demo" / "exemplars" / "note.md").exists())
             self.assertEqual((root / "demo" / "exemplars" / "note.md").read_text(encoding="utf-8"), "source text")
