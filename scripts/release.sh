@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Bump timbro's version everywhere it needs to match, push, then refresh the
-# local plugin install. See CLAUDE.md "Releasing an update" for the manual
+# local plugin install. See AGENTS.md "Releasing an update" for the manual
 # version this automates.
 set -euo pipefail
 
