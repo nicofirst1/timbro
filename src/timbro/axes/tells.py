@@ -25,6 +25,7 @@ from timbro.metric import Reference, register
 from timbro.priors import (
     TELL_PRIOR,  # noqa: F401  (re-exported: the slop checks and tests import it from here)
 )
+from timbro.text import _FENCE  # the shared fence-stripping regex (#16 substrate)
 
 # Plain-English labels so a flagged tell reads as advice, not a feature id.
 TELL_LABEL = {
@@ -219,7 +220,10 @@ def _pos_occurrences(text: str) -> tuple[tuple[str, ...], tuple[str, ...], tuple
 def _occurrences(text: str) -> dict[str, list[str]]:
     """Every matched span per tell, in TELL_NAMES order. Counts and rates derive from
     this, so the score path and the `tells` rubric share one definition of a match."""
-    body = _FRONTMATTER.sub("", text)  # drop YAML so its --- isn't read as an HR
+    # Same not-prose rule as the markdown axis (#16): drop YAML frontmatter (so its
+    # --- isn't read as an HR) and fenced code blocks, then match tells on prose only
+    # (#226: a secret_key="..." placeholder in a fence is code, not a quote_punct tell).
+    body = _FENCE.sub("", _FRONTMATTER.sub("", text))
     occ: dict[str, list[str]] = {
         "dash": _DASH.findall(body),
         "diction": _DICTION.findall(body),

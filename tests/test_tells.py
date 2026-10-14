@@ -2,7 +2,14 @@ from __future__ import annotations
 
 import unittest
 
-from timbro.axes.tells import TELL_LABEL, TELL_NAMES, TELL_PRIOR, tell_rates
+from timbro.axes.tells import (
+    TELL_LABEL,
+    TELL_NAMES,
+    TELL_PRIOR,
+    tell_occurrences,
+    tell_rates,
+)
+from timbro.rubrics import check_text
 
 
 class TellRegistryTest(unittest.TestCase):
@@ -101,6 +108,63 @@ class ApologeticTest(unittest.TestCase):
         # a single flat statement of fact is not the tell
         r = tell_rates("The result did not hold. I moved on to the next test.")
         self.assertEqual(r["tell_apologetic"], 0)
+
+
+class FencedCodeExclusionTest(unittest.TestCase):
+    """#226: fenced code blocks are not prose (#16 preprocessing rule) -- no tell may
+    match inside one. The exclusion lives in the occurrence scanner, so every tell
+    (regex and POS-based alike) inherits it."""
+
+    # The issue's exact repro: an otherwise clean document whose only
+    # quote_punct-shaped text is a placeholder inside a fenced python block.
+    REPRO = (
+        "# T\n\n"
+        "```python\n"
+        'app.add_middleware(SessionMiddleware, secret_key="...")\n'
+        "```\n"
+    )
+
+    def test_issue_repro_has_no_quote_punct(self):
+        occ = tell_occurrences(self.REPRO)
+        self.assertEqual(occ["quote_punct"], [])
+
+    def test_issue_repro_passes_check_clean(self):
+        # end to end through the `check` path: the slop rubric lists no quote_punct
+        (result,) = check_text(self.REPRO, ["slop"])
+        self.assertNotIn("quote_punct", [f.rule for f in result.findings])
+
+    def test_same_pattern_in_prose_still_flagged(self):
+        prose = 'He said the plan was "at stake," and then left the room.'
+        self.assertEqual(len(tell_occurrences(prose)["quote_punct"]), 1)
+
+    def test_prose_around_fence_fully_scanned(self):
+        doc = (
+            'He said the plan was "at stake," and then left the room.\n\n'
+            "```python\n"
+            'app.add_middleware(SessionMiddleware, secret_key="...")\n'
+            "```\n\n"
+            'She called the fix "done," and closed the ticket.'
+        )
+        # both prose hits found, the fenced placeholder ignored
+        self.assertEqual(len(tell_occurrences(doc)["quote_punct"]), 2)
+
+    def test_no_tell_family_fires_inside_fence(self):
+        # every tell family, lexical and POS-based, stays silent on fence content
+        fenced = (
+            "```text\n"
+            "Let's dive in. It's not just a tool, it's a vibrant tapestry — a testament.\n"
+            'He called it "the whole point," and moved on: speed, scale, and cost.\n'
+            "---\n"
+            "The answer is thin. It sat alone.\n"
+            "```\n"
+        )
+        occ = tell_occurrences(fenced)
+        for name, spans in occ.items():
+            self.assertEqual(spans, [], f"{name} fired inside a fence: {spans}")
+
+    def test_tilde_fence_excluded_too(self):
+        doc = '~~~python\nsecret_key="..."\n~~~\n'
+        self.assertEqual(tell_occurrences(doc)["quote_punct"], [])
 
 
 if __name__ == "__main__":
