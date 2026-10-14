@@ -22,7 +22,12 @@ POS_LABEL = {
     "AUX": "auxiliary verbs", "CCONJ": "conjunctions", "DET": "determiners",
     "INTJ": "interjections", "NOUN": "nouns", "NUM": "numbers", "PART": "particles",
     "PRON": "pronouns", "PROPN": "proper nouns", "PUNCT": "punctuation",
-    "SCONJ": "subordinating conjunctions", "SYM": "symbols", "VERB": "verbs", "X": "other tokens",
+    "SCONJ": "subordinating conjunctions",
+    # #223: SYM counts spaCy SYM-tag tokens -- %, +, € (currency/math symbols) --
+    # never punctuation; without the gloss "more symbols" reads as "add parentheses
+    # or dashes", which moves nothing the feature sees. Only SYM carries a gloss.
+    "SYM": "symbols (%, +, €: currency and math symbols; punctuation does not count)",
+    "VERB": "verbs", "X": "other tokens",
 }
 
 
