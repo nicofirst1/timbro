@@ -11,6 +11,8 @@ is what validates whatever it produces.
 
 from __future__ import annotations
 
+import sys
+
 import numpy as np
 
 from timbro.cleanup import preprocess_runtime_text
@@ -37,11 +39,24 @@ def preserves_content(original: str, revised: str, threshold: float = 0.85) -> t
 
 def evaluate_rewrite(model, original: str, revised: str, threshold: float = 0.85) -> dict:
     """Close the rewrite loop: a candidate is accepted only if it moved CLOSER to the
-    voice AND kept the meaning. The engine lives in the calling agent; Timbro judges."""
+    voice AND kept the meaning. The engine lives in the calling agent; Timbro judges.
+
+    Stage progress goes to stderr as each stage starts (issue #225): a first run
+    downloads the content model and encodes two drafts before the verdict, and
+    that silence read as a hang. stderr keeps the caller's stdout contract
+    (prose verdict line, `--json` payload) byte-identical; `learn`'s guard shares
+    this path and reports the same stages.
+    """
     prepared_original = preprocess_runtime_text(original)
     prepared_revised = preprocess_runtime_text(revised)
+    # The content guard encodes the PAIR in one batched call (batched and
+    # single-text encodes can differ at the float level, and the similarity
+    # feeds the verdict gate), so the original's stage covers that encode; the
+    # revised's style encode starts at its line.
+    print("timbro: encoding original...", file=sys.stderr)
     content_ok, sim = preserves_content(original, revised, threshold)
     before = model.score(prepared_original).distance
+    print("timbro: encoding revised...", file=sys.stderr)
     after = model.score(prepared_revised).distance
     improved = after < before
     return {

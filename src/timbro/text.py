@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import os
 import re
+import sys
 from functools import lru_cache
 
 import numpy as np
@@ -149,6 +150,12 @@ def cosine(a: np.ndarray, b: np.ndarray) -> float:
 
 # ---- embedding ---------------------------------------------------------------
 
+# The general-purpose semantic embedder's hub name: the local-first loader below,
+# the first-run download notice, and the CLI's model-loading stage line (#225)
+# all name the same model, so it lives in one constant.
+_CONTENT_MODEL = "all-MiniLM-L6-v2"
+
+
 @lru_cache(maxsize=1)
 def _model():
     os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
@@ -174,9 +181,18 @@ def _model():
     # the cache first; on failure (model not cached, first-run download) fall back
     # to the unchanged online call.
     try:
-        return SentenceTransformer("all-MiniLM-L6-v2", local_files_only=True)
+        return SentenceTransformer(_CONTENT_MODEL, local_files_only=True)
     except Exception:  # noqa: BLE001 -- cache miss must not block the online fallback
-        return SentenceTransformer("all-MiniLM-L6-v2")  # fast CPU model (NFR1)
+        # First-run download notice (#225), mirroring the spaCy loader's cold-start
+        # notice (spacy_model._install_and_load): the fallback download used to be
+        # silent, and an operator killed a healthy first accept run at 120 seconds
+        # believing it hung. stderr keeps every stdout contract clean, and firing
+        # here (not in the CLI) covers every command that triggers the download.
+        print(
+            f"timbro: downloading embedding model '{_CONTENT_MODEL}' (first run only)...",
+            file=sys.stderr,
+        )
+        return SentenceTransformer(_CONTENT_MODEL)  # fast CPU model (NFR1)
 
 
 if __name__ == "__main__":
