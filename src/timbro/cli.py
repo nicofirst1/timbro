@@ -41,10 +41,20 @@ MAX_DRAFT_WORDS = 50_000
 
 
 def cmd_score(args):
-    if args.file == "-":
+    files: list[str] = args.files
+    # '-' reads stdin, so it means something only as the one input (issue
+    # #224): mixed with file paths there is no defined order to read it in.
+    if "-" in files and len(files) > 1:
+        print("timbro: error: '-' (stdin) is only valid as the sole input to score", file=sys.stderr)
+        sys.exit(1)
+    if len(files) > 1:
+        _score_many(args, files)
+        return
+    file = files[0]
+    if file == "-":
         text = sys.stdin.read()
     else:
-        text = _read_text(args.file)
+        text = _read_text(file)
     _require_draft_text(text, "draft")
     _require_draft_size(text, "draft")
 
@@ -78,29 +88,82 @@ def cmd_score(args):
     if args.json:
         print(_dump_json(payload, indent=2))
         return
-    if args.quiet:
+    _print_voice_report(payload, args.quiet)
+
+
+def _score_many(args, files: list[str]) -> None:
+    """Score several candidate drafts in one invocation (issue #224).
+
+    One model load and one profile fit serve every file. Each file's own
+    vector is then encoded exactly as a single-file run encodes it, so the
+    per-file numbers are numerically identical to scoring the file alone:
+    batching the files' encodes into one call was measured to drift the
+    distances at the float32 level (encode padding, amplified by the
+    profile's z-space), which the brief's numerical-identity rule forbids.
+
+    A missing, unreadable, empty, oversized or non-UTF-8 file fails fast
+    before any output or model load, naming the file — the implementer's
+    choice over skip-with-error-entry, matching the single-file behavior
+    where a bad draft is a user error, not a result (#152).
+    """
+    texts = []
+    for name in files:
+        text = _read_text(name)
+        _require_draft_text(text, name)
+        _require_draft_size(text, name)
+        texts.append(text)
+    if args.profile:
+        names = [name.strip() for name in args.profile.split(",") if name.strip()]
+        if len(names) > 1:
+            print(
+                "timbro: error: score accepts one file with several profiles, "
+                "or several files with one profile",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        model = get_profile(names[0]).fit_model()
+    else:
+        model = default_model()
+    payloads = [voice_report(model, text) for text in texts]
+    if args.json:
+        print(_dump_json(payloads, indent=2))
+        return
+    for i, (name, payload) in enumerate(zip(files, payloads)):
+        if i:
+            print()
+        print(f"==> {name} <==")
+        _print_voice_report(payload, args.quiet)
+
+
+def _print_voice_report(payload: dict, quiet: bool) -> None:
+    """Render one voice_report payload for humans (score's prose output).
+
+    Extracted verbatim from cmd_score (issue #224) so the multi-file path
+    renders each file with the exact single-file rendering; single-file
+    output stays byte-identical.
+    """
+    if quiet:
         dz = f"{payload['distance_z']:.2f}" if payload["distance_z"] is not None else "n/a"
         print(f"distance={payload['distance']:.1f} z={dz} health={payload['profile']['health']}")
         return
-    else:
-        z_text = f"z {payload['distance_z']:+.2f}" if payload["distance_z"] is not None else "z n/a"
-        profile_line = (
-            f"profile: {payload['profile']['health']}  "
-            f"floor {payload['profile']['exemplar_floor']:.1f}  "
-            f"spread {payload['profile']['exemplar_spread']:.1f}"
-        )
-        if payload["profile"]["contrast_ceiling"] is not None:
-            profile_line += f"  ceiling {payload['profile']['contrast_ceiling']:.1f}"
-        print(f"distance from your voice: {payload['distance']:.1f}  ({z_text})")
-        print(profile_line)
-        if payload['profile']['warning']:
-            print(f"warning: {payload['profile']['warning']}")
-        if payload['on_voice']:
-            print("already on-voice: within the exemplar spread")
-        print("revise toward your voice:")
+    z_text = f"z {payload['distance_z']:+.2f}" if payload["distance_z"] is not None else "z n/a"
+    profile_line = (
+        f"profile: {payload['profile']['health']}  "
+        f"floor {payload['profile']['exemplar_floor']:.1f}  "
+        f"spread {payload['profile']['exemplar_spread']:.1f}"
+    )
+    if payload["profile"]["contrast_ceiling"] is not None:
+        profile_line += f"  ceiling {payload['profile']['contrast_ceiling']:.1f}"
+    print(f"distance from your voice: {payload['distance']:.1f}  ({z_text})")
+    print(profile_line)
+    if payload['profile']['warning']:
+        print(f"warning: {payload['profile']['warning']}")
+    if payload['on_voice']:
+        print("already on-voice: within the exemplar spread")
+    print("revise toward your voice:")
     for mv in payload["direction"]:
         print(f"  - {mv['hint']:24s} (confidence {mv['confidence']:.2f})")
-    if not args.quiet and payload.get("markdown"):
+    if not quiet and payload.get("markdown"):
         off = [ax for ax in payload["markdown"] if ax["direction"]]
         print("markdown vs corpus:")
         if off:
@@ -109,7 +172,7 @@ def cmd_score(args):
                 print(f"  - {ax['direction']:26s} (z {ax['z']:+.2f}{sat}, {ax['axis'][7:]})")
         else:
             print("  - on-target: every structure axis within corpus spread")
-    if not args.quiet and payload.get("hedge"):
+    if not quiet and payload.get("hedge"):
         hoff = [ax for ax in payload["hedge"] if ax["direction"]]
         print("hedge/booster stance:")
         if hoff:
@@ -118,7 +181,7 @@ def cmd_score(args):
                 print(f"  - {ax['direction']:38s} (z {ax['z']:+.2f}{sat}, {ax['axis']})")
         else:
             print("  - on-target: within the reference spread")
-    if not args.quiet and payload.get("fw"):
+    if not quiet and payload.get("fw"):
         foff = [ax for ax in payload["fw"] if ax["direction"]]
         print("function words vs reference:")
         if foff:
@@ -127,7 +190,7 @@ def cmd_score(args):
                 print(f"  - {ax['direction']:38s} (z {ax['z']:+.2f}{sat}, {ax['axis']})")
         else:
             print("  - on-target: within the reference spread")
-    if not args.quiet and payload.get("concreteness"):
+    if not quiet and payload.get("concreteness"):
         coff = [ax for ax in payload["concreteness"] if ax["direction"]]
         print("concreteness:")
         if coff:
@@ -136,7 +199,7 @@ def cmd_score(args):
                 print(f"  - {ax['direction']:38s} (z {ax['z']:+.2f}{sat}, {ax['axis']})")
         else:
             print("  - on-target: within the reference spread")
-    if not args.quiet and payload.get("richness"):
+    if not quiet and payload.get("richness"):
         roff = [ax for ax in payload["richness"] if ax["direction"]]
         print("readability/richness/entropy:")
         if roff:
@@ -145,12 +208,12 @@ def cmd_score(args):
                 print(f"  - {ax['direction']:38s} (z {ax['z']:+.2f}{sat}, {ax['axis']})")
         else:
             print("  - on-target: within the reference spread")
-    if not args.quiet and payload.get("politeness"):
+    if not quiet and payload.get("politeness"):
         pol = payload["politeness"]
         print(f"politeness strategies (reporting only, {pol['total']} fired):")
         for name, n in sorted(pol["strategies"].items(), key=lambda kv: -kv[1]):
             print(f"  - {name}: {n}")
-    if not args.quiet and payload.get("spans"):
+    if not quiet and payload.get("spans"):
         print("highest-leverage paragraphs:")
         for span in payload["spans"]:
             dz = f"{span['distance_z']:+.2f}" if span["distance_z"] is not None else "n/a"
@@ -420,7 +483,8 @@ def _require_draft_text(text: str, name: str) -> None:
     An empty draft is a user error, not a result (issue #152): score, check
     and accept call this right after reading the text and never reach the
     scoring layer. `name` is "draft" for score/check and the failing file's
-    path for accept. Exits directly instead of via _fail, which must only be
+    path for accept and multi-file score (issue #224). Exits directly instead
+    of via _fail, which must only be
     called from inside an `except` block (it prints the active traceback in
     debug mode), and there is no exception to show here.
     """
@@ -503,7 +567,11 @@ def main():
     ap = argparse.ArgumentParser(prog="timbro", description="Score a draft against your voice.")
     sub = ap.add_subparsers(dest="cmd", required=True)
     s = sub.add_parser("score", help="distance + named revision direction for a draft")
-    s.add_argument("file", help="path to the draft, or - for stdin")
+    s.add_argument(
+        "files",
+        nargs="+",
+        help="path(s) to the draft(s), or - for stdin (only as the sole input)",
+    )
     s.add_argument("--json", action="store_true", help="raw JSON payload")
     s.add_argument("--profile", help="named profile, or comma-separated profiles to compare")
     s.add_argument("--quiet", action="store_true", help="suppress explanatory prose")
