@@ -346,13 +346,15 @@ class ForceWordingTests(unittest.TestCase):
 
 class LearnRefusalExitCodeTests(unittest.TestCase):
     """A refused learn exits 3 in both modes; the bootstrap refusal stays 1
-    (#166 item 4). Printed bytes are unchanged."""
+    (#166 item 4). Printed bytes are unchanged, except that stderr now carries
+    the content guard's stage lines learn shares with accept (#225); stdout
+    payloads and exit codes are untouched."""
 
     def test_refused_learn_exits_3_in_text_mode(self):
         proc = _run_cli(["profiles", "learn", "demo", "--draft", "@FINAL", "--final", "@FINAL", "--title", "refused"])
         self.assertEqual(proc.returncode, 3, proc.stderr)
         self.assertEqual(proc.stdout, "")
-        self.assertTrue(proc.stderr.startswith("final (distance"), proc.stderr)
+        self.assertIn("final (distance", proc.stderr)
         self.assertIn(f"Use {_FORCE_HINT} to save anyway.", proc.stderr)
         self.assertNotIn("Traceback", proc.stderr)
 
@@ -361,7 +363,12 @@ class LearnRefusalExitCodeTests(unittest.TestCase):
             ["profiles", "learn", "demo", "--draft", "@FINAL", "--final", "@FINAL", "--title", "refused", "--json"]
         )
         self.assertEqual(proc.returncode, 3, proc.stderr)
-        self.assertEqual(proc.stderr, "")
+        # The refusal reason lives only in the JSON payload; stderr carries just
+        # the content guard's stage lines (shared with accept, issue #225).
+        self.assertEqual(
+            proc.stderr,
+            "timbro: encoding original...\ntimbro: encoding revised...\n",
+        )
         payload = json.loads(proc.stdout)
         self.assertIs(payload["saved"], False)
         self.assertIn(f"Use {_FORCE_HINT} to save anyway.", payload["reason"])
@@ -407,7 +414,7 @@ class SyncedEmptyBucketTests(unittest.TestCase):
             ["profiles", "learn", "demo", "--draft", "@FINAL", "--final", "@FINAL", "--title", "refused"]
         )
         self.assertEqual(proc.returncode, 3, proc.stderr)
-        self.assertTrue(proc.stderr.startswith("final (distance"), proc.stderr)
+        self.assertIn("final (distance", proc.stderr)
         self.assertIn(f"Use {_FORCE_HINT} to save anyway.", proc.stderr)
         self.assertNotIn("no exemplars to measure against yet", proc.stderr)
 

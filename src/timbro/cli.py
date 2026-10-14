@@ -284,6 +284,19 @@ def cmd_accept(args):
     revised = _read_text(args.revised)
     _require_draft_text(revised, args.revised)
     _require_draft_size(revised, args.revised)
+    # Stage progress on stderr (issue #225): accept loads three models -- the
+    # spaCy pipeline and the style embedder below, the content-similarity
+    # embedder inside evaluate_rewrite -- and on a cold machine their first-run
+    # downloads are silent minutes that read as a hang. This line opens the
+    # model-loading stage; profile validation happens inside fit_model and can
+    # still abort right after it. Stages never touch stdout, so the prose
+    # verdict line and the --json payload stay byte-identical; the model names
+    # mirror the loaders (spacy_model, model.embedding, text).
+    print(
+        "timbro: loading models: en_core_web_sm (spaCy), "
+        "StyleDistance/styledistance (style), all-MiniLM-L6-v2 (content)...",
+        file=sys.stderr,
+    )
     if args.profile:
         prof = get_profile(args.profile)
         model = prof.fit_model()
