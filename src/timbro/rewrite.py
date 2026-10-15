@@ -41,18 +41,11 @@ def evaluate_rewrite(model, original: str, revised: str, threshold: float = 0.85
     """Close the rewrite loop: a candidate is accepted only if it moved CLOSER to the
     voice AND kept the meaning. The engine lives in the calling agent; Timbro judges.
 
-    Stage progress goes to stderr as each stage starts (issue #225): a first run
-    downloads the content model and encodes two drafts before the verdict, and
-    that silence read as a hang. stderr keeps the caller's stdout contract
-    (prose verdict line, `--json` payload) byte-identical; `learn`'s guard shares
-    this path and reports the same stages.
+    Stage progress goes to stderr (issue #225); stdout is unchanged.
     """
     prepared_original = preprocess_runtime_text(original)
     prepared_revised = preprocess_runtime_text(revised)
-    # The content guard encodes the PAIR in one batched call (batched and
-    # single-text encodes can differ at the float level, and the similarity
-    # feeds the verdict gate), so the original's stage covers that encode; the
-    # revised's style encode starts at its line.
+    # printed before the guard: its one batched encode covers both texts
     print("timbro: encoding original...", file=sys.stderr)
     content_ok, sim = preserves_content(original, revised, threshold)
     before = model.score(prepared_original).distance
