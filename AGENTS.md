@@ -27,6 +27,30 @@ Issues are labeled by required capability: `agent:mechanical` = fully specified,
 - `uv run ruff check src/` — lint
 - Corpus env: `TIMBRO_EXEMPLARS` (toward) / `TIMBRO_CONTRAST` (away). Named profiles resolve in precedence order: `TIMBRO_PROFILE_ROOT` → `$TIMBRO_HOME/profiles/` (`TIMBRO_HOME` defaults to `~/.timbro`, and also holds `settings.json`), each holding `<name>/{exemplars,contrast}/`.
 
+### Worktree venvs
+
+Provisioning a fresh git-worktree venv re-downloads ~300MB of wheels (torch, sentence-transformers, spaCy, wordfreq, …) — the uv wheel cache is effectively empty on this machine and the link is slow (~40MB/min). Never delete `.venv` and re-sync; clone the main checkout's instead (APFS copy-on-write makes it instant), then re-point and repair it:
+
+```sh
+cp -Rc /path/to/main/repo/.venv .venv   # APFS clone, instant
+uv sync --frozen                        # re-points the editable timbro at this worktree's src
+# the clone inherited the donor's console-script shebangs — regenerate them (BSD sed, macOS):
+for f in .venv/bin/*; do
+  [ -f "$f" ] || continue
+  head -1 "$f" | grep -q '^#!.*\.venv/bin/python' || continue
+  sed -i '' "1s|^.*/\.venv/bin/python|$(pwd)/.venv/bin/python|" "$f"
+done
+```
+
+Then verify both probes:
+
+```sh
+uv run python -c 'import timbro; print(timbro.__file__)'   # must resolve inside this worktree
+head -1 .venv/bin/pytest                                   # shebang must name this worktree's .venv
+```
+
+**Warning:** without the shebang regeneration, `uv run pytest` silently boots the donor repo's interpreter — the suite runs against the main checkout's code, not the worktree's, and gates report green for the wrong tree (verified 2026-10-14).
+
 ## Releasing an update
 
 The plugin updater compares by **version string** — without a bump it won't pick up code changes (`already at latest version`). Run `scripts/release.sh <new-version>`; it bumps `plugin.json` + `pyproject.toml` in lockstep, rewrites the pinned `uvx timbro@<version>` reference in `skills/timbro/SKILL.md` and `skills/setup/SKILL.md`, commits, then tags + pushes `v<version>` (after confirming) to fire `publish.yml`'s PyPI publish. It refuses to run unless `main` already contains `origin/dev` and `CHANGELOG.md` has a `## [<version>]` section, so merge dev into main and write the changelog entry first. Read the script for the rest (marketplace clone, cache venv).
@@ -41,6 +65,7 @@ One-time prerequisite (already done for this repo, not part of `release.sh`): th
 - `TIMBRO_NO_LOG=1` disables the per-profile learn-event log (`<profile>/runs.jsonl`, appended by `profiles.learn()` via `profilelog.log_learn`). Unset by default (logging on); it overrides `no_log` in `$TIMBRO_HOME/settings.json`, read via `settings.no_log()`, and is never set in code.
 - Git does not track empty directories: a synced profile whose `contrast/` (or `exemplars/`) has no files arrives on other machines without that directory. Profile code treats a missing bucket directory as empty (#166).
 - Pin byte-level test output only on fixtures with clear margins: platform float differences of about 1% flip knife-edge fixtures between macOS and Linux (#142, fixed in #209).
+- A fresh worktree venv re-downloads ~300MB (uv cache is cold here, link ~40MB/min) — clone the main `.venv` (`cp -Rc`) instead of re-syncing, then fix the inherited console-script shebangs or `uv run pytest` silently tests the wrong checkout (recipe under [Worktree venvs](#worktree-venvs)).
 
 ## Agent skills
 
