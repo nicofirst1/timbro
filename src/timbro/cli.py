@@ -40,6 +40,11 @@ from timbro.settings import debug
 MAX_DRAFT_WORDS = 50_000
 
 
+def _profile_names(profile_arg: str) -> list[str]:
+    """Non-empty names from the comma-separated --profile value (#224)."""
+    return [name.strip() for name in profile_arg.split(",") if name.strip()]
+
+
 def cmd_score(args):
     files: list[str] = args.files
     # '-' reads stdin, so it means something only as the one input (issue
@@ -59,7 +64,7 @@ def cmd_score(args):
     _require_draft_size(text, "draft")
 
     if args.profile:
-        names = [name.strip() for name in args.profile.split(",") if name.strip()]
+        names = _profile_names(args.profile)
         rows = []
         for name in names:
             prof = get_profile(name)
@@ -113,7 +118,7 @@ def _score_many(args, files: list[str]) -> None:
         _require_draft_size(text, name)
         texts.append(text)
     if args.profile:
-        names = [name.strip() for name in args.profile.split(",") if name.strip()]
+        names = _profile_names(args.profile)
         if len(names) > 1:
             print(
                 "timbro: error: score accepts one file with several profiles, "
@@ -163,7 +168,7 @@ def _print_voice_report(payload: dict, quiet: bool) -> None:
     print("revise toward your voice:")
     for mv in payload["direction"]:
         print(f"  - {mv['hint']:24s} (confidence {mv['confidence']:.2f})")
-    if not quiet and payload.get("markdown"):
+    if payload.get("markdown"):
         off = [ax for ax in payload["markdown"] if ax["direction"]]
         print("markdown vs corpus:")
         if off:
@@ -172,7 +177,7 @@ def _print_voice_report(payload: dict, quiet: bool) -> None:
                 print(f"  - {ax['direction']:26s} (z {ax['z']:+.2f}{sat}, {ax['axis'][7:]})")
         else:
             print("  - on-target: every structure axis within corpus spread")
-    if not quiet and payload.get("hedge"):
+    if payload.get("hedge"):
         hoff = [ax for ax in payload["hedge"] if ax["direction"]]
         print("hedge/booster stance:")
         if hoff:
@@ -181,7 +186,7 @@ def _print_voice_report(payload: dict, quiet: bool) -> None:
                 print(f"  - {ax['direction']:38s} (z {ax['z']:+.2f}{sat}, {ax['axis']})")
         else:
             print("  - on-target: within the reference spread")
-    if not quiet and payload.get("fw"):
+    if payload.get("fw"):
         foff = [ax for ax in payload["fw"] if ax["direction"]]
         print("function words vs reference:")
         if foff:
@@ -190,7 +195,7 @@ def _print_voice_report(payload: dict, quiet: bool) -> None:
                 print(f"  - {ax['direction']:38s} (z {ax['z']:+.2f}{sat}, {ax['axis']})")
         else:
             print("  - on-target: within the reference spread")
-    if not quiet and payload.get("concreteness"):
+    if payload.get("concreteness"):
         coff = [ax for ax in payload["concreteness"] if ax["direction"]]
         print("concreteness:")
         if coff:
@@ -199,7 +204,7 @@ def _print_voice_report(payload: dict, quiet: bool) -> None:
                 print(f"  - {ax['direction']:38s} (z {ax['z']:+.2f}{sat}, {ax['axis']})")
         else:
             print("  - on-target: within the reference spread")
-    if not quiet and payload.get("richness"):
+    if payload.get("richness"):
         roff = [ax for ax in payload["richness"] if ax["direction"]]
         print("readability/richness/entropy:")
         if roff:
@@ -208,12 +213,12 @@ def _print_voice_report(payload: dict, quiet: bool) -> None:
                 print(f"  - {ax['direction']:38s} (z {ax['z']:+.2f}{sat}, {ax['axis']})")
         else:
             print("  - on-target: within the reference spread")
-    if not quiet and payload.get("politeness"):
+    if payload.get("politeness"):
         pol = payload["politeness"]
         print(f"politeness strategies (reporting only, {pol['total']} fired):")
         for name, n in sorted(pol["strategies"].items(), key=lambda kv: -kv[1]):
             print(f"  - {name}: {n}")
-    if not quiet and payload.get("spans"):
+    if payload.get("spans"):
         print("highest-leverage paragraphs:")
         for span in payload["spans"]:
             dz = f"{span['distance_z']:+.2f}" if span["distance_z"] is not None else "n/a"
