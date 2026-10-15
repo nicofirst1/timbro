@@ -150,9 +150,7 @@ def cosine(a: np.ndarray, b: np.ndarray) -> float:
 
 # ---- embedding ---------------------------------------------------------------
 
-# The general-purpose semantic embedder's hub name: the local-first loader below,
-# the first-run download notice, and the CLI's model-loading stage line (#225)
-# all name the same model, so it lives in one constant.
+# Hub name for the local-first loader below and its first-run download notice (#225).
 _CONTENT_MODEL = "all-MiniLM-L6-v2"
 
 
@@ -183,11 +181,8 @@ def _model():
     try:
         return SentenceTransformer(_CONTENT_MODEL, local_files_only=True)
     except Exception:  # noqa: BLE001 -- cache miss must not block the online fallback
-        # First-run download notice (#225), mirroring the spaCy loader's cold-start
-        # notice (spacy_model._install_and_load): the fallback download used to be
-        # silent, and an operator killed a healthy first accept run at 120 seconds
-        # believing it hung. stderr keeps every stdout contract clean, and firing
-        # here (not in the CLI) covers every command that triggers the download.
+        # A silent first-run download read as a hang (#225); fired here, not in
+        # the CLI, so every command that triggers the download announces it.
         print(
             f"timbro: downloading embedding model '{_CONTENT_MODEL}' (first run only)...",
             file=sys.stderr,
